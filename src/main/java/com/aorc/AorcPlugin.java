@@ -582,8 +582,8 @@ public class AorcPlugin extends Plugin
 			panel.post(lastData);
 		}
 
-		// Save about every 10 seconds when something changed
-		if (dirty && tick % 16 == 0)
+		// Save about every 2 seconds when something changed (3 ticks = 1.8 s)
+		if (dirty && tick % 3 == 0)
 		{
 			save();
 		}
