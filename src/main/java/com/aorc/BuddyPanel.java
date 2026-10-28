@@ -105,7 +105,7 @@ class BuddyPanel extends JPanel
 		if (!html.equals(text.getText()))
 		{
 			text.setText(html);
-			sprite.cheerUntil = sprite.frame + 25; // jump and shake the pom-poms on a new message
+			sprite.cheerUntil = sprite.frame + 38; // cheer for 3 s on a new message
 			if (message.contains("*spits*"))
 			{
 				sprite.spitStart = sprite.frame;
@@ -177,14 +177,47 @@ class BuddyPanel extends JPanel
 			setPreferredSize(new Dimension(W, H));
 		}
 
+		// idle cycle (12.5 frames per second): 10 s facing you, then 10 s turned and slowly looking around
+		private static final int FACE_TICKS = 125;
+		private static final int TURN_TICKS = 18;
+		private static final int LOOK_TICKS = 125;
+		private static final double LOOK_YAW = -22;
+
+		/** Idle yaw in degrees: 0 = facing you, negative = turned to the side. */
+		static double idleYaw(int frame)
+		{
+			int t = Math.floorMod(frame, FACE_TICKS + LOOK_TICKS);
+			if (t < FACE_TICKS)
+			{
+				return 0;
+			}
+			t -= FACE_TICKS;
+			if (t < TURN_TICKS)
+			{
+				return LOOK_YAW * ease(t / (double) TURN_TICKS);           // turn away
+			}
+			if (t >= LOOK_TICKS - TURN_TICKS)
+			{
+				return LOOK_YAW * ease((LOOK_TICKS - t) / (double) TURN_TICKS);   // turn back to you
+			}
+			// look around slowly: one slow swing left and right
+			double p = (t - TURN_TICKS) / (double) (LOOK_TICKS - 2 * TURN_TICKS);
+			return LOOK_YAW + 12 * Math.sin(2 * Math.PI * p);
+		}
+
+		private static double ease(double x)
+		{
+			return x * x * (3 - 2 * x);
+		}
+
 		/** Spit pose: lean back, snap forward, hold, back up (index 0-3), or -1 when done. */
 		private static int spitPose(int t)
 		{
-			if (t < 0 || t >= 10)
+			if (t < 0 || t >= 15)
 			{
 				return -1;
 			}
-			return t < 3 ? 0 : t < 5 ? 1 : t < 8 ? 2 : 3;
+			return t < 4 ? 0 : t < 7 ? 1 : t < 11 ? 2 : 3;
 		}
 
 		@Override
@@ -211,13 +244,13 @@ class BuddyPanel extends JPanel
 			}
 			else if (cheering)
 			{
-				idx = RuneyFrames.CHEER + frame % 8;
-				hop = Math.abs(Math.sin(frame / 2.5)) * 8;
+				idx = RuneyFrames.CHEER + (frame / 2) % 8;
+				hop = Math.abs(Math.sin(frame / 4.0)) * 7;
 			}
 			else
 			{
-				idx = RuneyFrames.IDLE + (frame / 2) % 8;
-				hop = Math.abs(Math.sin(frame / 4.0)) * 2;
+				idx = RuneyFrames.turnFrame(idleYaw(frame));
+				hop = Math.abs(Math.sin(frame / 9.0)) * 1.5;
 			}
 
 			// shadow (smaller when higher)
@@ -250,9 +283,9 @@ class BuddyPanel extends JPanel
 			float ny = top + nose.y + 6;
 
 			// spit across: a big drop flies out to the left, out of the panel (towards the game)
-			if (leftT >= 3 && leftT < 9)
+			if (leftT >= 5 && leftT < 13)
 			{
-				float t = (leftT - 3) / 5f;
+				float t = (leftT - 5) / 7f;
 				float sx = nx + (-14 - nx) * t;
 				float sy = ny - 26 * (float) Math.sin(Math.PI * t * 0.8f);
 				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 230));
@@ -263,9 +296,9 @@ class BuddyPanel extends JPanel
 
 			// spit: a drop flies out in an arc and splats on the ground to the right
 			float endX = W - 6;
-			if (spitT >= 3 && spitT < 15)
+			if (spitT >= 5 && spitT < 21)
 			{
-				float t = (spitT - 3) / 12f;
+				float t = (spitT - 5) / 15f;
 				float sx = nx + (endX - nx) * t;
 				float sy = ny + (GROUND - 2 - ny) * t - 16 * (float) Math.sin(Math.PI * t);
 				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 230));
@@ -274,9 +307,9 @@ class BuddyPanel extends JPanel
 				g2.fill(new Ellipse2D.Float(sx - 9, sy - 1, 4, 4));
 				g2.fill(new Ellipse2D.Float(sx - 13, sy + 1, 3, 3));
 			}
-			else if (spitT >= 15 && spitT < 25)
+			else if (spitT >= 21 && spitT < 33)
 			{
-				float fade = 1f - (spitT - 15) / 10f;
+				float fade = 1f - (spitT - 21) / 12f;
 				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), Math.round(200 * fade)));
 				float y = GROUND - 1;
 				g2.fill(new Ellipse2D.Float(endX - 8, y - 2, 16, 4));
