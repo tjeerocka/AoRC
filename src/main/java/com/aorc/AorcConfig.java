@@ -93,6 +93,18 @@ public interface AorcConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "showBuddy",
+		name = "Hype buddy",
+		description = "Show Runey, a little rune buddy at the bottom of the side panel who cheers you on",
+		section = mainSection,
+		position = 8
+	)
+	default boolean showBuddy()
+	{
+		return true;
+	}
+
 	// ---- Goals ----
 
 	@ConfigSection(

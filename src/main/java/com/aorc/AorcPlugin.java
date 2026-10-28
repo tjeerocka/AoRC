@@ -190,6 +190,10 @@ public class AorcPlugin extends Plugin
 	{
 		save();
 		overlayManager.remove(overlay);
+		if (panel != null)
+		{
+			panel.stop();
+		}
 		clientToolbar.removeNavigation(navButton);
 		navShown = false;
 		session.reset();
@@ -453,6 +457,8 @@ public class AorcPlugin extends Plugin
 		d.allRunes = all.getRunes();
 		d.allMillis = all.getActiveMillis() + live;
 		d.days = history.dayCount();
+		d.showBuddy = config.showBuddy();
+		d.buddyRuneId = lastCraftedRune;
 		return d;
 	}
 

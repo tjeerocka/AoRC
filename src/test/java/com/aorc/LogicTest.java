@@ -105,6 +105,43 @@ public class LogicTest
 	}
 
 	@Test
+	public void hypeBuddyMessages()
+	{
+		HypeBuddy b = new HypeBuddy();
+		PanelData d = new PanelData();
+		d.currentLevel = 86;
+		d.goalLevel = 99;
+		d.goalLevelMillis = 3_600_000L * 200;
+		d.todayRunes = 500;
+		d.bestRunes = 500;
+		d.days = 1;
+
+		// first: hello
+		assertTrue(b.message(d, 0).startsWith("Hi! I'm Runey"));
+		// after 10 s: a tip about the goal / runes
+		String tip = b.message(d, 10_000);
+		assertFalse(tip.startsWith("Hi!"));
+
+		// a trip finished: event message
+		d.trips = 1;
+		d.lastTripMillis = 267_000;
+		d.fastestTripMillis = 267_000;
+		assertEquals("Trip done! 4m 27s. Nice one!", b.message(d, 11_000));
+		// second trip, new fastest
+		d.trips = 2;
+		d.lastTripMillis = 250_000;
+		d.fastestTripMillis = 250_000;
+		assertTrue(b.message(d, 12_000).startsWith("New fastest trip! 4m 10s"));
+		// event stays for 15 s, then tips again
+		assertTrue(b.message(d, 20_000).startsWith("New fastest trip!"));
+		assertFalse(b.message(d, 40_000).startsWith("New fastest trip!"));
+
+		// essence almost empty is in the tips
+		d.essenceCharges = 50;
+		assertTrue(b.tips(d).get(0).contains("almost empty"));
+	}
+
+	@Test
 	public void activityStartsTimer()
 	{
 		RuneSession s = new RuneSession();

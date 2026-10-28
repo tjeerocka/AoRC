@@ -35,12 +35,15 @@ class AorcPanel extends PluginPanel
 	private final JPanel goalsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel runesPanel = new JPanel();
 	private final JLabel emptyLabel = new JLabel("Craft some runes to start.");
+	private final BuddyPanel buddy;
+	private final HypeBuddy hype = new HypeBuddy();
 
 	@Inject
 	AorcPanel(AorcPlugin plugin, ItemManager itemManager, ClientThread clientThread)
 	{
 		super(false);
 		this.itemManager = itemManager;
+		this.buddy = new BuddyPanel(itemManager);
 
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -112,11 +115,21 @@ class AorcPanel extends PluginPanel
 		buttons.add(button("Reset bonus runes", () -> clientThread.invokeLater(plugin::resetBonusRunes)));
 		buttons.add(button("Reset all", () -> clientThread.invokeLater(plugin::resetAll)));
 		content.add(buttons);
+		content.add(spacer(10));
+
+		buddy.setAlignmentX(LEFT_ALIGNMENT);
+		content.add(buddy);
 
 		add(content, BorderLayout.NORTH);
 
 		emptyLabel.setForeground(Color.GRAY);
 		update(new PanelData());
+	}
+
+	/** Stop the buddy animation (plugin turned off). */
+	void stop()
+	{
+		buddy.stop();
 	}
 
 	/** Call from any thread; the panel updates on the Swing thread. */
@@ -199,6 +212,13 @@ class AorcPanel extends PluginPanel
 		{
 			runesPanel.add(runeRow(r));
 			runesPanel.add(spacer(3));
+		}
+
+		buddy.setVisible(d.showBuddy);
+		if (d.showBuddy)
+		{
+			buddy.setRune(d.buddyRuneId);
+			buddy.setMessage(hype.message(d, System.currentTimeMillis()));
 		}
 
 		revalidate();

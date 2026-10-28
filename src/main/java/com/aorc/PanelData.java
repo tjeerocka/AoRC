@@ -60,6 +60,10 @@ public final class PanelData
 	public int bloodLeft;
 	public long goalBloodMillis = -1;
 
+	// Hype buddy
+	public boolean showBuddy = true;
+	public int buddyRuneId = RuneIds.BLOOD_RUNE;
+
 	// History
 	public int todayRunes;
 	public long todayMillis;
