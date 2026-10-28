@@ -117,6 +117,18 @@ public interface AorcConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "testSpit",
+		name = "Test spit (tick me)",
+		description = "Tick this to see Runey spit on your character once (any account type). It unticks itself.",
+		section = mainSection,
+		position = 10
+	)
+	default boolean testSpit()
+	{
+		return false;
+	}
+
 	// ---- Goals ----
 
 	@ConfigSection(

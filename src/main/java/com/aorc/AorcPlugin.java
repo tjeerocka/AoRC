@@ -26,6 +26,7 @@ import net.runelite.client.Notifier;
 import net.runelite.client.RuneLite;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
@@ -370,7 +371,19 @@ public class AorcPlugin extends Plugin
 		return json == null ? null : gson.fromJson(json, type);
 	}
 
-	/** Right-click the overlay, "Test spit": shows the spit on any account type. */
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		// "Test spit (tick me)": spit once, then untick the box again
+		if (AorcConfig.GROUP.equals(event.getGroup()) && "testSpit".equals(event.getKey())
+			&& "true".equals(event.getNewValue()))
+		{
+			testSpit();
+			configManager.setConfiguration(AorcConfig.GROUP, "testSpit", false);
+		}
+	}
+
+	/** Shows the spit on any account type (settings "Test spit" or overlay menu). */
 	public void testSpit()
 	{
 		spitOverlay.spit(lastCraftedRune);
