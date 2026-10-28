@@ -23,8 +23,8 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
-	name = "Amount of Runes Created",
-	description = "Counts runes crafted per hour (blood runes first), RC xp/hr and active rune bonuses",
+	name = "AoRC",
+	description = "Amount of Runes Created - counts runes crafted per hour (blood runes first), RC xp/hr and active rune bonuses",
 	tags = {"aorc", "runecraft", "runecrafting", "blood", "runes", "rc", "arceuus"}
 )
 public class AorcPlugin extends Plugin
