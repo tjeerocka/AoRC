@@ -7,26 +7,53 @@ import java.util.Map;
 /**
  * Holds the numbers for one runecrafting session.
  * Time is passed in (milliseconds), so this class is easy to test.
+ *
+ * Active time is counted in parts ("segments"). A segment ends when you are idle
+ * longer than the idle timeout, or when the session is saved and loaded again.
+ * So time spent idle or logged out does not count for "per hour".
  */
 public class RuneSession
 {
+	/** Data written to disk between RuneLite sessions. */
+	public static class Saved
+	{
+		Map<Integer, Integer> runes = new LinkedHashMap<>();
+		int xp;
+		int blocks;
+		int crafts;
+		long activeMillis;
+	}
+
 	private final Map<Integer, Integer> runesCrafted = new LinkedHashMap<>();
-	private long startMillis = -1;
+	private long bankedMillis;          // active time from earlier segments
+	private long segmentStart = -1;     // start of the current segment
 	private long lastActionMillis = -1;
+	private long idleTimeoutMillis = 5 * 60_000L;
 	private int xpGained;
 	private int blocksImbued;
 	private int crafts;
 
+	public void setIdleTimeoutMillis(long idleTimeoutMillis)
+	{
+		this.idleTimeoutMillis = idleTimeoutMillis;
+	}
+
 	public boolean isStarted()
 	{
-		return startMillis >= 0;
+		return segmentStart >= 0 || bankedMillis > 0 || crafts > 0 || xpGained > 0 || !runesCrafted.isEmpty();
 	}
 
 	private void touch(long now)
 	{
-		if (startMillis < 0)
+		if (segmentStart < 0)
 		{
-			startMillis = now;
+			segmentStart = now;
+		}
+		else if (lastActionMillis >= 0 && now - lastActionMillis > idleTimeoutMillis)
+		{
+			// Back after a break: keep the old active time, do not count the break.
+			bankedMillis += lastActionMillis - segmentStart;
+			segmentStart = now;
 		}
 		lastActionMillis = Math.max(lastActionMillis, now);
 	}
@@ -76,17 +103,18 @@ public class RuneSession
 	}
 
 	/**
-	 * Time used for "per hour". While active this is start..now.
+	 * Active time used for "per hour". While active the current segment runs until now.
 	 * When idle it stops at the last action, so the rate does not drop while you are away.
 	 */
 	public long elapsedMillis(long now, long timeoutMillis)
 	{
-		if (startMillis < 0)
+		long total = bankedMillis;
+		if (segmentStart >= 0)
 		{
-			return 0;
+			long end = isIdle(now, timeoutMillis) ? lastActionMillis : now;
+			total += Math.max(0, end - segmentStart);
 		}
-		long end = isIdle(now, timeoutMillis) ? lastActionMillis : now;
-		return Math.max(0, end - startMillis);
+		return total;
 	}
 
 	public static int perHour(long amount, long elapsedMillis)
@@ -136,10 +164,41 @@ public class RuneSession
 	public void reset()
 	{
 		runesCrafted.clear();
-		startMillis = -1;
+		bankedMillis = 0;
+		segmentStart = -1;
 		lastActionMillis = -1;
 		xpGained = 0;
 		blocksImbued = 0;
 		crafts = 0;
+	}
+
+	/** Snapshot for saving. */
+	public Saved save(long now)
+	{
+		Saved s = new Saved();
+		s.runes = new LinkedHashMap<>(runesCrafted);
+		s.xp = xpGained;
+		s.blocks = blocksImbued;
+		s.crafts = crafts;
+		s.activeMillis = elapsedMillis(now, idleTimeoutMillis);
+		return s;
+	}
+
+	/** Restore a saved session. The timer continues at the next action. */
+	public void load(Saved s)
+	{
+		reset();
+		if (s == null)
+		{
+			return;
+		}
+		if (s.runes != null)
+		{
+			runesCrafted.putAll(s.runes);
+		}
+		xpGained = s.xp;
+		blocksImbued = s.blocks;
+		crafts = s.crafts;
+		bankedMillis = Math.max(0, s.activeMillis);
 	}
 }

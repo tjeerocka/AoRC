@@ -68,15 +68,86 @@ public class LogicTest
 	}
 
 	@Test
+	public void breakDoesNotCount()
+	{
+		RuneSession s = new RuneSession();
+		s.setIdleTimeoutMillis(300_000);
+		// 10 min active (actions every 4 min or less)
+		for (long t : new long[]{0, 240_000, 480_000, 600_000})
+		{
+			s.addRunes(RuneIds.BLOOD_RUNE, 100, t);
+		}
+		// 1 hour break, then 10 more minutes
+		for (long t : new long[]{4_200_000, 4_440_000, 4_680_000, 4_800_000})
+		{
+			s.addRunes(RuneIds.BLOOD_RUNE, 100, t);
+		}
+		assertEquals(1_200_000, s.elapsedMillis(4_800_000, 300_000)); // 20 min, not 80
+	}
+
+	@Test
+	public void saveAndLoad()
+	{
+		RuneSession a = new RuneSession();
+		a.addRunes(RuneIds.BLOOD_RUNE, 400, 0);
+		a.addCraft(0);
+		a.addXp(5000, 0);
+		a.addBlocksImbued(52, 240_000);
+		a.addXp(10, 480_000);
+		a.addXp(10, 720_000);
+		a.addRunes(RuneIds.BLOOD_RUNE, 400, 900_000);
+		a.addCraft(900_000);
+		RuneSession.Saved saved = a.save(900_000);
+
+		RuneSession b = new RuneSession();
+		b.load(saved);
+		assertTrue(b.isStarted());
+		assertEquals(800, b.getRunes(RuneIds.BLOOD_RUNE));
+		assertEquals(2, b.getCrafts());
+		assertEquals(5020, b.getXpGained());
+		assertEquals(52, b.getBlocksImbued());
+		// before playing again: time is frozen at the saved 15 min
+		assertEquals(900_000, b.elapsedMillis(99_999_999, 300_000));
+		// play 5 more minutes after loading (next day): 15 + 5 = 20 min
+		b.addRunes(RuneIds.BLOOD_RUNE, 100, 50_000_000);
+		b.addRunes(RuneIds.BLOOD_RUNE, 100, 50_300_000);
+		assertEquals(1_200_000, b.elapsedMillis(50_300_000, 300_000));
+		assertEquals(1000, b.getRunes(RuneIds.BLOOD_RUNE));
+	}
+
+	@Test
+	public void totalsSeparateResets()
+	{
+		RuneTotals t = new RuneTotals();
+		t.addCraft(RuneIds.BLOOD_RUNE, 190, 90);   // 100 base + 90 bonus
+		t.addCraft(RuneIds.BLOOD_RUNE, 160, 60);   // 100 base + 60 bonus (gear swapped)
+		assertEquals(350, t.getRunes(RuneIds.BLOOD_RUNE));
+		assertEquals(150, t.getBonusRunes());
+
+		t.resetBonus();
+		assertEquals(0, t.getBonusRunes());
+		assertEquals(350, t.getRunes(RuneIds.BLOOD_RUNE)); // runes kept
+
+		t.addCraft(RuneIds.BLOOD_RUNE, 190, 90);
+		t.resetRunes();
+		assertEquals(0, t.getRunes(RuneIds.BLOOD_RUNE));
+		assertEquals(90, t.getBonusRunes());               // bonus kept
+
+		RuneTotals u = new RuneTotals();
+		u.load(t.save());
+		assertEquals(90, u.getBonusRunes());
+	}
+
+	@Test
 	public void sessionAndIdle()
 	{
 		RuneSession s = new RuneSession();
 		assertFalse(s.isStarted());
 		s.addRunes(RuneIds.BLOOD_RUNE, 204, 0);
 		s.addCraft(0);
+		s.addBlocksImbued(26, 240_000);
 		s.addRunes(RuneIds.BLOOD_RUNE, 210, 480_000);
 		s.addCraft(480_000);
-		s.addBlocksImbued(26, 400_000);
 		assertTrue(s.isStarted());
 		assertEquals(414, s.getRunes(RuneIds.BLOOD_RUNE));
 		assertEquals(2, s.getCrafts());

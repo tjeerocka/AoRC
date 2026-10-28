@@ -32,17 +32,21 @@ class AorcOverlay extends OverlayPanel
 		this.config = config;
 		this.itemManager = itemManager;
 		setPosition(OverlayPosition.TOP_LEFT);
-		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset", "AoRC", e -> plugin.resetSession());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset per hour", "AoRC", e -> plugin.resetRates());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset blood runes", "AoRC", e -> plugin.resetRuneCount());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset bonus runes", "AoRC", e -> plugin.resetBonusRunes());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset all", "AoRC", e -> plugin.resetAll());
 	}
 
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
 		RuneSession s = plugin.getSession();
+		RuneTotals t = plugin.getTotals();
 		long now = System.currentTimeMillis();
 		long timeout = plugin.idleTimeoutMillis();
 
-		if (!s.isStarted() || s.isIdle(now, timeout))
+		if ((!s.isStarted() && t.getRunes().isEmpty()) || s.isIdle(now, timeout))
 		{
 			return null;
 		}
@@ -55,24 +59,23 @@ class AorcOverlay extends OverlayPanel
 			.build());
 
 		// Blood runes always first
-		int blood = s.getRunes(RuneIds.BLOOD_RUNE);
-		if (blood > 0 || !config.showAllRunes())
-		{
-			line("Blood runes", fmt(blood), BLOOD);
-			line("Blood / hr", rate(blood, elapsed), BLOOD);
-		}
+		// Count = own counter (own reset). Per hour = rate session (Reset per hour).
+		line("Blood runes", fmt(t.getRunes(RuneIds.BLOOD_RUNE)), BLOOD);
+		line("Blood / hr", rate(s.getRunes(RuneIds.BLOOD_RUNE), elapsed), BLOOD);
 
 		if (config.showAllRunes())
 		{
-			for (Map.Entry<Integer, Integer> e : s.getRunesCrafted().entrySet())
+			java.util.Set<Integer> types = new java.util.LinkedHashSet<>(t.getRunes().keySet());
+			types.addAll(s.getRunesCrafted().keySet());
+			for (int id : types)
 			{
-				if (e.getKey() == RuneIds.BLOOD_RUNE)
+				if (id == RuneIds.BLOOD_RUNE)
 				{
 					continue;
 				}
-				String name = RuneIds.RUNES.get(e.getKey());
-				line(name + " runes", fmt(e.getValue()), Color.WHITE);
-				line(name + " / hr", rate(e.getValue(), elapsed), Color.WHITE);
+				String name = RuneIds.RUNES.get(id);
+				line(name + " runes", fmt(t.getRunes(id)), Color.WHITE);
+				line(name + " / hr", rate(s.getRunes(id), elapsed), Color.WHITE);
 			}
 			if (s.getRunesCrafted().size() > 1)
 			{
@@ -112,8 +115,7 @@ class AorcOverlay extends OverlayPanel
 			{
 				line("  " + b.name, "+" + b.percent + "%", Color.GRAY);
 			}
-			int crafted = s.getRunes(plugin.getLastCraftedRune());
-			line("Bonus runes", fmt(BonusCalculator.estimatedBonusRunes(crafted, total)), BONUS);
+			line("Bonus runes", fmt(t.getBonusRunes()), BONUS);
 		}
 
 		return super.render(graphics);

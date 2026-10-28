@@ -1,5 +1,6 @@
 package com.aorc;
 
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -41,8 +43,25 @@ public class AorcPlugin extends Plugin
 	@Inject
 	private AorcOverlay overlay;
 
+	@Inject
+	private ConfigManager configManager;
+
+	@Inject
+	private Gson gson;
+
+	private static final String KEY_SESSION = "savedSession";
+	private static final String KEY_TOTALS = "savedTotals";
+
+	/** Per-hour numbers (rate timer, xp, runes for /hr, GP). */
 	@Getter
 	private final RuneSession session = new RuneSession();
+
+	/** Rune counts and bonus runes, each with its own reset. */
+	@Getter
+	private final RuneTotals totals = new RuneTotals();
+
+	// true when something changed that should be saved
+	private boolean dirty;
 
 	// What we saw in the inventory last time (runes + essence blocks only)
 	private Map<Integer, Integer> lastInventory;
@@ -75,19 +94,90 @@ public class AorcPlugin extends Plugin
 	{
 		overlayManager.add(overlay);
 		clearTracking();
+		if (client.getGameState() == GameState.LOGGED_IN)
+		{
+			load();
+		}
 	}
 
 	@Override
 	protected void shutDown()
 	{
+		save();
 		overlayManager.remove(overlay);
 		session.reset();
+		totals.resetRunes();
+		totals.resetBonus();
 		clearTracking();
 	}
 
-	public void resetSession()
+	/** Reset Blood/hr, RC xp/hr and GP/hr (the timer starts again). */
+	public void resetRates()
 	{
 		session.reset();
+		save();
+	}
+
+	/** Reset the rune counts (Blood runes and other rune types). */
+	public void resetRuneCount()
+	{
+		totals.resetRunes();
+		save();
+	}
+
+	/** Reset the bonus runes count. */
+	public void resetBonusRunes()
+	{
+		totals.resetBonus();
+		save();
+	}
+
+	public void resetAll()
+	{
+		session.reset();
+		totals.resetRunes();
+		totals.resetBonus();
+		save();
+	}
+
+	// ---- saving between sessions (per account) ----
+
+	private void save()
+	{
+		dirty = false;
+		if (configManager.getRSProfileKey() == null)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION, gson.toJson(session.save(now)));
+		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS, gson.toJson(totals.save()));
+	}
+
+	private void load()
+	{
+		session.setIdleTimeoutMillis(idleTimeoutMillis());
+		try
+		{
+			String s = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION);
+			session.load(s == null ? null : gson.fromJson(s, RuneSession.Saved.class));
+			String t = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS);
+			totals.load(t == null ? null : gson.fromJson(t, RuneTotals.Saved.class));
+		}
+		catch (RuntimeException e)
+		{
+			// Broken saved data: start clean instead of crashing
+			session.reset();
+			totals.load(null);
+		}
+		dirty = false;
+	}
+
+	@Subscribe
+	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
+	{
+		// Logged in (or switched account): load that account's saved numbers
+		load();
 	}
 
 	public long idleTimeoutMillis()
@@ -108,6 +198,10 @@ public class AorcPlugin extends Plugin
 		GameState state = event.getGameState();
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
+			if (dirty)
+			{
+				save();
+			}
 			// Inventory and xp are sent again after login; do not count them as crafted.
 			clearTracking();
 		}
@@ -126,6 +220,7 @@ public class AorcPlugin extends Plugin
 		{
 			startNewSessionIfIdle();
 			session.addXp(xp - lastRcXp, System.currentTimeMillis());
+			dirty = true;
 			lastXpTick = tick;
 		}
 		lastRcXp = xp;
@@ -162,6 +257,13 @@ public class AorcPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
 		tick++;
+		session.setIdleTimeoutMillis(idleTimeoutMillis());
+
+		// Save about every 10 seconds when something changed
+		if (dirty && tick % 16 == 0)
+		{
+			save();
+		}
 
 		if (pendingGains.isEmpty())
 		{
@@ -183,18 +285,28 @@ public class AorcPlugin extends Plugin
 				{
 					session.addRunes(id, amount, now);
 					lastCraftedRune = id;
+					// Bonus % right now, for this rune type
+					int pct = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(
+						id == RuneIds.BLOOD_RUNE, raimentsPieces, lantern, bloodEssenceActive, config.eliteDiary()));
+					totals.addCraft(id, amount, pct);
 					madeRunes = true;
+					dirty = true;
 				}
 				else if (id == RuneIds.DARK_ESSENCE_BLOCK)
 				{
 					// Dense -> dark at the Dark Altar (2.5 xp each, already in the xp total)
 					session.addBlocksImbued(amount, now);
+					dirty = true;
 				}
 			}
 
 			if (madeRunes)
 			{
 				session.addCraft(now);
+			}
+			if (dirty)
+			{
+				save();
 			}
 		}
 
@@ -205,6 +317,7 @@ public class AorcPlugin extends Plugin
 	{
 		if (config.resetOnIdle() && session.isIdle(System.currentTimeMillis(), idleTimeoutMillis()))
 		{
+			// Only the per-hour numbers start again; rune and bonus counts stay
 			session.reset();
 		}
 	}
