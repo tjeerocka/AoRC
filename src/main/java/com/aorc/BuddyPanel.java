@@ -86,6 +86,11 @@ class BuddyPanel extends JPanel
 			if (isShowing())
 			{
 				sprite.frame++;
+				// mains: Runey spits on his own about every 8 seconds
+				if (sprite.type == AccountType.MAIN && sprite.frame % 100 == 50)
+				{
+					sprite.spitStart = sprite.frame;
+				}
 				sprite.repaint();
 			}
 		});
@@ -240,15 +245,34 @@ class BuddyPanel extends JPanel
 				g2.drawArc((int) (cx - 6), (int) (mouthY - 4), 12, 7, 200, 140);
 			}
 
-			// spit: a little drop flying out to the right
+			// spit: a drop flies out in an arc and splats on the ground to the right
 			if (spitT >= 2 && spitT < 16)
 			{
-				float t = spitT - 2;
-				float sx = cx + 4 + t * 2.6f;
-				float sy = mouthY + 1 - t * 1.6f + t * t * 0.18f;
-				g2.setColor(new Color(170, 210, 240, 220));
-				g2.fill(new Ellipse2D.Float(sx, sy, 4, 4));
-				g2.fill(new Ellipse2D.Float(sx - 3, sy + 1, 2.5f, 2.5f));
+				float t = (spitT - 2) / 13f;                 // 0..1 over the flight
+				float startX = cx + 4;
+				float startY = mouthY + 1;
+				float endX = cx + 34;
+				float endY = groundY - 2;
+				float sx = startX + (endX - startX) * t;
+				float sy = startY + (endY - startY) * t - 16 * (float) Math.sin(Math.PI * t);
+				g2.setColor(new Color(175, 215, 245, 230));
+				g2.fill(new Ellipse2D.Float(sx - 4, sy - 4, 8, 8));
+				// little trail
+				g2.setColor(new Color(175, 215, 245, 140));
+				g2.fill(new Ellipse2D.Float(sx - 9, sy - 1, 4, 4));
+				g2.fill(new Ellipse2D.Float(sx - 13, sy + 1, 3, 3));
+			}
+			else if (spitT >= 16 && spitT < 26)
+			{
+				// splat on the ground
+				float fade = 1f - (spitT - 16) / 10f;
+				g2.setColor(new Color(175, 215, 245, Math.round(200 * fade)));
+				float x = cx + 34;
+				float y = groundY - 1;
+				g2.fill(new Ellipse2D.Float(x - 8, y - 2, 16, 4));
+				g2.fill(new Ellipse2D.Float(x - 9, y - 4, 3, 3));
+				g2.fill(new Ellipse2D.Float(x + 6, y - 5, 3, 3));
+				g2.fill(new Ellipse2D.Float(x - 1, y - 6, 2, 2));
 			}
 
 			g2.dispose();
