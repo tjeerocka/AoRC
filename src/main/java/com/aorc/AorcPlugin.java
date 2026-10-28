@@ -414,7 +414,22 @@ public class AorcPlugin extends Plugin
 	@Subscribe
 	public void onClientShutdown(ClientShutdown event)
 	{
-		// RuneLite is closing: save everything now
+		// RuneLite is closing: if the last craft just happened (same tick),
+		// finish that trip first, then save everything
+		if (essenceEmptied)
+		{
+			int runes = 0;
+			for (Map.Entry<Integer, Integer> e : pendingGains.entrySet())
+			{
+				if (RuneIds.isRune(e.getKey()))
+				{
+					runes += e.getValue();
+				}
+			}
+			trips.onCraft(runes);
+			essenceEmptied = false;
+			trips.onEssenceEmpty(System.currentTimeMillis());
+		}
 		save();
 	}
 
