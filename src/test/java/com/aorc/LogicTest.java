@@ -262,6 +262,14 @@ public class LogicTest
 		t.reset();
 		assertEquals(0, t.getTrips());
 		assertEquals(-1, t.getAvgTripMillis());
+
+		// Login with an empty inventory: the first trip counts
+		TripTracker f = new TripTracker();
+		f.onStartEmpty(0);
+		f.onCraft(204);
+		f.onEssenceEmpty(480_000);
+		assertEquals(1, f.getTrips());
+		assertEquals(480_000, f.getLastTripMillis());
 	}
 
 	@Test

@@ -39,6 +39,16 @@ public class TripTracker
 		}
 	}
 
+	/** The inventory had no essence when we first saw it (login): a full trip can start now. */
+	public void onStartEmpty(long now)
+	{
+		if (s.tripStart < 0)
+		{
+			s.tripStart = now;
+			s.currentRunes = 0;
+		}
+	}
+
 	/** The inventory has no essence left (after the last craft of a trip). */
 	public void onEssenceEmpty(long now)
 	{

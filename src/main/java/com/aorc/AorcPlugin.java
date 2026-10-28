@@ -474,6 +474,12 @@ public class AorcPlugin extends Plugin
 			bloodEssenceActive = now.getOrDefault(RuneIds.BLOOD_ESSENCE_ACTIVE, 0) > 0;
 			inactiveEssence = now.getOrDefault(RuneIds.BLOOD_ESSENCE, 0);
 
+			if (lastInventory == null && essenceCount(now) == 0)
+			{
+				// Logged in with no essence: the next trip is a full trip
+				trips.onStartEmpty(System.currentTimeMillis());
+			}
+
 			if (lastInventory != null)
 			{
 				int activeBefore = lastInventory.getOrDefault(RuneIds.BLOOD_ESSENCE_ACTIVE, 0);
