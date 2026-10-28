@@ -18,7 +18,7 @@ Blood runes are shown first. Other rune types can be shown too.
 - All rune types with icon, count and per hour (ZMI: every rune type shows up here)
 - RC xp/hr, GP/hr, **Profit/hr** (GP minus blood essence used), bonus multiplier
 - **Blood essence charges** left (exact after "Check", ~ = estimate)
-- **Trips**: trips, average runes per trip, average and fastest trip time
+- **Trips**: a trip ends when your inventory has no essence left. Every trip counts; a trip whose start was not seen (login / restart mid-trip) counts without a time. After a restart mid-trip the same trip continues.
 - **Goals**: time to your Runecraft level goal and blood rune goal
 - **History**: today, best day and all time (runes + time spent)
 

@@ -5,7 +5,9 @@ package com.aorc;
  * A trip ends when the inventory has no essence left (no dense/dark blocks, fragments,
  * rune, pure or daeyalt essence) - that is right after the last craft at the altar.
  * Trip time = from one "essence empty" moment to the next.
- * Runes crafted before the first "empty" moment are a half trip and are not counted.
+ * A half trip (its start was not seen) still counts as a trip with its runes,
+ * but without a time (it is left out of the average and fastest time).
+ * After a restart in the middle of a trip, the same trip continues (closed time not counted).
  */
 public class TripTracker
 {
@@ -26,6 +28,7 @@ public class TripTracker
 		long lastTripMillis = -1;
 		long tripStart = -1;     // last "essence empty" moment, -1 = not started yet
 		int currentRunes;        // runes in the trip in progress
+		long currentMillis;      // time of the trip in progress when saved (to continue after a restart)
 	}
 
 	private Saved s = new Saved();
@@ -42,11 +45,14 @@ public class TripTracker
 	/** The inventory had no essence when we first saw it (login): a full trip can start now. */
 	public void onStartEmpty(long now)
 	{
-		if (s.tripStart < 0)
+		if (s.currentRunes > 0)
 		{
-			s.tripStart = now;
-			s.currentRunes = 0;
+			// a trip with runes was still open: it ended (essence is gone)
+			onEssenceEmpty(now);
+			return;
 		}
+		s.tripStart = now;
+		s.currentRunes = 0;
 	}
 
 	/** The inventory has no essence left (after the last craft of a trip). */
@@ -54,7 +60,14 @@ public class TripTracker
 	{
 		if (s.tripStart < 0)
 		{
-			// First empty moment: the trip before this was only partly seen
+			// Half trip (start not seen): counts with its runes, but without a time
+			if (s.currentRunes > 0)
+			{
+				s.trips++;
+				s.tripRunes += s.currentRunes;
+				s.lastTripRunes = s.currentRunes;
+				s.lastTripMillis = -1;
+			}
 			s.tripStart = now;
 			s.currentRunes = 0;
 			return;
@@ -144,7 +157,13 @@ public class TripTracker
 
 	public Saved save()
 	{
+		return save(System.currentTimeMillis());
+	}
+
+	public Saved save(long now)
+	{
 		Saved c = new Saved();
+		c.currentMillis = s.tripStart < 0 ? 0 : Math.max(0, now - s.tripStart);
 		c.trips = s.trips;
 		c.tripRunes = s.tripRunes;
 		c.timedTrips = s.timedTrips;
@@ -159,9 +178,15 @@ public class TripTracker
 
 	public void load(Saved saved)
 	{
+		load(saved, System.currentTimeMillis());
+	}
+
+	/** Continue the trip in progress; the time the client was closed does not count. */
+	public void load(Saved saved, long now)
+	{
 		s = saved == null ? new Saved() : saved;
-		// Time while the client was closed must not count: start fresh at the next empty moment
-		s.tripStart = -1;
-		s.currentRunes = 0;
+		s.tripStart = s.tripStart < 0 && s.currentRunes == 0 && s.currentMillis == 0
+			? -1
+			: now - Math.max(0, s.currentMillis);
 	}
 }

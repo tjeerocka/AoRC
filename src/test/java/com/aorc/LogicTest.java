@@ -309,51 +309,45 @@ public class LogicTest
 	public void tripStats()
 	{
 		TripTracker t = new TripTracker();
-		// Started mid-trip: these runes are a half trip, not counted
+		// Started mid-trip: counts as a trip with its runes, but without a time
 		t.onCraft(150);
 		t.onEssenceEmpty(0);
-		assertEquals(0, t.getTrips());
+		assertEquals(1, t.getTrips());
+		assertEquals(-1, t.getLastTripMillis());
+		assertEquals(-1, t.getAvgTripMillis());
 
-		// Trip 1 (8 min): fragments craft + blocks craft
+		// Trip 2 (8 min): fragments craft + blocks craft
 		t.onCraft(100);
 		t.onCraft(104);
 		t.onEssenceEmpty(480_000);
-		// Trip 2 (7 min)
+		// Trip 3 (7 min)
 		t.onCraft(210);
 		t.onEssenceEmpty(900_000);
 		// Emptied again 20s later (pouch refill): same trip, nothing changes
 		t.onCraft(10);
 		t.onEssenceEmpty(920_000);
 
-		assertEquals(2, t.getTrips());
-		assertEquals((204 + 210) / 2, t.getAvgRunes());
-		assertEquals(450_000, t.getAvgTripMillis());
+		assertEquals(3, t.getTrips());
+		assertEquals((150 + 204 + 210) / 3, t.getAvgRunes());
+		assertEquals(450_000, t.getAvgTripMillis());     // only the timed trips
 		assertEquals(420_000, t.getFastestMillis());
 		assertEquals(420_000, t.getLastTripMillis());
 
-		// Trip 3 after a 1 hour break: counted, but its time is not used
+		// Trip 4 after a 1 hour break: counted, but its time is not used
 		t.onEssenceEmpty(900_000 + 3_600_000);  // includes the 10 runes from above
-		assertEquals(3, t.getTrips());
+		assertEquals(4, t.getTrips());
 		assertEquals(450_000, t.getAvgTripMillis());
 		assertEquals(-1, t.getLastTripMillis());
 
 		// Essence deposited (no runes): not a trip
 		t.onEssenceEmpty(900_000 + 3_600_000 + 120_000);
-		assertEquals(3, t.getTrips());
-
-		// After loading, the first empty moment only starts a new trip
-		TripTracker c = new TripTracker();
-		c.load(t.save());
-		assertEquals(3, c.getTrips());
-		c.onCraft(200);
-		c.onEssenceEmpty(99_000_000);
-		assertEquals(3, c.getTrips());
+		assertEquals(4, t.getTrips());
 
 		t.reset();
 		assertEquals(0, t.getTrips());
 		assertEquals(-1, t.getAvgTripMillis());
 
-		// Login with an empty inventory: the first trip counts
+		// Login with an empty inventory: the first trip is timed
 		TripTracker f = new TripTracker();
 		f.onStartEmpty(0);
 		f.onCraft(204);
@@ -364,6 +358,35 @@ public class LogicTest
 		assertEquals(90_000, f.getCurrentMillis(570_000));
 		assertEquals(0, f.getCurrentRunes());
 		assertEquals(-1, new TripTracker().getCurrentMillis(570_000));
+	}
+
+	@Test
+	public void tripContinuesAfterRestart()
+	{
+		TripTracker t = new TripTracker();
+		t.onStartEmpty(0);
+		t.onCraft(100);                               // fragments crafted at 3 min
+		TripTracker.Saved saved = t.save(180_000);    // client closed at 3 min into the trip
+
+		// opened again 1 hour later: the trip continues at 3 min
+		TripTracker c = new TripTracker();
+		c.load(saved, 3_780_000);
+		assertEquals(180_000, c.getCurrentMillis(3_780_000));
+		assertEquals(100, c.getCurrentRunes());
+		c.onCraft(104);
+		c.onEssenceEmpty(3_780_000 + 120_000);        // 2 more minutes
+		assertEquals(1, c.getTrips());
+		assertEquals(300_000, c.getLastTripMillis()); // 3 + 2 min, the hour closed is not counted
+		assertEquals(204, c.getAvgRunes());
+
+		// a trip with runes still open, login with empty inventory: that trip ends
+		TripTracker d = new TripTracker();
+		d.onStartEmpty(0);
+		d.onCraft(150);
+		TripTracker e = new TripTracker();
+		e.load(d.save(200_000), 9_000_000);
+		e.onStartEmpty(9_000_000);
+		assertEquals(1, e.getTrips());
 	}
 
 	@Test
