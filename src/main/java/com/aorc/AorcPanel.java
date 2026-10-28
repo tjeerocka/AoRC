@@ -127,6 +127,18 @@ class AorcPanel extends PluginPanel
 		update(new PanelData());
 	}
 
+	/** Runey is visible in the side panel right now. */
+	boolean isBuddyShowing()
+	{
+		return buddy.isVisible() && buddy.isShowing();
+	}
+
+	/** Runey spits out of the panel towards the game screen (any thread). */
+	void spitAcross(boolean iron)
+	{
+		SwingUtilities.invokeLater(() -> buddy.spitAcross(iron));
+	}
+
 	/** Stop the buddy animation (plugin turned off). */
 	void stop()
 	{

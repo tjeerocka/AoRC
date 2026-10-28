@@ -35,6 +35,8 @@ class SpitOverlay extends Overlay
 	private final ItemManager itemManager;
 	private volatile long spitAt = -1;
 	private volatile int runeId = RuneIds.BLOOD_RUNE;
+	// true: the drop comes from Runey in the side panel (enters at the right edge of the game view)
+	private volatile boolean fromPanel;
 
 	@Inject
 	SpitOverlay(Client client, ItemManager itemManager)
@@ -46,7 +48,7 @@ class SpitOverlay extends Overlay
 	}
 
 	/** Start a spit (any thread). Ignored while one is still running. */
-	void spit(int runeItemId)
+	void spit(int runeItemId, boolean fromSidePanel)
 	{
 		long now = System.currentTimeMillis();
 		if (spitAt > 0 && now - spitAt < TOTAL)
@@ -54,6 +56,7 @@ class SpitOverlay extends Overlay
 			return;
 		}
 		runeId = runeItemId;
+		fromPanel = fromSidePanel;
 		spitAt = now;
 	}
 
@@ -92,12 +95,23 @@ class SpitOverlay extends Overlay
 		}
 		int size = 34;
 		int runeyX = Math.round(rightX - size * slide);
-		drawRuney(g, runeyX, headY, size, t >= PEEK_MILLIS - 80 && t < PEEK_MILLIS + 200);
+		boolean panel = fromPanel;
+		int mouthX;
+		int mouthY;
+		if (panel)
+		{
+			// the drop comes in from the side panel: start just outside the right edge, low (Runey sits at the bottom)
+			mouthX = rightX + 10;
+			mouthY = client.getViewportYOffset() + Math.round(client.getViewportHeight() * 0.78f);
+		}
+		else
+		{
+			drawRuney(g, runeyX, headY, size, t >= PEEK_MILLIS - 80 && t < PEEK_MILLIS + 200);
+			mouthX = runeyX + 6;
+			mouthY = headY + size / 2 + 6;
+		}
 
-		int mouthX = runeyX + 6;
-		int mouthY = headY + size / 2 + 6;
-
-		if (t >= PEEK_MILLIS - 100 && t < PEEK_MILLIS + 500)
+		if (!panel && t >= PEEK_MILLIS - 100 && t < PEEK_MILLIS + 500)
 		{
 			g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
 			drawText(g, "*ptooey*", mouthX - 50, mouthY - 36);
@@ -105,7 +119,7 @@ class SpitOverlay extends Overlay
 
 		// ironman complained: Runey says sorry (right-aligned next to Runey)
 		long sorryStart = PEEK_MILLIS + FLY_MILLIS + 900;
-		if (iron && t >= sorryStart && t < TOTAL - 300)
+		if (!panel && iron && t >= sorryStart && t < TOTAL - 300)
 		{
 			String sorry = "Sooorrry boss, my bad!";
 			g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));

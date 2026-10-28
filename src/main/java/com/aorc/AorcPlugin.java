@@ -386,7 +386,19 @@ public class AorcPlugin extends Plugin
 	/** Shows the spit on any account type (settings "Test spit" or overlay menu). */
 	public void testSpit()
 	{
-		spitOverlay.spit(lastCraftedRune);
+		spitNow();
+	}
+
+	/** Spit on the character: from the side panel if Runey is visible there, otherwise he peeks in. */
+	private void spitNow()
+	{
+		boolean iron = AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT)) != AccountType.MAIN;
+		boolean fromPanel = panel != null && panel.isBuddyShowing();
+		if (fromPanel)
+		{
+			panel.spitAcross(iron);
+		}
+		spitOverlay.spit(lastCraftedRune, fromPanel);
 	}
 
 	/** Mains: Runey spits on the character 1 minute after login, then every 30 minutes. */
@@ -405,7 +417,7 @@ public class AorcPlugin extends Plugin
 		}
 		else if (now >= nextGameSpit)
 		{
-			spitOverlay.spit(lastCraftedRune);
+			spitNow();
 			nextGameSpit = now + 30 * 60_000L;
 		}
 	}

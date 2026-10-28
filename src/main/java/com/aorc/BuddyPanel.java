@@ -33,6 +33,8 @@ class BuddyPanel extends JPanel
 	private final Sprite sprite = new Sprite();
 	private final JLabel text = new JLabel();
 	private final Timer timer;
+	// a message that must stay for a while (e.g. "*ptooey*"), normal messages wait
+	private long pinnedUntil;
 	private final ItemManager itemManager;
 	private int runeId = -1;
 
@@ -99,6 +101,10 @@ class BuddyPanel extends JPanel
 
 	void setMessage(String message)
 	{
+		if (System.currentTimeMillis() < pinnedUntil)
+		{
+			return;
+		}
 		String html = "<html><div style='width:85px'>" + escape(message) + "</div></html>";
 		if (!html.equals(text.getText()))
 		{
@@ -108,6 +114,30 @@ class BuddyPanel extends JPanel
 			{
 				sprite.spitStart = sprite.frame;
 			}
+		}
+	}
+
+	/** Show a message for a fixed time (other messages wait). */
+	void say(String message, long millis)
+	{
+		pinnedUntil = 0;
+		setMessage(message);
+		pinnedUntil = System.currentTimeMillis() + millis;
+	}
+
+	/**
+	 * Spit to the left, out of the panel towards the game screen (the game overlay
+	 * continues the drop from the right edge of the game view). Ironmen get an apology.
+	 */
+	void spitAcross(boolean iron)
+	{
+		say("*ptooey*", 1500);
+		sprite.spitLeftStart = sprite.frame;
+		if (iron)
+		{
+			Timer sorry = new Timer(1900, e -> say("Sooorrry boss, my bad!", 2800));
+			sorry.setRepeats(false);
+			sorry.start();
 		}
 	}
 
@@ -172,6 +202,7 @@ class BuddyPanel extends JPanel
 		int frame;
 		int cheerUntil;
 		int spitStart = -100;
+		int spitLeftStart = -100;
 		BufferedImage rune;
 		BufferedImage partyhat;
 		AccountType type = AccountType.MAIN;
@@ -243,6 +274,24 @@ class BuddyPanel extends JPanel
 			{
 				g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 				g2.drawArc((int) (cx - 6), (int) (mouthY - 4), 12, 7, 200, 140);
+			}
+
+			// spit across: a big drop flies out to the left, out of the panel (towards the game)
+			int leftT = frame - spitLeftStart;
+			if (leftT >= 0 && leftT < 4)
+			{
+				g2.setColor(new Color(30, 25, 25));
+				g2.fill(new Ellipse2D.Float(cx - 4, mouthY - 2, 8, 7));
+			}
+			if (leftT >= 1 && leftT < 7)
+			{
+				float t = (leftT - 1) / 5f;
+				float sx = (cx - 6) + (-14 - (cx - 6)) * t;
+				float sy = mouthY - 26 * (float) Math.sin(Math.PI * t * 0.8f);
+				g2.setColor(new Color(175, 215, 245, 230));
+				g2.fill(new Ellipse2D.Float(sx - 7, sy - 6, 14, 12));
+				g2.setColor(new Color(175, 215, 245, 140));
+				g2.fill(new Ellipse2D.Float(sx + 8, sy - 2, 6, 6));
 			}
 
 			// spit: a drop flies out in an arc and splats on the ground to the right
