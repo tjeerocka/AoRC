@@ -1,11 +1,11 @@
 package com.aorc;
 
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.Ellipse2D;
@@ -21,9 +21,8 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.util.AsyncBufferedImage;
 
 /**
- * "Runey", the cheerleader at the bottom of the side panel:
- * the rune you craft, with legs, arms and pom-poms, hopping around.
- * Pom-pom colours per account type, a partyhat for mains.
+ * "Runey", the cheerleader at the bottom of the side panel (pre-rendered 3D frames).
+ * Headband colour per account type, a partyhat for mains.
  */
 class BuddyPanel extends JPanel
 {
@@ -35,8 +34,6 @@ class BuddyPanel extends JPanel
 	private final Timer timer;
 	// a message that must stay for a while (e.g. "*ptooey*"), normal messages wait
 	private long pinnedUntil;
-	private final ItemManager itemManager;
-	private int runeId = -1;
 
 	/** Partyhats (red, yellow, blue, green, purple, white): mains get a random one each client start. */
 	static final int[] PARTYHATS = {1038, 1040, 1042, 1044, 1046, 1048};
@@ -44,7 +41,6 @@ class BuddyPanel extends JPanel
 	BuddyPanel(ItemManager itemManager)
 	{
 		super(new BorderLayout(2, 0));
-		this.itemManager = itemManager;
 		setOpaque(false);
 		setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
 
@@ -105,7 +101,7 @@ class BuddyPanel extends JPanel
 		{
 			return;
 		}
-		String html = "<html><div style='width:85px'>" + escape(message) + "</div></html>";
+		String html = "<html><div style='width:72px'>" + escape(message) + "</div></html>";
 		if (!html.equals(text.getText()))
 		{
 			text.setText(html);
@@ -150,20 +146,6 @@ class BuddyPanel extends JPanel
 		}
 	}
 
-	/** Show this rune as Runey (the rune you crafted last). */
-	void setRune(int itemId)
-	{
-		if (itemId == runeId || itemId <= 0)
-		{
-			return;
-		}
-		runeId = itemId;
-		AsyncBufferedImage img = itemManager.getImage(itemId);
-		sprite.rune = img;
-		img.onLoaded(sprite::repaint);
-		sprite.repaint();
-	}
-
 	void stop()
 	{
 		timer.stop();
@@ -174,42 +156,35 @@ class BuddyPanel extends JPanel
 		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 
-	/** Pom-pom colour per account type. */
-	static Color pomColor(AccountType t)
-	{
-		switch (t)
-		{
-			case IRONMAN:
-				return new Color(150, 150, 160);
-			case ULTIMATE:
-				return new Color(235, 235, 240);
-			case HARDCORE:
-				return new Color(200, 30, 30);
-			case GROUP:
-				return new Color(50, 110, 220);   // blue (ranked group)
-			case UNRANKED_GROUP:
-				return new Color(40, 170, 70);    // green
-			case HARDCORE_GROUP:
-				return new Color(50, 110, 220);   // blue
-			default:
-				return new Color(240, 190, 30); // main: gold
-		}
-	}
-
-	/** Runey the cheerleader. */
+	/** Runey the cheerleader: pre-rendered frames, hopping, cheering and spitting. */
 	private static class Sprite extends JComponent
 	{
+		private static final Color SPIT = new Color(175, 215, 245);
+		private static final int W = 86;
+		private static final int SHIFT = -5;   // the frame is 96 wide, Runey fits in the middle 86
+		private static final int H = 100;
+		private static final int GROUND = 95;
+
 		int frame;
 		int cheerUntil;
 		int spitStart = -100;
 		int spitLeftStart = -100;
-		BufferedImage rune;
 		BufferedImage partyhat;
 		AccountType type = AccountType.MAIN;
 
 		Sprite()
 		{
-			setPreferredSize(new Dimension(76, 88));
+			setPreferredSize(new Dimension(W, H));
+		}
+
+		/** Spit pose: lean back, snap forward, hold, back up (index 0-3), or -1 when done. */
+		private static int spitPose(int t)
+		{
+			if (t < 0 || t >= 10)
+			{
+				return -1;
+			}
+			return t < 3 ? 0 : t < 5 ? 1 : t < 8 ? 2 : 3;
 		}
 
 		@Override
@@ -217,183 +192,111 @@ class BuddyPanel extends JPanel
 		{
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
 			boolean cheering = frame < cheerUntil;
-			// hop: small hops all the time, big jumps when cheering
-			double hop = Math.abs(Math.sin(frame / (cheering ? 2.5 : 4.0))) * (cheering ? 8 : 3);
-
-			float cx = 38;
-			float stone = 40;                 // stone diameter on screen
-			float r = stone / 2;
-			float groundY = 82;
-			float cy = (float) (groundY - 14 - r - hop);   // legs are 14 px
-
-			// shadow (smaller when higher)
-			g2.setColor(new Color(0, 0, 0, 70));
-			float sw = (float) (30 - hop * 1.5);
-			g2.fill(new Ellipse2D.Float(cx - sw / 2, groundY - 2, sw, 5));
-
-			// legs and feet
-			Color limb = new Color(185, 185, 190);
-			g2.setColor(limb);
-			g2.setStroke(new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-			float hipY = cy + r - 3;
-			float footY = (float) (groundY - 3 - hop * 0.2);
-			float spread = (float) (hop > 2 ? 9 : 6);
-			g2.drawLine((int) (cx - 6), (int) hipY, (int) (cx - spread), (int) footY);
-			g2.drawLine((int) (cx + 6), (int) hipY, (int) (cx + spread), (int) footY);
-			g2.setColor(new Color(110, 70, 50));
-			g2.fill(new Ellipse2D.Float(cx - spread - 6, footY - 2, 8, 5));
-			g2.fill(new Ellipse2D.Float(cx + spread - 2, footY - 2, 8, 5));
-
-			// arms with pom-poms (behind the stone, hands outside)
-			double wave = Math.sin(frame / (cheering ? 1.6 : 3.5));
-			double leftAngle = Math.toRadians(cheering ? 215 + wave * 30 : 200 + wave * 10);
-			double rightAngle = Math.toRadians(cheering ? -35 - wave * 30 : -20 + wave * 10);
-			drawArm(g2, cx - r * 0.85f, cy + 3, leftAngle);
-			drawArm(g2, cx + r * 0.85f, cy + 3, rightAngle);
-
-			// the rune itself
-			drawRune(g2, cx, cy, stone);
-
-			// outfit: mains wear a partyhat (ironmen: no helm, just their pom-pom colours)
-			if (type == AccountType.MAIN)
-			{
-				drawPartyHat(g2, cx, cy, r, partyhat);
-			}
-
-			// mouth: open when spitting, smile otherwise
+			int leftT = frame - spitLeftStart;
 			int spitT = frame - spitStart;
-			float mouthY = cy + r * 0.55f;
-			g2.setColor(new Color(30, 25, 25));
-			if (spitT >= 0 && spitT < 6)
+			int idx;
+			double hop;
+			if (spitPose(leftT) >= 0)
 			{
-				g2.fill(new Ellipse2D.Float(cx - 3, mouthY - 1, 6, 5));
+				idx = RuneyFrames.SPIT_LEFT + spitPose(leftT);
+				hop = 0;
+			}
+			else if (spitPose(spitT) >= 0)
+			{
+				idx = RuneyFrames.SPIT_RIGHT + spitPose(spitT);
+				hop = 0;
+			}
+			else if (cheering)
+			{
+				idx = RuneyFrames.CHEER + frame % 8;
+				hop = Math.abs(Math.sin(frame / 2.5)) * 8;
 			}
 			else
 			{
-				g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-				g2.drawArc((int) (cx - 6), (int) (mouthY - 4), 12, 7, 200, 140);
+				idx = RuneyFrames.IDLE + (frame / 2) % 8;
+				hop = Math.abs(Math.sin(frame / 4.0)) * 2;
 			}
 
-			// spit across: a big drop flies out to the left, out of the panel (towards the game)
-			int leftT = frame - spitLeftStart;
-			if (leftT >= 0 && leftT < 4)
+			// shadow (smaller when higher)
+			float cx = W / 2f;
+			float sw = (float) (52 - hop * 2.5);
+			g2.setColor(new Color(0, 0, 0, 80));
+			g2.fill(new Ellipse2D.Float(cx - sw / 2, GROUND - 3, sw, 6));
+
+			int top = (int) Math.round(GROUND - 91 - hop);   // feet are at y=91 in the frame
+			BufferedImage[] frames = RuneyFrames.get(type);
+			if (frames != null)
 			{
-				g2.setColor(new Color(30, 25, 25));
-				g2.fill(new Ellipse2D.Float(cx - 4, mouthY - 2, 8, 7));
+				g2.drawImage(frames[idx], SHIFT, top, null);
 			}
-			if (leftT >= 1 && leftT < 7)
+			else
 			{
-				float t = (leftT - 1) / 5f;
-				float sx = (cx - 6) + (-14 - (cx - 6)) * t;
-				float sy = mouthY - 26 * (float) Math.sin(Math.PI * t * 0.8f);
-				g2.setColor(new Color(175, 215, 245, 230));
+				g2.setColor(new Color(150, 150, 155));
+				g2.fill(new Ellipse2D.Float(cx - 22, top + 30, 44, 44));
+			}
+
+			// mains wear a real partyhat on top of the headband
+			if (type == AccountType.MAIN)
+			{
+				Point h = RuneyFrames.head(idx);
+				drawItemHat(g2, h.x + SHIFT + 2, top + h.y + 5, partyhat, 30f, -10);
+			}
+
+			Point nose = RuneyFrames.nose(idx);
+			float nx = nose.x + SHIFT;
+			float ny = top + nose.y + 6;
+
+			// spit across: a big drop flies out to the left, out of the panel (towards the game)
+			if (leftT >= 3 && leftT < 9)
+			{
+				float t = (leftT - 3) / 5f;
+				float sx = nx + (-14 - nx) * t;
+				float sy = ny - 26 * (float) Math.sin(Math.PI * t * 0.8f);
+				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 230));
 				g2.fill(new Ellipse2D.Float(sx - 7, sy - 6, 14, 12));
-				g2.setColor(new Color(175, 215, 245, 140));
+				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 140));
 				g2.fill(new Ellipse2D.Float(sx + 8, sy - 2, 6, 6));
 			}
 
 			// spit: a drop flies out in an arc and splats on the ground to the right
-			if (spitT >= 2 && spitT < 16)
+			float endX = W - 6;
+			if (spitT >= 3 && spitT < 15)
 			{
-				float t = (spitT - 2) / 13f;                 // 0..1 over the flight
-				float startX = cx + 4;
-				float startY = mouthY + 1;
-				float endX = cx + 34;
-				float endY = groundY - 2;
-				float sx = startX + (endX - startX) * t;
-				float sy = startY + (endY - startY) * t - 16 * (float) Math.sin(Math.PI * t);
-				g2.setColor(new Color(175, 215, 245, 230));
+				float t = (spitT - 3) / 12f;
+				float sx = nx + (endX - nx) * t;
+				float sy = ny + (GROUND - 2 - ny) * t - 16 * (float) Math.sin(Math.PI * t);
+				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 230));
 				g2.fill(new Ellipse2D.Float(sx - 4, sy - 4, 8, 8));
-				// little trail
-				g2.setColor(new Color(175, 215, 245, 140));
+				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 140));
 				g2.fill(new Ellipse2D.Float(sx - 9, sy - 1, 4, 4));
 				g2.fill(new Ellipse2D.Float(sx - 13, sy + 1, 3, 3));
 			}
-			else if (spitT >= 16 && spitT < 26)
+			else if (spitT >= 15 && spitT < 25)
 			{
-				// splat on the ground
-				float fade = 1f - (spitT - 16) / 10f;
-				g2.setColor(new Color(175, 215, 245, Math.round(200 * fade)));
-				float x = cx + 34;
-				float y = groundY - 1;
-				g2.fill(new Ellipse2D.Float(x - 8, y - 2, 16, 4));
-				g2.fill(new Ellipse2D.Float(x - 9, y - 4, 3, 3));
-				g2.fill(new Ellipse2D.Float(x + 6, y - 5, 3, 3));
-				g2.fill(new Ellipse2D.Float(x - 1, y - 6, 2, 2));
+				float fade = 1f - (spitT - 15) / 10f;
+				g2.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), Math.round(200 * fade)));
+				float y = GROUND - 1;
+				g2.fill(new Ellipse2D.Float(endX - 8, y - 2, 16, 4));
+				g2.fill(new Ellipse2D.Float(endX - 9, y - 4, 3, 3));
+				g2.fill(new Ellipse2D.Float(endX + 5, y - 5, 3, 3));
+				g2.fill(new Ellipse2D.Float(endX - 1, y - 6, 2, 2));
 			}
 
 			g2.dispose();
 		}
 
-		private void drawArm(Graphics2D g2, float sx, float sy, double angle)
-		{
-			float len = 13;
-			float hx = (float) (sx + Math.cos(angle) * len);
-			float hy = (float) (sy + Math.sin(angle) * len);
-			g2.setColor(new Color(185, 185, 190));
-			g2.setStroke(new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-			g2.drawLine((int) sx, (int) sy, (int) hx, (int) hy);
-
-			// pom-pom: a fluffy ball of small circles
-			Color pom = pomColor(type);
-			Color light = pom.brighter();
-			for (int i = 0; i < 7; i++)
-			{
-				double a = i * Math.PI * 2 / 7 + frame * 0.4;
-				float px = (float) (hx + Math.cos(a) * 4);
-				float py = (float) (hy + Math.sin(a) * 4);
-				g2.setColor(i % 2 == 0 ? pom : light);
-				g2.fill(new Ellipse2D.Float(px - 3.5f, py - 3.5f, 7, 7));
-			}
-			g2.setColor(light);
-			g2.fill(new Ellipse2D.Float(hx - 3, hy - 3, 6, 6));
-		}
-
-		private void drawRune(Graphics2D g2, float cx, float cy, float stone)
-		{
-			Rectangle b = rune == null ? null : opaqueBounds(rune);
-			if (b != null)
-			{
-				// scale so the stone part of the icon is 'stone' px; keep pixel art sharp
-				float scale = stone / Math.max(b.width, b.height);
-				int w = Math.round(rune.getWidth() * scale);
-				int h = Math.round(rune.getHeight() * scale);
-				float bx = (b.x + b.width / 2f) * scale;
-				float by = (b.y + b.height / 2f) * scale;
-				Graphics2D gi = (Graphics2D) g2.create();
-				gi.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-				gi.drawImage(rune, Math.round(cx - bx), Math.round(cy - by), w, h, null);
-				gi.dispose();
-			}
-			else
-			{
-				// icon not loaded yet: plain grey rune stone
-				g2.setColor(new Color(150, 150, 155));
-				g2.fill(new Ellipse2D.Float(cx - stone / 2, cy - stone / 2, stone, stone));
-				g2.setColor(new Color(70, 70, 75));
-				g2.setStroke(new BasicStroke(2f));
-				g2.draw(new Ellipse2D.Float(cx - stone / 2, cy - stone / 2, stone, stone));
-			}
-		}
-
-		/** Mains wear a real partyhat (game icon), tilted a bit. */
-		private static void drawPartyHat(Graphics2D g2, float cx, float cy, float r, BufferedImage hat)
-		{
-			drawItemHat(g2, cx + 2, cy - r * 0.62f, hat, 28f, -12);
-		}
-
 		/**
-		 * Draw an item icon (helm / partyhat) with the bottom-centre of its visible pixels at (baseX, baseY).
-		 * Returns false when the icon is not loaded yet.
+		 * Draw an item icon (partyhat) with the bottom-centre of its visible pixels at (baseX, baseY).
 		 */
-		private static boolean drawItemHat(Graphics2D g2, float baseX, float baseY, BufferedImage img, float width, double tiltDeg)
+		private static void drawItemHat(Graphics2D g2, float baseX, float baseY, BufferedImage img, float width, double tiltDeg)
 		{
 			Rectangle b = img == null ? null : opaqueBounds(img);
 			if (b == null)
 			{
-				return false;
+				return;
 			}
 			float scale = width / b.width;
 			int w = Math.round(img.getWidth() * scale);
@@ -403,16 +306,12 @@ class BuddyPanel extends JPanel
 
 			Graphics2D gh = (Graphics2D) g2.create();
 			gh.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			if (tiltDeg != 0)
-			{
-				gh.rotate(Math.toRadians(tiltDeg), baseX, baseY);
-			}
+			gh.rotate(Math.toRadians(tiltDeg), baseX, baseY);
 			gh.drawImage(img, Math.round(baseX - ax), Math.round(baseY - ay), w, h, null);
 			gh.dispose();
-			return true;
 		}
 
-		/** Bounds of the visible pixels (the stone inside the icon), or null if empty. */
+		/** Bounds of the visible pixels, or null if empty. */
 		private static Rectangle opaqueBounds(BufferedImage img)
 		{
 			int minX = Integer.MAX_VALUE;

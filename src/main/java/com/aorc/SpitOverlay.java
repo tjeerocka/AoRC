@@ -74,7 +74,7 @@ class SpitOverlay extends Overlay
 			return null;
 		}
 		// a point on the character's chest
-		Point target = player.getCanvasTextLocation(g, "", player.getLogicalHeight() / 2);
+		net.runelite.api.Point target = player.getCanvasTextLocation(g, "", player.getLogicalHeight() / 2);
 		if (target == null)
 		{
 			return null;
@@ -93,8 +93,8 @@ class SpitOverlay extends Overlay
 		{
 			slide = Math.max(0f, 1f - (t - leaveStart) / 400f);
 		}
-		int size = 34;
-		int runeyX = Math.round(rightX - size * slide);
+		int size = 80;
+		int runeyX = Math.round(rightX - size * 0.75f * slide);
 		boolean panel = fromPanel;
 		int mouthX;
 		int mouthY;
@@ -106,9 +106,9 @@ class SpitOverlay extends Overlay
 		}
 		else
 		{
-			drawRuney(g, runeyX, headY, size, t >= PEEK_MILLIS - 80 && t < PEEK_MILLIS + 200);
-			mouthX = runeyX + 6;
-			mouthY = headY + size / 2 + 6;
+			java.awt.Point m = drawRuney(g, runeyX, headY, size, t >= PEEK_MILLIS - 80 && t < PEEK_MILLIS + 200);
+			mouthX = m.x;
+			mouthY = m.y;
 		}
 
 		if (!panel && t >= PEEK_MILLIS - 100 && t < PEEK_MILLIS + 500)
@@ -124,7 +124,7 @@ class SpitOverlay extends Overlay
 			String sorry = "Sooorrry boss, my bad!";
 			g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
 			int w = g.getFontMetrics().stringWidth(sorry);
-			drawText(g, sorry, runeyX - w - 6, headY + size / 2 + 5);
+			drawText(g, sorry, runeyX - w + 4, headY + size / 2);
 		}
 
 		if (t >= PEEK_MILLIS && t < PEEK_MILLIS + FLY_MILLIS)
@@ -222,30 +222,21 @@ class SpitOverlay extends Overlay
 		return AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT)) != AccountType.MAIN;
 	}
 
-	private void drawRuney(Graphics2D g, int x, int y, int size, boolean mouthOpen)
+	/** Runey (3D frames) facing left; leans forward when the drop leaves. Returns the spit start point. */
+	private java.awt.Point drawRuney(Graphics2D g, int x, int y, int size, boolean spitting)
 	{
-		BufferedImage img = itemManager.getImage(runeId);
-		if (img != null)
+		int idx = RuneyFrames.SPIT_LEFT + (spitting ? 1 : 0);
+		BufferedImage[] frames = RuneyFrames.get(AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT)));
+		float k = size / (float) RuneyFrames.SIZE;
+		if (frames != null)
 		{
 			Graphics2D gi = (Graphics2D) g.create();
-			gi.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			int h = Math.round(size * img.getHeight() / (float) img.getWidth());
-			gi.drawImage(img, x, y, size, h, null);
+			gi.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			gi.drawImage(frames[idx], x, y, size, size, null);
 			gi.dispose();
 		}
-		// mouth
-		g.setColor(new Color(30, 25, 25));
-		int mx = x + size / 2 - 3;
-		int my = y + size / 2 + 6;
-		if (mouthOpen)
-		{
-			g.fill(new Ellipse2D.Float(mx, my - 2, 7, 6));
-		}
-		else
-		{
-			g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-			g.drawArc(mx - 2, my - 4, 10, 6, 200, 140);
-		}
+		java.awt.Point n = RuneyFrames.nose(idx);
+		return new java.awt.Point(Math.round(x + n.x * k), Math.round(y + (n.y + 6) * k));
 	}
 
 	private static void drawText(Graphics2D g, String text, int x, int y)

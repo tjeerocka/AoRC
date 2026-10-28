@@ -231,7 +231,6 @@ class AorcPanel extends PluginPanel
 		buddy.setVisible(d.showBuddy);
 		if (d.showBuddy)
 		{
-			buddy.setRune(d.buddyRuneId);
 			buddy.setAccountType(d.accountType);
 			buddy.setMessage(hype.message(d, System.currentTimeMillis()));
 		}
