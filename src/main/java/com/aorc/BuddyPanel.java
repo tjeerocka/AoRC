@@ -114,7 +114,7 @@ class BuddyPanel extends JPanel
 		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 
-	/** Runey: the rune you craft (real game icon, bigger) with eyes, a smile and arms. */
+	/** Runey: the rune you craft (real game icon, bigger) with a smile and arms. */
 	private static class Sprite extends JComponent
 	{
 		int frame;
@@ -174,31 +174,6 @@ class BuddyPanel extends JPanel
 			double angle = waving ? Math.sin(frame / 1.5) * 0.6 - 1.0 : 0.8;
 			g2.drawLine((int) (cx + 23), (int) (cy + 4),
 				(int) (cx + 23 + Math.cos(angle) * 9), (int) (cy + 4 + Math.sin(angle) * 9));
-
-			// eyes in the top part of the stone (blink every few seconds)
-			boolean blink = (frame + 20) % 55 < 2;
-			for (int side = -1; side <= 1; side += 2)
-			{
-				float ex = cx + side * 8f;
-				float ey = top + 14;
-				if (blink)
-				{
-					g2.setColor(Color.BLACK);
-					g2.setStroke(new BasicStroke(1.6f));
-					g2.drawLine((int) (ex - 4), (int) ey, (int) (ex + 4), (int) ey);
-				}
-				else
-				{
-					g2.setColor(Color.WHITE);
-					g2.fill(new Ellipse2D.Float(ex - 5, ey - 6, 10, 12));
-					g2.setColor(Color.BLACK);
-					g2.setStroke(new BasicStroke(1f));
-					g2.draw(new Ellipse2D.Float(ex - 5, ey - 6, 10, 12));
-					g2.fill(new Ellipse2D.Float(ex - 2, ey - 2, 5, 6));
-					g2.setColor(Color.WHITE);
-					g2.fill(new Ellipse2D.Float(ex, ey - 1, 2, 2));
-				}
-			}
 
 			// smile in the bottom part of the stone
 			g2.setColor(new Color(30, 30, 30));
