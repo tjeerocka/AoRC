@@ -51,18 +51,6 @@ public interface AorcConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "blisterwoodLantern",
-		name = "Blisterwood lantern",
-		description = "Count the abyssal lantern (blisterwood logs) bonus: +20% blood runes. Found automatically when you wear it.",
-		section = bloodSection,
-		position = 12
-	)
-	default boolean blisterwoodLantern()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "showBonuses",
 		name = "Show bonuses",
 		description = "Show active rune bonuses (Raiments, lantern, blood essence, diary)",

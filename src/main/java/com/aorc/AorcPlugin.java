@@ -282,7 +282,7 @@ public class AorcPlugin extends Plugin
 		boolean bloodCrafted = session.getRunes(RuneIds.BLOOD_RUNE) > 0;
 
 		BonusCalculator.Lantern usedLantern = lantern;
-		if (lantern == BonusCalculator.Lantern.BLISTERWOOD && (!config.blisterwoodLantern() || !bloodCrafted))
+		if (lantern == BonusCalculator.Lantern.BLISTERWOOD && !bloodCrafted)
 		{
 			usedLantern = BonusCalculator.Lantern.NONE;
 		}
