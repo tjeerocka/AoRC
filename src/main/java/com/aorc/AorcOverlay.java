@@ -36,7 +36,6 @@ class AorcOverlay extends OverlayPanel
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset blood runes", "AoRC", e -> plugin.resetRuneCount());
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset bonus runes", "AoRC", e -> plugin.resetBonusRunes());
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset all", "AoRC", e -> plugin.resetAll());
-		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Test spit", "AoRC", e -> plugin.testSpit());
 	}
 
 	@Override

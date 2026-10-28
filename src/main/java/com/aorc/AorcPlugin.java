@@ -374,13 +374,6 @@ public class AorcPlugin extends Plugin
 		return json == null ? null : gson.fromJson(json, type);
 	}
 
-	/** Shows the spit on any account type ("Test spit" button / overlay menu). Any thread. */
-	public void testSpit()
-	{
-		// game data (account type, player) may only be read on the game thread
-		clientThread.invokeLater(this::spitNow);
-	}
-
 	/** Spit on the character: from the side panel if Runey is visible there, otherwise he peeks in. */
 	private void spitNow()
 	{

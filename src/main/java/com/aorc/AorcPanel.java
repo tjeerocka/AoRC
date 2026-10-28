@@ -37,7 +37,6 @@ class AorcPanel extends PluginPanel
 	private final JLabel emptyLabel = new JLabel("Craft some runes to start.");
 	private final BuddyPanel buddy;
 	private final HypeBuddy hype = new HypeBuddy();
-	private final JButton testSpitButton;
 
 
 	@Inject
@@ -122,10 +121,6 @@ class AorcPanel extends PluginPanel
 		buddy.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(buddy);
 
-		testSpitButton = button("Test spit", () -> plugin.testSpit());
-		testSpitButton.setAlignmentX(LEFT_ALIGNMENT);
-		testSpitButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
-		content.add(testSpitButton);
 
 		add(content, BorderLayout.NORTH);
 
@@ -234,7 +229,6 @@ class AorcPanel extends PluginPanel
 		}
 
 		buddy.setVisible(d.showBuddy);
-		testSpitButton.setVisible(d.showBuddy);
 		if (d.showBuddy)
 		{
 			buddy.setRune(d.buddyRuneId);
