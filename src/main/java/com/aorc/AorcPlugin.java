@@ -19,6 +19,11 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.game.ItemManager;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -48,6 +53,20 @@ public class AorcPlugin extends Plugin
 
 	@Inject
 	private Gson gson;
+
+	@Inject
+	private ClientToolbar clientToolbar;
+
+	@Inject
+	private ItemManager itemManager;
+
+	private AorcPanel panel;
+	private NavigationButton navButton;
+	private boolean navShown;
+
+	/** ZMI (Ourania): one craft gives several rune types. Turns on the side panel. */
+	@Getter
+	private boolean zmiMode;
 
 	private static final String KEY_SESSION = "savedSession";
 	private static final String KEY_TOTALS = "savedTotals";
@@ -100,6 +119,16 @@ public class AorcPlugin extends Plugin
 	protected void startUp()
 	{
 		overlayManager.add(overlay);
+
+		panel = injector.getInstance(AorcPanel.class);
+		navButton = NavigationButton.builder()
+			.tooltip("AoRC - Amount of Runes Created")
+			.icon(ImageUtil.loadImageResource(getClass(), "icon.png"))
+			.priority(7)
+			.panel(panel)
+			.build();
+		updateNav();
+
 		clearTracking();
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -112,6 +141,8 @@ public class AorcPlugin extends Plugin
 	{
 		save();
 		overlayManager.remove(overlay);
+		clientToolbar.removeNavigation(navButton);
+		navShown = false;
 		session.reset();
 		totals.resetRunes();
 		totals.resetBonus();
@@ -129,6 +160,8 @@ public class AorcPlugin extends Plugin
 	public void resetRuneCount()
 	{
 		totals.resetRunes();
+		zmiMode = false;
+		updateNav();
 		save();
 	}
 
@@ -144,6 +177,8 @@ public class AorcPlugin extends Plugin
 		session.reset();
 		totals.resetRunes();
 		totals.resetBonus();
+		zmiMode = false;
+		updateNav();
 		save();
 	}
 
@@ -182,6 +217,7 @@ public class AorcPlugin extends Plugin
 			session.load(s == null ? null : gson.fromJson(s, RuneSession.Saved.class));
 			String t = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS);
 			totals.load(t == null ? null : gson.fromJson(t, RuneTotals.Saved.class));
+			detectZmiFromTotals();
 		}
 		catch (RuntimeException e)
 		{
@@ -190,6 +226,75 @@ public class AorcPlugin extends Plugin
 			totals.load(null);
 		}
 		dirty = false;
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!AorcConfig.GROUP.equals(event.getGroup()) || !"showSidebar".equals(event.getKey()))
+		{
+			return;
+		}
+		updateNav();
+	}
+
+	/** Side panel button only while crafting at ZMI (and the option is on). */
+	private void updateNav()
+	{
+		if (navButton == null)
+		{
+			return;
+		}
+		boolean want = zmiMode && config.showSidebar();
+		if (want && !navShown)
+		{
+			clientToolbar.addNavigation(navButton);
+		}
+		else if (!want && navShown)
+		{
+			clientToolbar.removeNavigation(navButton);
+		}
+		navShown = want;
+	}
+
+	/** ZMI if the saved counts have many rune types (Ourania gives random runes). */
+	private void detectZmiFromTotals()
+	{
+		zmiMode = totals.getRunes().size() >= 3;
+		updateNav();
+	}
+
+	/** Snapshot for the side panel. Runs on the game thread. */
+	private PanelData buildPanelData()
+	{
+		long now = System.currentTimeMillis();
+		long elapsed = session.elapsedMillis(now, idleTimeoutMillis());
+
+		PanelData d = new PanelData();
+		d.activeMillis = elapsed;
+		d.xpPerHour = RuneSession.perHour(session.getXpGained(), elapsed);
+		d.allRunesPerHour = RuneSession.perHour(session.getTotalRunes(), elapsed);
+		d.crafts = session.getCrafts();
+		d.blocksImbued = session.getBlocksImbued();
+		d.bonusPercent = BonusCalculator.totalPercent(currentBonuses());
+		d.bonusRunes = totals.getBonusRunes();
+
+		long gp = 0;
+		for (Map.Entry<Integer, Integer> e : session.getRunesCrafted().entrySet())
+		{
+			gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
+		}
+		d.gpPerHour = RuneSession.perHour(gp, elapsed);
+
+		java.util.Set<Integer> types = new java.util.LinkedHashSet<>(totals.getRunes().keySet());
+		types.addAll(session.getRunesCrafted().keySet());
+		for (int id : types)
+		{
+			d.rows.add(new PanelData.Row(id, RuneIds.RUNES.get(id), totals.getRunes(id),
+				RuneSession.perHour(session.getRunes(id), elapsed)));
+		}
+		PanelData.sortRows(d.rows);
+		return d;
 	}
 
 	@Subscribe
@@ -279,6 +384,12 @@ public class AorcPlugin extends Plugin
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
 		eliteDiaryDone = client.getVarbitValue(RuneIds.VARBIT_DIARY_KOUREND_ELITE) == 1;
 
+		// Update the side panel about once a second
+		if (panel != null && tick % 2 == 0)
+		{
+			panel.post(buildPanelData());
+		}
+
 		// Save about every 10 seconds when something changed
 		if (dirty && tick % 16 == 0)
 		{
@@ -297,6 +408,21 @@ public class AorcPlugin extends Plugin
 			long now = System.currentTimeMillis();
 			boolean madeRunes = false;
 
+			int runeTypes = 0;
+			for (int id : pendingGains.keySet())
+			{
+				if (RuneIds.isRune(id))
+				{
+					runeTypes++;
+				}
+			}
+			if (runeTypes >= 2 && !zmiMode)
+			{
+				// Several rune types from one craft = ZMI altar
+				zmiMode = true;
+				updateNav();
+			}
+
 			for (Map.Entry<Integer, Integer> e : pendingGains.entrySet())
 			{
 				int id = e.getKey();
@@ -306,8 +432,10 @@ public class AorcPlugin extends Plugin
 					session.addRunes(id, amount, now);
 					lastCraftedRune = id;
 					// Bonus % right now, for this rune type
+					// At ZMI the blood-only bonuses (essence, diary, blisterwood) do not work
+					boolean bloodAltar = id == RuneIds.BLOOD_RUNE && runeTypes < 2;
 					int pct = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(
-						id == RuneIds.BLOOD_RUNE, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone));
+						bloodAltar, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone));
 					totals.addCraft(id, amount, pct);
 					madeRunes = true;
 					dirty = true;
@@ -408,22 +536,6 @@ public class AorcPlugin extends Plugin
 		lantern = lit;
 	}
 
-	/**
-	 * Blood-only bonuses (diary, blisterwood) that are ready but wait for the first blood craft.
-	 * Empty once blood runes were crafted this session.
-	 */
-	public List<BonusCalculator.Bonus> pendingBloodBonuses()
-	{
-		if (session.getRunes(RuneIds.BLOOD_RUNE) > 0)
-		{
-			return java.util.Collections.emptyList();
-		}
-		BonusCalculator.Lantern blister = lantern == BonusCalculator.Lantern.BLISTERWOOD
-			? BonusCalculator.Lantern.BLISTERWOOD
-			: BonusCalculator.Lantern.NONE;
-		return BonusCalculator.activeBonuses(true, 0, blister, false, eliteDiaryDone);
-	}
-
 	/** Bonuses for the rune type you crafted last. */
 	public List<BonusCalculator.Bonus> currentBonuses()
 	{
@@ -437,7 +549,8 @@ public class AorcPlugin extends Plugin
 		}
 
 		return BonusCalculator.activeBonuses(
-			lastCraftedRune == RuneIds.BLOOD_RUNE,
+			// At ZMI only the all-rune bonuses count
+			lastCraftedRune == RuneIds.BLOOD_RUNE && !zmiMode,
 			raimentsPieces,
 			usedLantern,
 			bloodEssenceActive,

@@ -139,6 +139,22 @@ public class LogicTest
 	}
 
 	@Test
+	public void panelSortAndTime()
+	{
+		java.util.List<PanelData.Row> rows = new java.util.ArrayList<>();
+		rows.add(new PanelData.Row(556, "Air", 50, 0));
+		rows.add(new PanelData.Row(560, "Death", 300, 0));
+		rows.add(new PanelData.Row(RuneIds.BLOOD_RUNE, "Blood", 10, 0));
+		PanelData.sortRows(rows);
+		assertEquals("Blood", rows.get(0).name);   // blood always first
+		assertEquals("Death", rows.get(1).name);   // then most crafted
+		assertEquals("Air", rows.get(2).name);
+
+		assertEquals("4m 12s", PanelData.formatTime(252_000));
+		assertEquals("1h 05m", PanelData.formatTime(3_900_000));
+	}
+
+	@Test
 	public void sessionAndIdle()
 	{
 		RuneSession s = new RuneSession();

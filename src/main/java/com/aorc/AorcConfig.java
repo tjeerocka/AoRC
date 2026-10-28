@@ -21,14 +21,14 @@ public interface AorcConfig extends Config
 
 	@ConfigItem(
 		keyName = "showAllRunes",
-		name = "Show all rune types",
-		description = "Show every rune type you craft, not only blood runes",
+		name = "All rune types in overlay",
+		description = "Show every rune type in the overlay. The side panel always shows all rune types.",
 		section = mainSection,
 		position = 1
 	)
 	default boolean showAllRunes()
 	{
-		return true;
+		return false;
 	}
 
 	@ConfigItem(
@@ -89,6 +89,18 @@ public interface AorcConfig extends Config
 		position = 7
 	)
 	default boolean rememberSession()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showSidebar",
+		name = "Side panel at ZMI",
+		description = "When you craft at ZMI (many rune types), show the AoRC button in the sidebar with the full list of runes",
+		section = mainSection,
+		position = 0
+	)
+	default boolean showSidebar()
 	{
 		return true;
 	}

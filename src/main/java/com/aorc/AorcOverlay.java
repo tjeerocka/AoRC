@@ -60,10 +60,24 @@ class AorcOverlay extends OverlayPanel
 
 		// Blood runes always first
 		// Count = own counter (own reset). Per hour = rate session (Reset per hour).
-		line("Blood runes", fmt(t.getRunes(RuneIds.BLOOD_RUNE)), BLOOD);
-		line("Blood / hr", rate(s.getRunes(RuneIds.BLOOD_RUNE), elapsed), BLOOD);
+		if (plugin.isZmiMode())
+		{
+			// ZMI: many rune types, the full list is in the side panel
+			int all = 0;
+			for (int v : t.getRunes().values())
+			{
+				all += v;
+			}
+			line("All runes", fmt(all), Color.WHITE);
+			line("All runes / hr", rate(s.getTotalRunes(), elapsed), Color.WHITE);
+		}
+		else
+		{
+			line("Blood runes", fmt(t.getRunes(RuneIds.BLOOD_RUNE)), BLOOD);
+			line("Blood / hr", rate(s.getRunes(RuneIds.BLOOD_RUNE), elapsed), BLOOD);
+		}
 
-		if (config.showAllRunes())
+		if (config.showAllRunes() && !plugin.isZmiMode())
 		{
 			java.util.Set<Integer> types = new java.util.LinkedHashSet<>(t.getRunes().keySet());
 			types.addAll(s.getRunesCrafted().keySet());
@@ -103,18 +117,8 @@ class AorcOverlay extends OverlayPanel
 
 		if (config.showBonuses())
 		{
-			List<BonusCalculator.Bonus> bonuses = plugin.currentBonuses();
-			int total = BonusCalculator.totalPercent(bonuses);
-			line("Bonus", "+" + total + "%", BONUS);
-			for (BonusCalculator.Bonus b : bonuses)
-			{
-				line("  " + b.name, "+" + b.percent + "%", BONUS);
-			}
-			// Grey: blood-only bonuses that start counting after the first blood craft
-			for (BonusCalculator.Bonus b : plugin.pendingBloodBonuses())
-			{
-				line("  " + b.name, "+" + b.percent + "%", Color.GRAY);
-			}
+			int total = BonusCalculator.totalPercent(plugin.currentBonuses());
+			line("Bonus equipped", "+" + total + "%", BONUS);
 			line("Bonus runes", fmt(t.getBonusRunes()), BONUS);
 		}
 
