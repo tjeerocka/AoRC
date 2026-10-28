@@ -80,4 +80,16 @@ public interface AorcConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "rememberSession",
+		name = "Remember after closing",
+		description = "Keep your numbers when you close the client. Off = start fresh every time you open RuneLite (logging out and in still keeps them).",
+		section = mainSection,
+		position = 7
+	)
+	default boolean rememberSession()
+	{
+		return true;
+	}
 }

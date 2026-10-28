@@ -63,6 +63,9 @@ public class AorcPlugin extends Plugin
 	// true when something changed that should be saved
 	private boolean dirty;
 
+	// Accounts already loaded since the client was opened
+	private final java.util.Set<String> profilesThisRun = new java.util.HashSet<>();
+
 	// What we saw in the inventory last time (runes + essence blocks only)
 	private Map<Integer, Integer> lastInventory;
 
@@ -161,6 +164,18 @@ public class AorcPlugin extends Plugin
 	private void load()
 	{
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
+
+		String profile = configManager.getRSProfileKey();
+		boolean firstTimeThisRun = profile != null && profilesThisRun.add(profile);
+		if (firstTimeThisRun && !config.rememberSession())
+		{
+			// "Remember after closing" is off: start fresh once per client start
+			session.reset();
+			totals.load(null);
+			save();
+			return;
+		}
+
 		try
 		{
 			String s = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION);
