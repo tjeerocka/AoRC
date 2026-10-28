@@ -29,6 +29,20 @@ dependencies {
 group = 'com.aorc'
 version = '1.0-SNAPSHOT'
 
+// RuneLite needs -ea (assertions) when testing plugins.
+// This also covers the green run arrow in IntelliJ when it runs through Gradle.
+tasks.withType(JavaExec).configureEach {
+    enableAssertions = true
+}
+
+// "gradlew run" starts RuneLite with the plugin
+tasks.register('run', JavaExec) {
+    group = 'application'
+    description = 'Start RuneLite with the AoRC plugin'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.aorc.AorcPluginTest'
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release.set(11)
