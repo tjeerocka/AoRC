@@ -1,4 +1,4 @@
-# AoRC – Amount of Runes Created
+# AoRC – Amount of Runes Crafted
 
 A RuneLite plugin that counts the runes you craft and shows them per hour.
 Blood runes are shown first. Other rune types can be shown too.

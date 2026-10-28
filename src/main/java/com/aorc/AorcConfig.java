@@ -13,7 +13,7 @@ public interface AorcConfig extends Config
 	String GROUP = "aorc";
 
 	@ConfigSection(
-		name = "Amount of Runes Created",
+		name = "Amount of Runes Crafted",
 		description = "Counts runes crafted per hour",
 		position = 0
 	)

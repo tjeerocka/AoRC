@@ -50,7 +50,7 @@ class AorcPanel extends PluginPanel
 		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		content.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-		JLabel title = new JLabel("Amount of Runes Created");
+		JLabel title = new JLabel("Amount of Runes Crafted");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(BLOOD);
 		title.setAlignmentX(LEFT_ALIGNMENT);

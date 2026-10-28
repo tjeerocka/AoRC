@@ -38,7 +38,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
 	name = "AoRC",
-	description = "Amount of Runes Created - counts runes crafted per hour (blood runes first), RC xp/hr and active rune bonuses",
+	description = "Amount of Runes Crafted - counts runes crafted per hour (blood runes first), RC xp/hr and active rune bonuses",
 	tags = {"aorc", "runecraft", "runecrafting", "blood", "runes", "rc", "arceuus"}
 )
 public class AorcPlugin extends Plugin
@@ -171,7 +171,7 @@ public class AorcPlugin extends Plugin
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = NavigationButton.builder()
-			.tooltip("AoRC - Amount of Runes Created")
+			.tooltip("AoRC - Amount of Runes Crafted")
 			.icon(ImageUtil.loadImageResource(getClass(), "icon.png"))
 			.priority(7)
 			.panel(panel)
