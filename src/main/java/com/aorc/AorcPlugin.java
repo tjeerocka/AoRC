@@ -459,6 +459,7 @@ public class AorcPlugin extends Plugin
 		d.days = history.dayCount();
 		d.showBuddy = config.showBuddy();
 		d.buddyRuneId = lastCraftedRune;
+		d.accountType = AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT));
 		return d;
 	}
 

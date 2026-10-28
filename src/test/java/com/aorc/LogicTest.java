@@ -116,8 +116,9 @@ public class LogicTest
 		d.bestRunes = 500;
 		d.days = 1;
 
-		// first: hello
-		assertTrue(b.message(d, 0).startsWith("Hi! I'm Runey"));
+		d.accountType = AccountType.IRONMAN;
+		// first: hello for an ironman
+		assertEquals("An ironman! Respect. Let's craft!", b.message(d, 0));
 		// after 10 s: a tip about the goal / runes
 		String tip = b.message(d, 10_000);
 		assertFalse(tip.startsWith("Hi!"));
@@ -126,19 +127,42 @@ public class LogicTest
 		d.trips = 1;
 		d.lastTripMillis = 267_000;
 		d.fastestTripMillis = 267_000;
-		assertEquals("Trip done! 4m 27s. Nice one!", b.message(d, 11_000));
+		assertEquals("Trip done in 4m 27s. Iron efficiency!", b.message(d, 11_000));
 		// second trip, new fastest
 		d.trips = 2;
 		d.lastTripMillis = 250_000;
 		d.fastestTripMillis = 250_000;
-		assertTrue(b.message(d, 12_000).startsWith("New fastest trip! 4m 10s"));
+		assertEquals("NEW FASTEST TRIP! 4m 10s! You're on fire!", b.message(d, 12_000));
 		// event stays for 15 s, then tips again
-		assertTrue(b.message(d, 20_000).startsWith("New fastest trip!"));
-		assertFalse(b.message(d, 40_000).startsWith("New fastest trip!"));
+		assertTrue(b.message(d, 20_000).startsWith("NEW FASTEST TRIP!"));
+		assertFalse(b.message(d, 40_000).startsWith("NEW FASTEST TRIP!"));
 
 		// essence almost empty is in the tips
 		d.essenceCharges = 50;
 		assertTrue(b.tips(d).get(0).contains("almost empty"));
+
+		// a main gets trash talk (with spitting)
+		HypeBuddy m = new HypeBuddy();
+		PanelData md = new PanelData();
+		md.accountType = AccountType.MAIN;
+		assertTrue(m.message(md, 0).contains("*spits*"));
+		assertTrue(HypeBuddy.tripDone(AccountType.MAIN, "4m 00s").contains("*spits*"));
+		assertTrue(HypeBuddy.hello(AccountType.HARDCORE).contains("NOT die"));
+		assertTrue(HypeBuddy.personality(AccountType.ULTIMATE).get(0).contains("No bank"));
+	}
+
+	@Test
+	public void accountTypeFromVarbit()
+	{
+		assertEquals(AccountType.MAIN, AccountType.fromVarbit(0));
+		assertEquals(AccountType.IRONMAN, AccountType.fromVarbit(1));
+		assertEquals(AccountType.ULTIMATE, AccountType.fromVarbit(2));
+		assertEquals(AccountType.HARDCORE, AccountType.fromVarbit(3));
+		assertEquals(AccountType.GROUP, AccountType.fromVarbit(4));
+		assertEquals(AccountType.HARDCORE_GROUP, AccountType.fromVarbit(5));
+		assertEquals(AccountType.UNRANKED_GROUP, AccountType.fromVarbit(6));
+		assertTrue(AccountType.HARDCORE_GROUP.isGroup());
+		assertTrue(AccountType.HARDCORE_GROUP.isHardcore());
 	}
 
 	@Test
