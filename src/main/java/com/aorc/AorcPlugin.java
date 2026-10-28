@@ -180,13 +180,13 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(spitOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
-		navButton = NavigationButton.builder()
-			.tooltip("AoRC - Amount of Runes Crafted")
-			.icon(ImageUtil.loadImageResource(getClass(), "icon.png"))
-			.priority(7)
-			.panel(panel)
-			.build();
+		navButton = buildNav(ImageUtil.loadImageResource(getClass(), "icon.png"));
 		updateNav();
+
+		// Use the real blood rune icon from the game for the sidebar button once it is loaded
+		net.runelite.client.util.AsyncBufferedImage blood = itemManager.getImage(RuneIds.BLOOD_RUNE);
+		blood.onLoaded(() -> useGameIcon(blood));
+		useGameIcon(blood); // in case it was already loaded
 
 		clearTracking();
 		if (client.getGameState() == GameState.LOGGED_IN)
@@ -405,6 +405,77 @@ public class AorcPlugin extends Plugin
 			spitNow();
 			nextGameSpit = now + 30 * 60_000L;
 		}
+	}
+
+	private NavigationButton buildNav(java.awt.image.BufferedImage icon)
+	{
+		return NavigationButton.builder()
+			.tooltip("AoRC - Amount of Runes Crafted")
+			.icon(icon)
+			.priority(7)
+			.panel(panel)
+			.build();
+	}
+
+	/** Swap the sidebar icon for the game's blood rune (cut to the stone, 16x16). */
+	private void useGameIcon(java.awt.image.BufferedImage rune)
+	{
+		java.awt.image.BufferedImage icon = toSidebarIcon(rune);
+		if (icon == null || navButton == null)
+		{
+			return; // not loaded yet
+		}
+		NavigationButton old = navButton;
+		navButton = buildNav(icon);
+		if (navShown)
+		{
+			clientToolbar.removeNavigation(old);
+			clientToolbar.addNavigation(navButton);
+		}
+	}
+
+	/** Crop an item icon to its visible pixels and scale it to 16x16. Null if empty. */
+	static java.awt.image.BufferedImage toSidebarIcon(java.awt.image.BufferedImage img)
+	{
+		if (img == null)
+		{
+			return null;
+		}
+		int minX = Integer.MAX_VALUE;
+		int minY = Integer.MAX_VALUE;
+		int maxX = -1;
+		int maxY = -1;
+		for (int y = 0; y < img.getHeight(); y++)
+		{
+			for (int x = 0; x < img.getWidth(); x++)
+			{
+				if ((img.getRGB(x, y) >>> 24) > 40)
+				{
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x);
+					maxY = Math.max(maxY, y);
+				}
+			}
+		}
+		if (maxX < 0)
+		{
+			return null;
+		}
+		int w = maxX - minX + 1;
+		int h = maxY - minY + 1;
+		int side = Math.max(w, h);
+		java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics2D g = out.createGraphics();
+		g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+		g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+		// keep it square and centred
+		int dx = (side - w) / 2;
+		int dy = (side - h) / 2;
+		g.drawImage(img, dx * 16 / side, dy * 16 / side, (dx + w) * 16 / side, (dy + h) * 16 / side,
+			minX, minY, maxX + 1, maxY + 1, null);
+		g.dispose();
+		return out;
 	}
 
 	/** The side panel is always shown. */
