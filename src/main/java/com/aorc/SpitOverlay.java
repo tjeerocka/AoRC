@@ -13,6 +13,7 @@ import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -25,7 +26,7 @@ class SpitOverlay extends Overlay
 {
 	static final long PEEK_MILLIS = 300;     // Runey slides in
 	static final long FLY_MILLIS = 700;      // the drop flies
-	static final long SPLAT_MILLIS = 1600;   // splat on the character, drips, fades
+	static final long SPLAT_MILLIS = 2600;   // HUGE splat on the character, drips, fades
 	static final long TOTAL = PEEK_MILLIS + FLY_MILLIS + SPLAT_MILLIS;
 
 	private static final Color SPIT = new Color(175, 215, 245);
@@ -106,36 +107,93 @@ class SpitOverlay extends Overlay
 			float p = (t - PEEK_MILLIS) / (float) FLY_MILLIS;
 			float x = mouthX + (target.getX() - mouthX) * p;
 			float y = mouthY + (target.getY() - mouthY) * p - 60 * (float) Math.sin(Math.PI * p);
-			g.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 120));
-			g.fill(new Ellipse2D.Float(x + 8, y - 2, 6, 6));
-			g.fill(new Ellipse2D.Float(x + 15, y - 1, 4, 4));
+			g.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), 130));
+			g.fill(new Ellipse2D.Float(x + 16, y - 6, 14, 14));
+			g.fill(new Ellipse2D.Float(x + 32, y - 3, 9, 9));
+			g.fill(new Ellipse2D.Float(x + 44, y - 1, 6, 6));
 			g.setColor(SPIT);
-			g.fill(new Ellipse2D.Float(x - 7, y - 7, 14, 14));
+			g.fill(new Ellipse2D.Float(x - 18, y - 16, 36, 32));
 			g.setColor(Color.WHITE);
-			g.fill(new Ellipse2D.Float(x - 3, y - 4, 3, 3));
+			g.fill(new Ellipse2D.Float(x - 9, y - 10, 9, 7));
 		}
 		else if (t >= PEEK_MILLIS + FLY_MILLIS)
 		{
-			// splat on the character, drips running down, fading out
+			// HUGE splat on the character: big blob, flying droplets, streaks, long drips
 			float p = (t - PEEK_MILLIS - FLY_MILLIS) / (float) SPLAT_MILLIS;
-			int alpha = Math.round(230 * (1f - p));
+			float fadeP = Math.max(0f, (p - 0.55f) / 0.45f);            // stays full for a while, then fades
+			int alpha = Math.round(235 * (1f - fadeP));
+			float burst = Math.min(1f, p * 6f);                          // splash flies out fast
 			float tx = target.getX();
 			float ty = target.getY();
-			g.setColor(new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), alpha));
-			g.fill(new Ellipse2D.Float(tx - 11, ty - 8, 22, 16));
-			g.fill(new Ellipse2D.Float(tx - 18, ty - 13, 6, 6));
-			g.fill(new Ellipse2D.Float(tx + 13, ty - 12, 5, 5));
-			g.fill(new Ellipse2D.Float(tx + 9, ty + 9, 4, 4));
-			g.fill(new Ellipse2D.Float(tx - 15, ty + 7, 4, 4));
-			// drips
-			float drip = 22 * p;
-			g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-			g.drawLine(Math.round(tx - 5), Math.round(ty + 6), Math.round(tx - 5), Math.round(ty + 6 + drip));
-			g.drawLine(Math.round(tx + 4), Math.round(ty + 6), Math.round(tx + 4), Math.round(ty + 6 + drip * 0.6f));
+			Color spit = new Color(SPIT.getRed(), SPIT.getGreen(), SPIT.getBlue(), alpha);
+			g.setColor(spit);
+
+			// main blob
+			g.fill(new Ellipse2D.Float(tx - 38, ty - 28, 76, 56));
+			g.fill(new Ellipse2D.Float(tx - 52, ty - 12, 34, 30));
+			g.fill(new Ellipse2D.Float(tx + 20, ty - 18, 36, 32));
+			g.fill(new Ellipse2D.Float(tx - 18, ty - 46, 40, 30));
+
+			// droplets flying out in all directions
+			for (int i = 0; i < 14; i++)
+			{
+				double ang = i * Math.PI * 2 / 14 + (i % 3) * 0.2;
+				float dist = (55 + (i * 17) % 35) * burst;
+				float drop = 6 + (i * 7) % 9;
+				float dx = tx + (float) Math.cos(ang) * dist;
+				float dy = ty + (float) Math.sin(ang) * dist + 30 * p * p;   // they fall a bit
+				g.fill(new Ellipse2D.Float(dx - drop / 2, dy - drop / 2, drop, drop));
+			}
+
+			// splash streaks
+			g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+			for (int i = 0; i < 8; i++)
+			{
+				double ang = i * Math.PI / 4 + 0.35;
+				float r1 = 34 * burst;
+				float r2 = 62 * burst;
+				g.drawLine(Math.round(tx + (float) Math.cos(ang) * r1), Math.round(ty + (float) Math.sin(ang) * r1),
+					Math.round(tx + (float) Math.cos(ang) * r2), Math.round(ty + (float) Math.sin(ang) * r2));
+			}
+
+			// long drips running down
+			float drip = 70 * Math.min(1f, p * 1.4f);
+			g.setStroke(new BasicStroke(7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+			g.drawLine(Math.round(tx - 22), Math.round(ty + 20), Math.round(tx - 22), Math.round(ty + 20 + drip));
+			g.drawLine(Math.round(tx - 4), Math.round(ty + 24), Math.round(tx - 4), Math.round(ty + 24 + drip * 0.7f));
+			g.drawLine(Math.round(tx + 14), Math.round(ty + 22), Math.round(tx + 14), Math.round(ty + 22 + drip * 1.15f));
+			g.drawLine(Math.round(tx + 30), Math.round(ty + 10), Math.round(tx + 30), Math.round(ty + 10 + drip * 0.5f));
+			g.fill(new Ellipse2D.Float(tx - 27, ty + 16 + drip, 10, 12));
+			g.fill(new Ellipse2D.Float(tx + 9, ty + 18 + drip * 1.15f, 10, 12));
+
+			// shine
 			g.setColor(new Color(255, 255, 255, alpha));
-			g.fill(new Ellipse2D.Float(tx - 6, ty - 5, 4, 3));
+			g.fill(new Ellipse2D.Float(tx - 22, ty - 18, 16, 10));
+			g.fill(new Ellipse2D.Float(tx + 26, ty - 10, 8, 6));
+
+			// the character complains (OSRS-style yellow overhead text)
+			if (p < 0.92f)
+			{
+				String line = isIron()
+					? "YUCK! Good thing I'm an ironman..."
+					: "YUCK! I should have created an ironman instead!";
+				Point head = player.getCanvasTextLocation(g, line, player.getLogicalHeight() + 40);
+				if (head != null)
+				{
+					g.setFont(FontManager.getRunescapeBoldFont());
+					g.setColor(Color.BLACK);
+					g.drawString(line, head.getX() + 1, head.getY() + 1);
+					g.setColor(Color.YELLOW);
+					g.drawString(line, head.getX(), head.getY());
+				}
+			}
 		}
 		return null;
+	}
+
+	private boolean isIron()
+	{
+		return AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT)) != AccountType.MAIN;
 	}
 
 	private void drawRuney(Graphics2D g, int x, int y, int size, boolean mouthOpen)
