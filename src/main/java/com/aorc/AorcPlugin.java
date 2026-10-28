@@ -23,10 +23,10 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.RuneLite;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
@@ -73,6 +73,9 @@ public class AorcPlugin extends Plugin
 
 	@Inject
 	private Notifier notifier;
+
+	@Inject
+	private ClientThread clientThread;
 
 	private AorcPanel panel;
 	private NavigationButton navButton;
@@ -371,22 +374,11 @@ public class AorcPlugin extends Plugin
 		return json == null ? null : gson.fromJson(json, type);
 	}
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		// "Test spit (tick me)": spit once, then untick the box again
-		if (AorcConfig.GROUP.equals(event.getGroup()) && "testSpit".equals(event.getKey())
-			&& "true".equals(event.getNewValue()))
-		{
-			testSpit();
-			configManager.setConfiguration(AorcConfig.GROUP, "testSpit", false);
-		}
-	}
-
-	/** Shows the spit on any account type (settings "Test spit" or overlay menu). */
+	/** Shows the spit on any account type ("Test spit" button / overlay menu). Any thread. */
 	public void testSpit()
 	{
-		spitNow();
+		// game data (account type, player) may only be read on the game thread
+		clientThread.invokeLater(this::spitNow);
 	}
 
 	/** Spit on the character: from the side panel if Runey is visible there, otherwise he peeks in. */
