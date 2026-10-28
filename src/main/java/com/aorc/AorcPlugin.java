@@ -2,6 +2,7 @@ package com.aorc;
 
 import com.google.gson.Gson;
 import com.google.inject.Provides;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
+import net.runelite.client.RuneLite;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
@@ -30,7 +32,6 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 import net.runelite.client.events.ClientShutdown;
-import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -125,6 +126,11 @@ public class AorcPlugin extends Plugin
 	// true when something changed that should be saved
 	private boolean dirty;
 
+	// Own save file per account in .runelite/aorc/
+	private final AorcStorage storage = new AorcStorage(RuneLite.RUNELITE_DIR);
+	// Account whose numbers are loaded, -1 = none yet
+	private long loadedAccount = -1;
+
 	// Accounts already loaded since the client was opened
 	private final java.util.Set<String> profilesThisRun = new java.util.HashSet<>();
 
@@ -175,7 +181,7 @@ public class AorcPlugin extends Plugin
 		clearTracking();
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			load();
+			loadForAccount();
 		}
 	}
 
@@ -229,19 +235,29 @@ public class AorcPlugin extends Plugin
 
 	// ---- saving between sessions (per account) ----
 
+	/** Write everything to .runelite/aorc/<account>.json (only after the account is loaded). */
 	private void save()
 	{
 		dirty = false;
-		if (configManager.getRSProfileKey() == null)
+		if (loadedAccount == -1)
 		{
 			return;
 		}
-		long now = System.currentTimeMillis();
-		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION, gson.toJson(session.save(now)));
-		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS, gson.toJson(totals.save()));
-		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_HISTORY, gson.toJson(history.save()));
-		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_TRIPS, gson.toJson(trips.save()));
-		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_ESSENCE, gson.toJson(essence.save()));
+		AorcStorage.Data d = new AorcStorage.Data();
+		d.session = session.save(System.currentTimeMillis());
+		d.totals = totals.save();
+		d.history = history.save();
+		d.trips = trips.save();
+		d.essence = essence.save();
+		try
+		{
+			storage.write(loadedAccount, gson.toJson(d));
+		}
+		catch (IOException | RuntimeException e)
+		{
+			// Disk problem: try again on the next save
+			dirty = true;
+		}
 	}
 
 	private static String today()
@@ -256,62 +272,91 @@ public class AorcPlugin extends Plugin
 		dirty = true;
 	}
 
-	private void load()
+	/**
+	 * Load the saved numbers for the logged-in account.
+	 * Only once per account: a world hop or a second login keeps what is in memory (that is newer).
+	 */
+	private void loadForAccount()
 	{
+		long hash = client.getAccountHash();
+		if (hash == -1 || hash == loadedAccount)
+		{
+			return;
+		}
+		if (loadedAccount != -1 && dirty)
+		{
+			save(); // other account was logged in before: save that one first
+		}
+		loadedAccount = hash;
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
 
-		// History is always kept (also when "Remember after closing" is off)
+		AorcStorage.Data d = null;
 		try
 		{
-			String h = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_HISTORY);
-			history.load(h == null ? null : gson.fromJson(h, DayLog.Saved.class));
+			String json = storage.read(hash);
+			if (json != null)
+			{
+				d = gson.fromJson(json, AorcStorage.Data.class);
+			}
 		}
-		catch (RuntimeException e)
+		catch (IOException | RuntimeException e)
 		{
-			history.load(null);
+			d = null;
+		}
+		if (d == null)
+		{
+			d = loadOldConfig();
 		}
 
-		// Essence charges are game state: always keep them
-		try
-		{
-			String es = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_ESSENCE);
-			essence.load(es == null ? null : gson.fromJson(es, EssenceCharges.Saved.class));
-		}
-		catch (RuntimeException e)
-		{
-			essence.load(null);
-		}
+		// History and essence charges are always kept
+		history.load(d.history);
+		essence.load(d.essence);
 
-		String profile = configManager.getRSProfileKey();
-		boolean firstTimeThisRun = profile != null && profilesThisRun.add(profile);
-		if (firstTimeThisRun && !config.rememberSession())
+		boolean fresh = profilesThisRun.add(String.valueOf(hash)) && !config.rememberSession();
+		if (fresh)
 		{
 			// "Remember after closing" is off: start fresh once per client start
 			session.reset();
 			totals.load(null);
 			trips.reset();
-			save();
-			return;
 		}
+		else
+		{
+			session.load(d.session);
+			totals.load(d.totals);
+			trips.load(d.trips);
+		}
+		detectZmiFromTotals();
+		dirty = fresh;
+	}
 
+	/** Older AoRC versions saved in the RuneLite config. Read it once when there is no file yet. */
+	private AorcStorage.Data loadOldConfig()
+	{
+		AorcStorage.Data d = new AorcStorage.Data();
+		if (configManager.getRSProfileKey() == null)
+		{
+			return d;
+		}
 		try
 		{
-			String s = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION);
-			session.load(s == null ? null : gson.fromJson(s, RuneSession.Saved.class));
-			String t = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS);
-			totals.load(t == null ? null : gson.fromJson(t, RuneTotals.Saved.class));
-			String tr = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_TRIPS);
-			trips.load(tr == null ? null : gson.fromJson(tr, TripTracker.Saved.class));
-			detectZmiFromTotals();
+			d.session = fromConfig(KEY_SESSION, RuneSession.Saved.class);
+			d.totals = fromConfig(KEY_TOTALS, RuneTotals.Saved.class);
+			d.history = fromConfig(KEY_HISTORY, DayLog.Saved.class);
+			d.trips = fromConfig(KEY_TRIPS, TripTracker.Saved.class);
+			d.essence = fromConfig(KEY_ESSENCE, EssenceCharges.Saved.class);
 		}
 		catch (RuntimeException e)
 		{
-			// Broken saved data: start clean instead of crashing
-			session.reset();
-			totals.load(null);
-			trips.reset();
+			return new AorcStorage.Data();
 		}
-		dirty = false;
+		return d;
+	}
+
+	private <T> T fromConfig(String key, Class<T> type)
+	{
+		String json = configManager.getRSProfileConfiguration(AorcConfig.GROUP, key);
+		return json == null ? null : gson.fromJson(json, type);
 	}
 
 	/** The side panel is always shown. */
@@ -435,13 +480,6 @@ public class AorcPlugin extends Plugin
 		save();
 	}
 
-	@Subscribe
-	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
-	{
-		// Logged in (or switched account): load that account's saved numbers
-		load();
-	}
-
 	public long idleTimeoutMillis()
 	{
 		return config.idleTimeout() * 60_000L;
@@ -458,6 +496,11 @@ public class AorcPlugin extends Plugin
 	public void onGameStateChanged(GameStateChanged event)
 	{
 		GameState state = event.getGameState();
+		if (state == GameState.LOGGED_IN)
+		{
+			// Logged in: load this account's numbers (only the first time)
+			loadForAccount();
+		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
 			fragmentsUsed = false;

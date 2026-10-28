@@ -89,6 +89,22 @@ public class LogicTest
 	}
 
 	@Test
+	public void storageWritesAndReadsPerAccount() throws Exception
+	{
+		java.io.File base = java.nio.file.Files.createTempDirectory("aorc-test").toFile();
+		AorcStorage st = new AorcStorage(base);
+		assertEquals(null, st.read(123L));                 // no file yet
+		st.write(123L, "{\"a\":1}");
+		st.write(123L, "{\"a\":2}");                       // replaces, does not add
+		assertEquals("{\"a\":2}", st.read(123L));
+		st.write(456L, "{\"b\":1}");                       // other account, own file
+		assertEquals("{\"a\":2}", st.read(123L));
+		assertEquals("{\"b\":1}", st.read(456L));
+		assertTrue(new java.io.File(base, "aorc/123.json").exists());
+		assertFalse(new java.io.File(base, "aorc/123.json.tmp").exists());
+	}
+
+	@Test
 	public void activityStartsTimer()
 	{
 		RuneSession s = new RuneSession();
