@@ -411,7 +411,9 @@ public class AorcPlugin extends Plugin
 		return d;
 	}
 
-	@Subscribe
+	// High priority: run before RuneLite writes its settings file on close,
+	// so our last numbers are in that file
+	@Subscribe(priority = 1000)
 	public void onClientShutdown(ClientShutdown event)
 	{
 		// RuneLite is closing: if the last craft just happened (same tick),
