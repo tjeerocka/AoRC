@@ -108,9 +108,46 @@ class BuddyPanel extends JPanel
 
 	void setAccountType(AccountType type)
 	{
-		if (type != null)
+		if (type == null || type == sprite.type && sprite.helmLoaded)
 		{
-			sprite.type = type;
+			return;
+		}
+		sprite.type = type;
+		int helmId = helmItem(type);
+		if (helmId > 0)
+		{
+			// the real ironman helm icon from the game
+			AsyncBufferedImage helm = itemManager.getImage(helmId);
+			sprite.helm = helm;
+			helm.onLoaded(sprite::repaint);
+		}
+		else
+		{
+			sprite.helm = null;
+		}
+		sprite.helmLoaded = true;
+		sprite.repaint();
+	}
+
+	/** Ironman helm item per account type (OSRS Wiki item IDs), -1 for mains. */
+	static int helmItem(AccountType t)
+	{
+		switch (t)
+		{
+			case IRONMAN:
+				return 12810;  // Ironman helm
+			case ULTIMATE:
+				return 12813;  // Ultimate ironman helm
+			case HARDCORE:
+				return 20792;  // Hardcore ironman helm
+			case GROUP:
+				return 26156;  // Group ironman helm
+			case HARDCORE_GROUP:
+				return 26170;  // Hardcore group ironman helm
+			case UNRANKED_GROUP:
+				return 27042;  // Group ironman helm (unranked)
+			default:
+				return -1;
 		}
 	}
 
@@ -190,6 +227,8 @@ class BuddyPanel extends JPanel
 		int spitStart = -100;
 		BufferedImage rune;
 		BufferedImage partyhat;
+		BufferedImage helm;
+		boolean helmLoaded;
 		AccountType type = AccountType.MAIN;
 
 		Sprite()
@@ -243,7 +282,11 @@ class BuddyPanel extends JPanel
 
 			// outfit
 			Color helmet = helmetColor(type);
-			if (helmet != null)
+			if (helmet != null && drawItemHat(g2, cx, cy + r * 0.05f, helm, 27f, 0))
+			{
+				// real ironman helm drawn
+			}
+			else if (helmet != null)
 			{
 				drawHelmet(g2, cx, cy, r, helmet,
 				type == AccountType.HARDCORE_GROUP ? new Color(80, 140, 240) : helmet.brighter());
@@ -356,25 +399,35 @@ class BuddyPanel extends JPanel
 		/** Mains wear a real partyhat (game icon), tilted a bit. */
 		private static void drawPartyHat(Graphics2D g2, float cx, float cy, float r, BufferedImage hat)
 		{
-			Rectangle b = hat == null ? null : opaqueBounds(hat);
+			drawItemHat(g2, cx + 2, cy - r * 0.62f, hat, 28f, -12);
+		}
+
+		/**
+		 * Draw an item icon (helm / partyhat) with the bottom-centre of its visible pixels at (baseX, baseY).
+		 * Returns false when the icon is not loaded yet.
+		 */
+		private static boolean drawItemHat(Graphics2D g2, float baseX, float baseY, BufferedImage img, float width, double tiltDeg)
+		{
+			Rectangle b = img == null ? null : opaqueBounds(img);
 			if (b == null)
 			{
-				return; // icon not loaded yet
+				return false;
 			}
-			float scale = 28f / b.width;        // hat about 28 px wide
-			int w = Math.round(hat.getWidth() * scale);
-			int h = Math.round(hat.getHeight() * scale);
-			// bottom-centre of the visible hat sits on top of the stone
+			float scale = width / b.width;
+			int w = Math.round(img.getWidth() * scale);
+			int h = Math.round(img.getHeight() * scale);
 			float ax = (b.x + b.width / 2f) * scale;
 			float ay = (b.y + b.height) * scale;
-			float baseX = cx + 2;
-			float baseY = cy - r * 0.62f;
 
 			Graphics2D gh = (Graphics2D) g2.create();
 			gh.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			gh.rotate(Math.toRadians(-12), baseX, baseY);
-			gh.drawImage(hat, Math.round(baseX - ax), Math.round(baseY - ay), w, h, null);
+			if (tiltDeg != 0)
+			{
+				gh.rotate(Math.toRadians(tiltDeg), baseX, baseY);
+			}
+			gh.drawImage(img, Math.round(baseX - ax), Math.round(baseY - ay), w, h, null);
 			gh.dispose();
+			return true;
 		}
 
 		/** Bounds of the visible pixels (the stone inside the icon), or null if empty. */
