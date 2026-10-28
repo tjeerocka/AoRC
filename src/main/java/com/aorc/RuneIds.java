@@ -22,6 +22,17 @@ public final class RuneIds
 	public static final int DENSE_ESSENCE_BLOCK = 13445;
 	public static final int DARK_ESSENCE_BLOCK = 13446;
 	public static final int DARK_ESSENCE_FRAGMENTS = 7938;
+	public static final int RUNE_ESSENCE = 1436;
+	public static final int PURE_ESSENCE = 7936;
+	public static final int DAEYALT_ESSENCE = 24704;
+
+	/** Essence that is used up at an altar. None left = end of a trip. */
+	public static boolean isTripEssence(int itemId)
+	{
+		return itemId == DENSE_ESSENCE_BLOCK || itemId == DARK_ESSENCE_BLOCK
+			|| itemId == DARK_ESSENCE_FRAGMENTS || itemId == RUNE_ESSENCE
+			|| itemId == PURE_ESSENCE || itemId == DAEYALT_ESSENCE;
+	}
 
 	// Blood essence (wiki: inactive 26390, active 26392)
 	public static final int BLOOD_ESSENCE = 26390;

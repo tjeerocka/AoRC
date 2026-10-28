@@ -99,6 +99,8 @@ public class AorcPlugin extends Plugin
 
 	// Dark essence fragments were used up this tick (= Arceuus blood altar)
 	private boolean fragmentsUsed;
+	// The inventory just ran out of essence (= end of a trip), handled on the next tick
+	private boolean essenceEmptied;
 	// Last blood craft was at the Arceuus altar (diary bonus only works there)
 	private boolean lastBloodAtArceuus = true;
 	// Inactive blood essence in the inventory
@@ -432,6 +434,7 @@ public class AorcPlugin extends Plugin
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
 			fragmentsUsed = false;
+			essenceEmptied = false;
 			if (dirty)
 			{
 				save();
@@ -487,6 +490,11 @@ public class AorcPlugin extends Plugin
 					// Gone while almost empty: used up
 					essence.empty();
 					dirty = true;
+				}
+
+				if (essenceCount(lastInventory) > 0 && essenceCount(now) == 0)
+				{
+					essenceEmptied = true;
 				}
 
 				if (now.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
@@ -567,6 +575,7 @@ public class AorcPlugin extends Plugin
 		if (pendingGains.isEmpty())
 		{
 			fragmentsUsed = false;
+			endTripIfEmptied();
 			return;
 		}
 
@@ -638,7 +647,7 @@ public class AorcPlugin extends Plugin
 			if (madeRunes)
 			{
 				session.addCraft(now);
-				trips.onCraft(now, craftRunes);
+				trips.onCraft(craftRunes);
 			}
 			if (imbued)
 			{
@@ -653,6 +662,31 @@ public class AorcPlugin extends Plugin
 
 		pendingGains.clear();
 		fragmentsUsed = false;
+		// After the runes of this craft are counted, so they belong to this trip
+		endTripIfEmptied();
+	}
+
+	private void endTripIfEmptied()
+	{
+		if (essenceEmptied)
+		{
+			essenceEmptied = false;
+			trips.onEssenceEmpty(System.currentTimeMillis());
+			dirty = true;
+		}
+	}
+
+	private static int essenceCount(Map<Integer, Integer> inv)
+	{
+		int n = 0;
+		for (Map.Entry<Integer, Integer> e : inv.entrySet())
+		{
+			if (RuneIds.isTripEssence(e.getKey()))
+			{
+				n += e.getValue();
+			}
+		}
+		return n;
 	}
 
 	private void checkWarnings()
@@ -712,7 +746,7 @@ public class AorcPlugin extends Plugin
 			if (RuneIds.isRune(id)
 				|| id == RuneIds.DARK_ESSENCE_BLOCK
 				|| id == RuneIds.DENSE_ESSENCE_BLOCK
-				|| id == RuneIds.DARK_ESSENCE_FRAGMENTS
+				|| RuneIds.isTripEssence(id)
 				|| id == RuneIds.BLOOD_ESSENCE_ACTIVE
 				|| id == RuneIds.BLOOD_ESSENCE)
 			{

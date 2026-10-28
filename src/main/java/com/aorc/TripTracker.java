@@ -1,15 +1,17 @@
 package com.aorc;
 
 /**
- * Trip stats. A trip = one visit to the altar. Crafts less than 60 seconds apart
- * (for example fragments first, then the chiseled blocks) belong to the same trip.
- * Trip time = time from one altar visit to the next.
+ * Trip stats.
+ * A trip ends when the inventory has no essence left (no dense/dark blocks, fragments,
+ * rune, pure or daeyalt essence) - that is right after the last craft at the altar.
+ * Trip time = from one "essence empty" moment to the next.
+ * Runes crafted before the first "empty" moment are a half trip and are not counted.
  */
 public class TripTracker
 {
-	/** Crafts closer than this are the same trip. */
+	/** Empty again within this time (refilling from pouches) = same trip. */
 	static final long SAME_TRIP_MILLIS = 60_000L;
-	/** Longer than this between altar visits = a break, so the time is not used. */
+	/** Longer than this = a break, so the trip time is not used. */
 	static final long MAX_TRIP_MILLIS = 30 * 60_000L;
 
 	/** Data written to disk between RuneLite sessions. */
@@ -22,67 +24,77 @@ public class TripTracker
 		long fastestMillis = -1;
 		int lastTripRunes;
 		long lastTripMillis = -1;
-		long groupStart = -1;
-		long lastCraft = -1;
-		int groupRunes;
+		long tripStart = -1;     // last "essence empty" moment, -1 = not started yet
+		int currentRunes;        // runes in the trip in progress
 	}
 
 	private Saved s = new Saved();
 
-	/** One craft at an altar (all rune types of that click together). */
-	public void onCraft(long now, int runes)
+	/** Runes from one craft (all rune types together). */
+	public void onCraft(int runes)
 	{
-		if (runes <= 0)
+		if (runes > 0)
 		{
-			return;
+			s.currentRunes += runes;
 		}
-		if (s.lastCraft >= 0 && now - s.lastCraft <= SAME_TRIP_MILLIS && now >= s.lastCraft)
-		{
-			s.groupRunes += runes;
-			s.lastCraft = now;
-			return;
-		}
-
-		// A new altar visit: close the previous trip
-		if (s.groupStart >= 0)
-		{
-			s.trips++;
-			s.tripRunes += s.groupRunes;
-			s.lastTripRunes = s.groupRunes;
-			long dur = now - s.groupStart;
-			if (dur > 0 && dur <= MAX_TRIP_MILLIS)
-			{
-				s.timedTrips++;
-				s.tripMillis += dur;
-				s.lastTripMillis = dur;
-				if (s.fastestMillis < 0 || dur < s.fastestMillis)
-				{
-					s.fastestMillis = dur;
-				}
-			}
-			else
-			{
-				s.lastTripMillis = -1;
-			}
-		}
-		s.groupStart = now;
-		s.groupRunes = runes;
-		s.lastCraft = now;
 	}
 
-	/** Trips including the one in progress. */
+	/** The inventory has no essence left (after the last craft of a trip). */
+	public void onEssenceEmpty(long now)
+	{
+		if (s.tripStart < 0)
+		{
+			// First empty moment: the trip before this was only partly seen
+			s.tripStart = now;
+			s.currentRunes = 0;
+			return;
+		}
+		if (now - s.tripStart < SAME_TRIP_MILLIS)
+		{
+			// Emptied again quickly (pouches): still the same trip
+			return;
+		}
+		if (s.currentRunes <= 0)
+		{
+			// Nothing crafted (for example essence deposited in the bank): no trip
+			s.tripStart = now;
+			return;
+		}
+
+		s.trips++;
+		s.tripRunes += s.currentRunes;
+		s.lastTripRunes = s.currentRunes;
+		long dur = now - s.tripStart;
+		if (dur > 0 && dur <= MAX_TRIP_MILLIS)
+		{
+			s.timedTrips++;
+			s.tripMillis += dur;
+			s.lastTripMillis = dur;
+			if (s.fastestMillis < 0 || dur < s.fastestMillis)
+			{
+				s.fastestMillis = dur;
+			}
+		}
+		else
+		{
+			s.lastTripMillis = -1;
+		}
+		s.tripStart = now;
+		s.currentRunes = 0;
+	}
+
+	/** Finished trips. */
 	public int getTrips()
 	{
-		return s.trips + (s.groupStart >= 0 ? 1 : 0);
+		return s.trips;
 	}
 
 	public int getAvgRunes()
 	{
-		int n = getTrips();
-		return n == 0 ? 0 : (int) ((s.tripRunes + s.groupRunes) / n);
+		return s.trips == 0 ? 0 : (int) (s.tripRunes / s.trips);
 	}
 
-	/** -1 when there is no finished trip yet. */
+	/** -1 when there is no timed trip yet. */
 	public long getAvgTripMillis()
 	{
 		return s.timedTrips == 0 ? -1 : s.tripMillis / s.timedTrips;
@@ -93,15 +105,14 @@ public class TripTracker
 		return s.fastestMillis;
 	}
 
-	/** Runes of the altar visit in progress (or last one). */
-	public int getCurrentRunes()
-	{
-		return s.groupRunes;
-	}
-
 	public long getLastTripMillis()
 	{
 		return s.lastTripMillis;
+	}
+
+	public int getLastTripRunes()
+	{
+		return s.lastTripRunes;
 	}
 
 	public void reset()
@@ -119,14 +130,16 @@ public class TripTracker
 		c.fastestMillis = s.fastestMillis;
 		c.lastTripRunes = s.lastTripRunes;
 		c.lastTripMillis = s.lastTripMillis;
-		c.groupStart = s.groupStart;
-		c.lastCraft = s.lastCraft;
-		c.groupRunes = s.groupRunes;
+		c.tripStart = s.tripStart;
+		c.currentRunes = s.currentRunes;
 		return c;
 	}
 
 	public void load(Saved saved)
 	{
 		s = saved == null ? new Saved() : saved;
+		// Time while the client was closed must not count: start fresh at the next empty moment
+		s.tripStart = -1;
+		s.currentRunes = 0;
 	}
 }

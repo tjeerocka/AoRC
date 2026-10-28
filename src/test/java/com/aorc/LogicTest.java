@@ -204,32 +204,61 @@ public class LogicTest
 	}
 
 	@Test
+	public void tripEssenceTypes()
+	{
+		assertTrue(RuneIds.isTripEssence(1436));   // rune essence
+		assertTrue(RuneIds.isTripEssence(7936));   // pure essence
+		assertTrue(RuneIds.isTripEssence(24704));  // daeyalt essence
+		assertTrue(RuneIds.isTripEssence(13445));  // dense essence block
+		assertTrue(RuneIds.isTripEssence(13446));  // dark essence block
+		assertTrue(RuneIds.isTripEssence(7938));   // dark essence fragments
+		assertFalse(RuneIds.isTripEssence(565));   // blood rune
+	}
+
+	@Test
 	public void tripStats()
 	{
 		TripTracker t = new TripTracker();
-		// Trip 1: fragments craft, then blocks craft 20s later
-		t.onCraft(0, 100);
-		t.onCraft(20_000, 104);
-		// Trip 2 starts 8 minutes later
-		t.onCraft(480_000, 200);
-		t.onCraft(500_000, 10);
-		// Trip 3 starts 7 minutes after trip 2
-		t.onCraft(900_000, 196);
+		// Started mid-trip: these runes are a half trip, not counted
+		t.onCraft(150);
+		t.onEssenceEmpty(0);
+		assertEquals(0, t.getTrips());
 
-		assertEquals(3, t.getTrips());
-		assertEquals((204 + 210 + 196) / 3, t.getAvgRunes());
-		assertEquals(450_000, t.getAvgTripMillis());     // (480 + 420) / 2 s
+		// Trip 1 (8 min): fragments craft + blocks craft
+		t.onCraft(100);
+		t.onCraft(104);
+		t.onEssenceEmpty(480_000);
+		// Trip 2 (7 min)
+		t.onCraft(210);
+		t.onEssenceEmpty(900_000);
+		// Emptied again 20s later (pouch refill): same trip, nothing changes
+		t.onCraft(10);
+		t.onEssenceEmpty(920_000);
+
+		assertEquals(2, t.getTrips());
+		assertEquals((204 + 210) / 2, t.getAvgRunes());
+		assertEquals(450_000, t.getAvgTripMillis());
 		assertEquals(420_000, t.getFastestMillis());
 		assertEquals(420_000, t.getLastTripMillis());
 
-		// 1 hour break: trip counted, but its time is not used
-		t.onCraft(900_000 + 3_600_000, 200);
-		assertEquals(4, t.getTrips());
+		// Trip 3 after a 1 hour break: counted, but its time is not used
+		t.onEssenceEmpty(900_000 + 3_600_000);  // includes the 10 runes from above
+		assertEquals(3, t.getTrips());
 		assertEquals(450_000, t.getAvgTripMillis());
+		assertEquals(-1, t.getLastTripMillis());
 
+		// Essence deposited (no runes): not a trip
+		t.onEssenceEmpty(900_000 + 3_600_000 + 120_000);
+		assertEquals(3, t.getTrips());
+
+		// After loading, the first empty moment only starts a new trip
 		TripTracker c = new TripTracker();
 		c.load(t.save());
-		assertEquals(4, c.getTrips());
+		assertEquals(3, c.getTrips());
+		c.onCraft(200);
+		c.onEssenceEmpty(99_000_000);
+		assertEquals(3, c.getTrips());
+
 		t.reset();
 		assertEquals(0, t.getTrips());
 		assertEquals(-1, t.getAvgTripMillis());
