@@ -148,6 +148,11 @@ class AorcPanel extends PluginPanel
 		}
 
 		tripsPanel.removeAll();
+		cell(tripsPanel, "Current trip", time(d.currentTripMillis), Color.CYAN);
+		if (d.currentTripRunes > 0)
+		{
+			cell(tripsPanel, "Runes this trip", fmt(d.currentTripRunes), Color.LIGHT_GRAY);
+		}
 		cell(tripsPanel, "Trips", fmt(d.trips), Color.WHITE);
 		cell(tripsPanel, "Avg runes / trip", fmt(d.avgTripRunes), Color.WHITE);
 		cell(tripsPanel, "Avg trip time", time(d.avgTripMillis), Color.WHITE);

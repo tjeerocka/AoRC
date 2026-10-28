@@ -365,6 +365,8 @@ public class AorcPlugin extends Plugin
 		d.avgTripMillis = trips.getAvgTripMillis();
 		d.fastestTripMillis = trips.getFastestMillis();
 		d.lastTripMillis = trips.getLastTripMillis();
+		d.currentTripMillis = trips.getCurrentMillis(now);
+		d.currentTripRunes = trips.getCurrentRunes();
 
 		// Goals
 		int xp = client.getSkillExperience(Skill.RUNECRAFT);

@@ -270,6 +270,10 @@ public class LogicTest
 		f.onEssenceEmpty(480_000);
 		assertEquals(1, f.getTrips());
 		assertEquals(480_000, f.getLastTripMillis());
+		// current trip timer starts again at the end of the last trip
+		assertEquals(90_000, f.getCurrentMillis(570_000));
+		assertEquals(0, f.getCurrentRunes());
+		assertEquals(-1, new TripTracker().getCurrentMillis(570_000));
 	}
 
 	@Test

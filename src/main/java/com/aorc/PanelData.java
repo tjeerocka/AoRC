@@ -48,6 +48,8 @@ public final class PanelData
 	public long avgTripMillis = -1;
 	public long fastestTripMillis = -1;
 	public long lastTripMillis = -1;
+	public long currentTripMillis = -1;
+	public int currentTripRunes;
 
 	// Goals
 	public int goalLevel;

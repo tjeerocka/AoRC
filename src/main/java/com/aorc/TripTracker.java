@@ -93,6 +93,18 @@ public class TripTracker
 		s.currentRunes = 0;
 	}
 
+	/** Time of the trip in progress, -1 when no trip has started. */
+	public long getCurrentMillis(long now)
+	{
+		return s.tripStart < 0 ? -1 : Math.max(0, now - s.tripStart);
+	}
+
+	/** Runes crafted in the trip in progress. */
+	public int getCurrentRunes()
+	{
+		return s.currentRunes;
+	}
+
 	/** Finished trips. */
 	public int getTrips()
 	{
