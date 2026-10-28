@@ -150,11 +150,11 @@ class BuddyPanel extends JPanel
 			case HARDCORE:
 				return new Color(200, 30, 30);
 			case GROUP:
-				return new Color(40, 170, 70);    // green
+				return new Color(50, 110, 220);   // blue (ranked group)
 			case UNRANKED_GROUP:
-				return new Color(50, 110, 220);   // blue
+				return new Color(40, 170, 70);    // green
 			case HARDCORE_GROUP:
-				return new Color(40, 170, 70);    // green (helmet is red)
+				return new Color(50, 110, 220);   // blue (helmet is red)
 			default:
 				return new Color(240, 190, 30); // main: gold
 		}
@@ -172,11 +172,11 @@ class BuddyPanel extends JPanel
 			case HARDCORE:
 				return new Color(170, 25, 25);
 			case GROUP:
-				return new Color(40, 140, 60);    // green
+				return new Color(45, 95, 200);    // blue (ranked group)
 			case HARDCORE_GROUP:
-				return new Color(170, 25, 25);    // red, with a green crest
+				return new Color(170, 25, 25);    // red, with a blue crest
 			case UNRANKED_GROUP:
-				return new Color(45, 95, 200);    // blue
+				return new Color(40, 140, 60);    // green
 			default:
 				return null;
 		}
@@ -246,7 +246,7 @@ class BuddyPanel extends JPanel
 			if (helmet != null)
 			{
 				drawHelmet(g2, cx, cy, r, helmet,
-				type == AccountType.HARDCORE_GROUP ? new Color(60, 190, 80) : helmet.brighter());
+				type == AccountType.HARDCORE_GROUP ? new Color(80, 140, 240) : helmet.brighter());
 			}
 			else
 			{
