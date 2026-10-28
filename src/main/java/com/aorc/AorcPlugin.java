@@ -29,6 +29,7 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
+import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -411,6 +412,13 @@ public class AorcPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onClientShutdown(ClientShutdown event)
+	{
+		// RuneLite is closing: save everything now
+		save();
+	}
+
+	@Subscribe
 	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
 	{
 		// Logged in (or switched account): load that account's saved numbers
@@ -680,7 +688,8 @@ public class AorcPlugin extends Plugin
 		{
 			essenceEmptied = false;
 			trips.onEssenceEmpty(System.currentTimeMillis());
-			dirty = true;
+			// Save right away, so a finished trip is never lost
+			save();
 		}
 	}
 
