@@ -32,8 +32,6 @@ class AorcOverlay extends OverlayPanel
 		this.config = config;
 		this.itemManager = itemManager;
 		setPosition(OverlayPosition.TOP_LEFT);
-		// A bit wider than default, so the long title fits on one line
-		panelComponent.setPreferredSize(new Dimension(170, 0));
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset per hour", "AoRC", e -> plugin.resetRates());
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset blood runes", "AoRC", e -> plugin.resetRuneCount());
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset bonus runes", "AoRC", e -> plugin.resetBonusRunes());
@@ -56,7 +54,7 @@ class AorcOverlay extends OverlayPanel
 		long elapsed = s.elapsedMillis(now, timeout);
 
 		panelComponent.getChildren().add(TitleComponent.builder()
-			.text("Amount of Runes Crafted")
+			.text("AoRC")
 			.color(BLOOD)
 			.build());
 
