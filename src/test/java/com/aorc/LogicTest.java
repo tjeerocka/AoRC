@@ -185,8 +185,13 @@ public class LogicTest
 		assertEquals(1400, log.total().getRunes());
 		assertEquals(480_000, log.total().getActiveMillis());
 
+		// live timer: 1 min after the last action
+		assertEquals(60_000, log.liveMillis(4_140_000, t));
+		assertEquals(0, log.liveMillis(4_080_000 + 400_000, t)); // idle: no live time
+
 		// pause (logout): next action does not add the gap
 		log.pause();
+		assertEquals(0, log.liveMillis(4_090_000, t));
 		log.activity("2026-10-28", 4_100_000, t);
 		assertEquals(240_000, log.get("2026-10-28").getActiveMillis());
 

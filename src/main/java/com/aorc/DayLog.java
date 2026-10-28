@@ -89,6 +89,19 @@ public class DayLog
 		}
 	}
 
+	/**
+	 * Time since the last action that is not saved yet (for a live timer).
+	 * 0 when idle longer than the timeout, or paused.
+	 */
+	public long liveMillis(long now, long idleTimeoutMillis)
+	{
+		if (lastActivity < 0 || now <= lastActivity || now - lastActivity > idleTimeoutMillis)
+		{
+			return 0;
+		}
+		return now - lastActivity;
+	}
+
 	/** Stop the running time (for example after logging out). */
 	public void pause()
 	{

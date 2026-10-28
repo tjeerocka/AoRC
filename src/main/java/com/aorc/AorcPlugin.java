@@ -303,20 +303,24 @@ public class AorcPlugin extends Plugin
 		}
 		PanelData.sortRows(d.rows);
 
-		DayLog.Day t = history.get(today());
+		// Live part: time since the last action, so the timers tick every second
+		String today = today();
+		long live = history.liveMillis(now, idleTimeoutMillis());
+
+		DayLog.Day t = history.get(today);
 		d.todayRunes = t.getRunes();
-		d.todayMillis = t.getActiveMillis();
+		d.todayMillis = t.getActiveMillis() + live;
 		String best = history.bestDate();
 		if (best != null)
 		{
 			DayLog.Day b = history.get(best);
 			d.bestDate = best;
 			d.bestRunes = b.getRunes();
-			d.bestMillis = b.getActiveMillis();
+			d.bestMillis = b.getActiveMillis() + (best.equals(today) ? live : 0);
 		}
 		DayLog.Day all = history.total();
 		d.allRunes = all.getRunes();
-		d.allMillis = all.getActiveMillis();
+		d.allMillis = all.getActiveMillis() + live;
 		d.days = history.dayCount();
 		return d;
 	}
