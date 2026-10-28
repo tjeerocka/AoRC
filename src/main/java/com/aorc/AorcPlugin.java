@@ -278,12 +278,20 @@ public class AorcPlugin extends Plugin
 	/** Bonuses for the rune type you crafted last. */
 	public List<BonusCalculator.Bonus> currentBonuses()
 	{
+		// Blood-only bonuses (diary, blisterwood) only count once blood runes were crafted this session
+		boolean bloodCrafted = session.getRunes(RuneIds.BLOOD_RUNE) > 0;
+
+		BonusCalculator.Lantern usedLantern = lantern;
+		if (lantern == BonusCalculator.Lantern.BLISTERWOOD && (!config.blisterwoodLantern() || !bloodCrafted))
+		{
+			usedLantern = BonusCalculator.Lantern.NONE;
+		}
+
 		return BonusCalculator.activeBonuses(
 			lastCraftedRune == RuneIds.BLOOD_RUNE,
 			raimentsPieces,
-			lantern,
+			usedLantern,
 			bloodEssenceActive,
-			// Diary bonus only counts once blood runes were actually crafted this session
-			config.eliteDiary() && session.getRunes(RuneIds.BLOOD_RUNE) > 0);
+			config.eliteDiary() && bloodCrafted);
 	}
 }
