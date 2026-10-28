@@ -36,4 +36,10 @@ public final class GpFormat
 			.stripTrailingZeros()
 			.toPlainString();
 	}
+
+	/** Bonus % as a multiplier: 90 -> "x1.90", 0 -> "x1.00". */
+	public static String multiplier(int bonusPercent)
+	{
+		return String.format(java.util.Locale.ROOT, "x%.2f", 1 + bonusPercent / 100.0);
+	}
 }

@@ -114,7 +114,7 @@ class AorcPanel extends PluginPanel
 		stat("All runes / hr", fmt(d.allRunesPerHour), Color.WHITE);
 		stat("Crafts", fmt(d.crafts), Color.WHITE);
 		stat("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
-		stat("Bonus", "+" + d.bonusPercent + "%", BONUS);
+		stat("Bonus multiplier", GpFormat.multiplier(d.bonusPercent), BONUS);
 		stat("Bonus runes", fmt(d.bonusRunes), BONUS);
 
 		runesPanel.removeAll();

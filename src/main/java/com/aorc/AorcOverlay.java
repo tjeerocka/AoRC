@@ -118,7 +118,7 @@ class AorcOverlay extends OverlayPanel
 		if (config.showBonuses())
 		{
 			int total = BonusCalculator.totalPercent(plugin.currentBonuses());
-			line("Bonus equipped", "+" + total + "%", BONUS);
+			line("Bonus multiplier", GpFormat.multiplier(total), BONUS);
 			line("Bonus runes", fmt(t.getBonusRunes()), BONUS);
 		}
 

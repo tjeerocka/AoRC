@@ -56,6 +56,9 @@ public class LogicTest
 		assertEquals("999k", GpFormat.shortGp(999_999));
 		assertEquals("950", GpFormat.shortGp(950));
 		assertEquals("0", GpFormat.shortGp(0));
+		assertEquals("x1.90", GpFormat.multiplier(90));
+		assertEquals("x2.40", GpFormat.multiplier(140));
+		assertEquals("x1.00", GpFormat.multiplier(0));
 	}
 
 	@Test
