@@ -92,16 +92,4 @@ public interface AorcConfig extends Config
 	{
 		return true;
 	}
-
-	@ConfigItem(
-		keyName = "showSidebar",
-		name = "Side panel at ZMI",
-		description = "When you craft at ZMI (many rune types), show the AoRC button in the sidebar with the full list of runes",
-		section = mainSection,
-		position = 0
-	)
-	default boolean showSidebar()
-	{
-		return true;
-	}
 }

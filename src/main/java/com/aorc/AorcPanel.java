@@ -69,6 +69,12 @@ class AorcPanel extends PluginPanel
 		runesTitle.setForeground(Color.WHITE);
 		runesTitle.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(runesTitle);
+
+		JLabel zmiNote = new JLabel("<html>Crafting runes at ZMI? Every rune type you get will appear here.</html>");
+		zmiNote.setForeground(Color.GRAY);
+		zmiNote.setFont(FontManager.getRunescapeSmallFont());
+		zmiNote.setAlignmentX(LEFT_ALIGNMENT);
+		content.add(zmiNote);
 		content.add(spacer(4));
 
 		runesPanel.setLayout(new BoxLayout(runesPanel, BoxLayout.Y_AXIS));

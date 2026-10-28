@@ -19,7 +19,6 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
@@ -64,7 +63,7 @@ public class AorcPlugin extends Plugin
 	private NavigationButton navButton;
 	private boolean navShown;
 
-	/** ZMI (Ourania): one craft gives several rune types. Turns on the side panel. */
+	/** ZMI (Ourania): one craft gives several rune types. Changes the overlay and bonuses. */
 	@Getter
 	private boolean zmiMode;
 
@@ -228,33 +227,14 @@ public class AorcPlugin extends Plugin
 		dirty = false;
 	}
 
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event)
-	{
-		if (!AorcConfig.GROUP.equals(event.getGroup()) || !"showSidebar".equals(event.getKey()))
-		{
-			return;
-		}
-		updateNav();
-	}
-
-	/** Side panel button only while crafting at ZMI (and the option is on). */
+	/** The side panel is always shown. */
 	private void updateNav()
 	{
-		if (navButton == null)
-		{
-			return;
-		}
-		boolean want = zmiMode && config.showSidebar();
-		if (want && !navShown)
+		if (navButton != null && !navShown)
 		{
 			clientToolbar.addNavigation(navButton);
+			navShown = true;
 		}
-		else if (!want && navShown)
-		{
-			clientToolbar.removeNavigation(navButton);
-		}
-		navShown = want;
 	}
 
 	/** ZMI if the saved counts have many rune types (Ourania gives random runes). */
