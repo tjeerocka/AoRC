@@ -19,6 +19,13 @@ public interface AorcConfig extends Config
 	)
 	String mainSection = "main";
 
+	@ConfigSection(
+		name = "Blood rune crafting",
+		description = "Settings that only affect blood runes",
+		position = 10
+	)
+	String bloodSection = "blood";
+
 	@ConfigItem(
 		keyName = "showAllRunes",
 		name = "Show all rune types",
@@ -35,8 +42,8 @@ public interface AorcConfig extends Config
 		keyName = "eliteDiary",
 		name = "Elite Kourend diary done",
 		description = "Tick this if you finished the elite Kourend & Kebos diary (+10% blood runes at the Arceuus altar)",
-		section = mainSection,
-		position = 2
+		section = bloodSection,
+		position = 11
 	)
 	default boolean eliteDiary()
 	{
