@@ -36,6 +36,34 @@ public final class PanelData
 	public int bonusRunes;
 	public List<Row> rows = new ArrayList<>();
 
+	// History
+	public int todayRunes;
+	public long todayMillis;
+	public String bestDate;     // "yyyy-MM-dd" or null
+	public int bestRunes;
+	public long bestMillis;
+	public int allRunes;
+	public long allMillis;
+	public int days;
+
+	/** "2026-10-28" -> "28 Oct 2026". */
+	public static String formatDate(String isoDate)
+	{
+		if (isoDate == null)
+		{
+			return "-";
+		}
+		try
+		{
+			return java.time.LocalDate.parse(isoDate)
+				.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ENGLISH));
+		}
+		catch (RuntimeException e)
+		{
+			return isoDate;
+		}
+	}
+
 	/** Blood runes first, then the most crafted rune types. */
 	public static void sortRows(List<Row> rows)
 	{

@@ -30,6 +30,7 @@ class AorcPanel extends PluginPanel
 
 	private final JLabel timeLabel = new JLabel();
 	private final JPanel statsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
+	private final JPanel historyPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel runesPanel = new JPanel();
 	private final JLabel emptyLabel = new JLabel("Craft some runes to start.");
 
@@ -64,13 +65,26 @@ class AorcPanel extends PluginPanel
 		content.add(statsPanel);
 		content.add(spacer(8));
 
+		JLabel historyTitle = new JLabel("History");
+		historyTitle.setFont(FontManager.getRunescapeBoldFont());
+		historyTitle.setForeground(Color.WHITE);
+		historyTitle.setAlignmentX(LEFT_ALIGNMENT);
+		content.add(historyTitle);
+		content.add(spacer(4));
+
+		historyPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		historyPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+		historyPanel.setAlignmentX(LEFT_ALIGNMENT);
+		content.add(historyPanel);
+		content.add(spacer(8));
+
 		JLabel runesTitle = new JLabel("Runes crafted");
 		runesTitle.setFont(FontManager.getRunescapeBoldFont());
 		runesTitle.setForeground(Color.WHITE);
 		runesTitle.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(runesTitle);
 
-		JLabel zmiNote = new JLabel("<html>Crafting runes at ZMI? Every rune type you get will appear here.</html>");
+		JLabel zmiNote = new JLabel("<html><div style='width:170px'>Crafting runes at ZMI? Every rune type you get will appear here.</div></html>");
 		zmiNote.setForeground(Color.GRAY);
 		zmiNote.setFont(FontManager.getRunescapeSmallFont());
 		zmiNote.setAlignmentX(LEFT_ALIGNMENT);
@@ -83,12 +97,12 @@ class AorcPanel extends PluginPanel
 		content.add(runesPanel);
 		content.add(spacer(10));
 
-		JPanel buttons = new JPanel(new GridLayout(0, 2, 4, 4));
+		JPanel buttons = new JPanel(new GridLayout(0, 1, 0, 4));
 		buttons.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		buttons.setAlignmentX(LEFT_ALIGNMENT);
 		buttons.add(button("Reset per hour", () -> clientThread.invokeLater(plugin::resetRates)));
-		buttons.add(button("Reset runes", () -> clientThread.invokeLater(plugin::resetRuneCount)));
-		buttons.add(button("Reset bonus", () -> clientThread.invokeLater(plugin::resetBonusRunes)));
+		buttons.add(button("Reset rune count", () -> clientThread.invokeLater(plugin::resetRuneCount)));
+		buttons.add(button("Reset bonus runes", () -> clientThread.invokeLater(plugin::resetBonusRunes)));
 		buttons.add(button("Reset all", () -> clientThread.invokeLater(plugin::resetAll)));
 		content.add(buttons);
 
@@ -116,6 +130,14 @@ class AorcPanel extends PluginPanel
 		stat("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
 		stat("Bonus multiplier", GpFormat.multiplier(d.bonusPercent), BONUS);
 		stat("Bonus runes", fmt(d.bonusRunes), BONUS);
+
+		historyPanel.removeAll();
+		cell(historyPanel, "Today", fmt(d.todayRunes) + " runes", Color.WHITE);
+		cell(historyPanel, "", PanelData.formatTime(d.todayMillis), Color.LIGHT_GRAY);
+		cell(historyPanel, "Best day", d.bestDate == null ? "-" : fmt(d.bestRunes) + " runes", BLOOD);
+		cell(historyPanel, PanelData.formatDate(d.bestDate), d.bestDate == null ? "" : PanelData.formatTime(d.bestMillis), Color.LIGHT_GRAY);
+		cell(historyPanel, "All time", fmt(d.allRunes) + " runes", Color.WHITE);
+		cell(historyPanel, d.days + (d.days == 1 ? " day" : " days"), PanelData.formatTime(d.allMillis), Color.LIGHT_GRAY);
 
 		runesPanel.removeAll();
 		if (d.rows.isEmpty())
@@ -160,13 +182,18 @@ class AorcPanel extends PluginPanel
 
 	private void stat(String left, String right, Color color)
 	{
+		cell(statsPanel, left, right, color);
+	}
+
+	private static void cell(JPanel panel, String left, String right, Color color)
+	{
 		JLabel l = new JLabel(left);
 		l.setForeground(Color.LIGHT_GRAY);
 		JLabel r = new JLabel(right);
 		r.setForeground(color);
 		r.setHorizontalAlignment(SwingConstants.RIGHT);
-		statsPanel.add(l);
-		statsPanel.add(r);
+		panel.add(l);
+		panel.add(r);
 	}
 
 	private static JButton button(String text, Runnable action)

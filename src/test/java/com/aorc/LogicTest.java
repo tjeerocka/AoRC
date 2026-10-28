@@ -155,6 +155,47 @@ public class LogicTest
 
 		assertEquals("4m 12s", PanelData.formatTime(252_000));
 		assertEquals("1h 05m", PanelData.formatTime(3_900_000));
+		assertEquals("28 Oct 2026", PanelData.formatDate("2026-10-28"));
+		assertEquals("-", PanelData.formatDate(null));
+	}
+
+	@Test
+	public void dayLogBestDayAndTime()
+	{
+		DayLog log = new DayLog();
+		long t = 300_000; // idle timeout 5 min
+
+		// Day 1: 3 actions, 2 min apart = 4 min, 400 blood runes
+		log.activity("2026-10-27", 0, t);
+		log.activity("2026-10-27", 120_000, t);
+		log.addRunes("2026-10-27", RuneIds.BLOOD_RUNE, 400);
+		log.activity("2026-10-27", 240_000, t);
+
+		// 1 hour break does not count
+		log.activity("2026-10-28", 3_840_000, t);
+		log.activity("2026-10-28", 4_080_000, t);           // +4 min
+		log.addRunes("2026-10-28", RuneIds.BLOOD_RUNE, 900);
+		log.addRunes("2026-10-28", 560, 100);               // death runes
+
+		assertEquals(240_000, log.get("2026-10-27").getActiveMillis());
+		assertEquals(240_000, log.get("2026-10-28").getActiveMillis());
+		assertEquals("2026-10-28", log.bestDate());
+		assertEquals(1000, log.get("2026-10-28").getRunes());
+		assertEquals(900, log.get("2026-10-28").getBloodRunes());
+		assertEquals(1400, log.total().getRunes());
+		assertEquals(480_000, log.total().getActiveMillis());
+
+		// pause (logout): next action does not add the gap
+		log.pause();
+		log.activity("2026-10-28", 4_100_000, t);
+		assertEquals(240_000, log.get("2026-10-28").getActiveMillis());
+
+		DayLog copy = new DayLog();
+		copy.load(log.save());
+		assertEquals("2026-10-28", copy.bestDate());
+		assertEquals(1400, copy.total().getRunes());
+		assertEquals(0, new DayLog().total().getRunes());
+		assertEquals(null, new DayLog().bestDate());
 	}
 
 	@Test

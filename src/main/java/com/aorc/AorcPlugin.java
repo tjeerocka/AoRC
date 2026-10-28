@@ -69,6 +69,10 @@ public class AorcPlugin extends Plugin
 
 	private static final String KEY_SESSION = "savedSession";
 	private static final String KEY_TOTALS = "savedTotals";
+	private static final String KEY_HISTORY = "savedHistory";
+
+	/** Runes and time per day (best day, today, all time). Never reset by "Reset all". */
+	private final DayLog history = new DayLog();
 
 	/** Per-hour numbers (rate timer, xp, runes for /hr, GP). */
 	@Getter
@@ -193,11 +197,35 @@ public class AorcPlugin extends Plugin
 		long now = System.currentTimeMillis();
 		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION, gson.toJson(session.save(now)));
 		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS, gson.toJson(totals.save()));
+		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_HISTORY, gson.toJson(history.save()));
+	}
+
+	private static String today()
+	{
+		return java.time.LocalDate.now().toString();
+	}
+
+	/** Something runecrafting-related happened (counts toward time spent). */
+	private void activity()
+	{
+		history.activity(today(), System.currentTimeMillis(), idleTimeoutMillis());
+		dirty = true;
 	}
 
 	private void load()
 	{
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
+
+		// History is always kept (also when "Remember after closing" is off)
+		try
+		{
+			String h = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_HISTORY);
+			history.load(h == null ? null : gson.fromJson(h, DayLog.Saved.class));
+		}
+		catch (RuntimeException e)
+		{
+			history.load(null);
+		}
 
 		String profile = configManager.getRSProfileKey();
 		boolean firstTimeThisRun = profile != null && profilesThisRun.add(profile);
@@ -274,6 +302,22 @@ public class AorcPlugin extends Plugin
 				RuneSession.perHour(session.getRunes(id), elapsed)));
 		}
 		PanelData.sortRows(d.rows);
+
+		DayLog.Day t = history.get(today());
+		d.todayRunes = t.getRunes();
+		d.todayMillis = t.getActiveMillis();
+		String best = history.bestDate();
+		if (best != null)
+		{
+			DayLog.Day b = history.get(best);
+			d.bestDate = best;
+			d.bestRunes = b.getRunes();
+			d.bestMillis = b.getActiveMillis();
+		}
+		DayLog.Day all = history.total();
+		d.allRunes = all.getRunes();
+		d.allMillis = all.getActiveMillis();
+		d.days = history.dayCount();
 		return d;
 	}
 
@@ -308,6 +352,7 @@ public class AorcPlugin extends Plugin
 			}
 			// Inventory and xp are sent again after login; do not count them as crafted.
 			clearTracking();
+			history.pause();
 		}
 	}
 
@@ -324,7 +369,8 @@ public class AorcPlugin extends Plugin
 		{
 			startNewSessionIfIdle();
 			session.addXp(xp - lastRcXp, System.currentTimeMillis());
-			dirty = true;
+			history.addXp(today(), xp - lastRcXp);
+			activity();
 			lastXpTick = tick;
 		}
 		lastRcXp = xp;
@@ -343,7 +389,16 @@ public class AorcPlugin extends Plugin
 				for (Map.Entry<Integer, Integer> e : now.entrySet())
 				{
 					int gain = e.getValue() - lastInventory.getOrDefault(e.getKey(), 0);
-					if (gain > 0)
+					if (gain <= 0)
+					{
+						continue;
+					}
+					if (e.getKey() == RuneIds.DENSE_ESSENCE_BLOCK || e.getKey() == RuneIds.DARK_ESSENCE_FRAGMENTS)
+					{
+						// Mining dense essence or chiseling: counts as time spent
+						activity();
+					}
+					else
 					{
 						pendingGains.merge(e.getKey(), gain, Integer::sum);
 					}
@@ -417,6 +472,7 @@ public class AorcPlugin extends Plugin
 					int pct = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(
 						bloodAltar, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone));
 					totals.addCraft(id, amount, pct);
+					history.addRunes(today(), id, amount);
 					madeRunes = true;
 					dirty = true;
 				}
@@ -462,6 +518,8 @@ public class AorcPlugin extends Plugin
 			int id = item.getId();
 			if (RuneIds.isRune(id)
 				|| id == RuneIds.DARK_ESSENCE_BLOCK
+				|| id == RuneIds.DENSE_ESSENCE_BLOCK
+				|| id == RuneIds.DARK_ESSENCE_FRAGMENTS
 				|| id == RuneIds.BLOOD_ESSENCE_ACTIVE)
 			{
 				counts.merge(id, item.getQuantity(), Integer::sum);
