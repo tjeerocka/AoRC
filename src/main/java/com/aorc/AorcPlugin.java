@@ -370,6 +370,12 @@ public class AorcPlugin extends Plugin
 		return json == null ? null : gson.fromJson(json, type);
 	}
 
+	/** Right-click the overlay, "Test spit": shows the spit on any account type. */
+	public void testSpit()
+	{
+		spitOverlay.spit(lastCraftedRune);
+	}
+
 	/** Mains: Runey spits on the character 1 minute after login, then every 30 minutes. */
 	private void maybeSpitOnPlayer()
 	{
