@@ -56,6 +56,9 @@ public class AorcPlugin extends Plugin
 	private AorcOverlay overlay;
 
 	@Inject
+	private SpitOverlay spitOverlay;
+
+	@Inject
 	private ConfigManager configManager;
 
 	@Inject
@@ -109,6 +112,8 @@ public class AorcPlugin extends Plugin
 	private int inactiveEssence;
 	// Most Raiments pieces seen worn (for the "piece missing" warning)
 	private int maxRaimentsSeen;
+	// Next time Runey spits on the character (mains), -1 = not planned
+	private long nextGameSpit = -1;
 	// Last time each warning was shown
 	private final Map<String, Long> lastWarn = new HashMap<>();
 
@@ -168,6 +173,7 @@ public class AorcPlugin extends Plugin
 	protected void startUp()
 	{
 		overlayManager.add(overlay);
+		overlayManager.add(spitOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = NavigationButton.builder()
@@ -190,6 +196,7 @@ public class AorcPlugin extends Plugin
 	{
 		save();
 		overlayManager.remove(overlay);
+		overlayManager.remove(spitOverlay);
 		if (panel != null)
 		{
 			panel.stop();
@@ -363,6 +370,27 @@ public class AorcPlugin extends Plugin
 		return json == null ? null : gson.fromJson(json, type);
 	}
 
+	/** Mains: Runey spits on the character 1 minute after login, then every 30 minutes. */
+	private void maybeSpitOnPlayer()
+	{
+		if (!config.spitOnPlayer()
+			|| AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT)) != AccountType.MAIN)
+		{
+			nextGameSpit = -1;
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (nextGameSpit < 0)
+		{
+			nextGameSpit = now + 60_000L;
+		}
+		else if (now >= nextGameSpit)
+		{
+			spitOverlay.spit(lastCraftedRune);
+			nextGameSpit = now + 30 * 60_000L;
+		}
+	}
+
 	/** The side panel is always shown. */
 	private void updateNav()
 	{
@@ -512,6 +540,7 @@ public class AorcPlugin extends Plugin
 		{
 			fragmentsUsed = false;
 			essenceEmptied = false;
+			nextGameSpit = -1;
 			if (dirty)
 			{
 				save();
@@ -646,6 +675,7 @@ public class AorcPlugin extends Plugin
 		tick++;
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
 		eliteDiaryDone = client.getVarbitValue(RuneIds.VARBIT_DIARY_KOUREND_ELITE) == 1;
+		maybeSpitOnPlayer();
 
 		// Fresh numbers every tick (overlay), side panel about once a second
 		lastData = buildPanelData();

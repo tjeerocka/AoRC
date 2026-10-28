@@ -105,6 +105,18 @@ public interface AorcConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "spitOnPlayer",
+		name = "Runey spits on you (mains)",
+		description = "Main accounts only: Runey spits on your character in the game (1 minute after login, then every 30 minutes). Only you see it.",
+		section = mainSection,
+		position = 9
+	)
+	default boolean spitOnPlayer()
+	{
+		return true;
+	}
+
 	// ---- Goals ----
 
 	@ConfigSection(

@@ -38,6 +38,7 @@ class AorcPanel extends PluginPanel
 	private final BuddyPanel buddy;
 	private final HypeBuddy hype = new HypeBuddy();
 
+
 	@Inject
 	AorcPanel(AorcPlugin plugin, ItemManager itemManager, ClientThread clientThread)
 	{
