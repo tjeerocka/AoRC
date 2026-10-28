@@ -544,14 +544,19 @@ public class AorcPlugin extends Plugin
 					{
 						continue;
 					}
-					if (e.getKey() == RuneIds.DENSE_ESSENCE_BLOCK || e.getKey() == RuneIds.DARK_ESSENCE_FRAGMENTS)
+					int id = e.getKey();
+					if (id == RuneIds.DENSE_ESSENCE_BLOCK || id == RuneIds.DARK_ESSENCE_BLOCK
+						|| id == RuneIds.DARK_ESSENCE_FRAGMENTS)
 					{
-						// Mining dense essence or chiseling: counts as time spent
+						// Mining, imbuing or chiseling: starts / keeps the Active time timer running
+						startNewSessionIfIdle();
+						session.addActivity(System.currentTimeMillis());
 						activity();
 					}
-					else
+					if (id != RuneIds.DENSE_ESSENCE_BLOCK && id != RuneIds.DARK_ESSENCE_FRAGMENTS)
 					{
-						pendingGains.merge(e.getKey(), gain, Integer::sum);
+						// Runes and dark blocks are checked against RC xp on the next tick
+						pendingGains.merge(id, gain, Integer::sum);
 					}
 				}
 			}

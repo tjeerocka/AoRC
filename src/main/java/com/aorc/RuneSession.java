@@ -60,6 +60,12 @@ public class RuneSession
 		lastActionMillis = Math.max(lastActionMillis, now);
 	}
 
+	/** Other runecrafting activity (mining dense essence, chiseling): keeps the timer running. */
+	public void addActivity(long now)
+	{
+		touch(now);
+	}
+
 	/** Called when runes of one type were crafted at an altar. */
 	public void addRunes(int itemId, int amount, long now)
 	{

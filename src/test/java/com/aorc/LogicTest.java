@@ -89,6 +89,19 @@ public class LogicTest
 	}
 
 	@Test
+	public void activityStartsTimer()
+	{
+		RuneSession s = new RuneSession();
+		s.setIdleTimeoutMillis(300_000);
+		s.addActivity(0);               // mining dense essence
+		s.addActivity(120_000);         // chiseling
+		assertTrue(s.isStarted());
+		assertEquals(120_000, s.elapsedMillis(120_000, 300_000));
+		s.addXp(500, 200_000);          // imbue xp keeps it going
+		assertEquals(200_000, s.elapsedMillis(200_000, 300_000));
+	}
+
+	@Test
 	public void saveAndLoad()
 	{
 		RuneSession a = new RuneSession();
