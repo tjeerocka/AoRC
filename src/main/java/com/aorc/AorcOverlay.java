@@ -59,7 +59,7 @@ class AorcOverlay extends OverlayPanel
 		if (blood > 0 || !config.showAllRunes())
 		{
 			line("Blood runes", fmt(blood), BLOOD);
-			line("Blood / hr", fmt(RuneSession.perHour(blood, elapsed)), BLOOD);
+			line("Blood / hr", rate(blood, elapsed), BLOOD);
 		}
 
 		if (config.showAllRunes())
@@ -72,15 +72,15 @@ class AorcOverlay extends OverlayPanel
 				}
 				String name = RuneIds.RUNES.get(e.getKey());
 				line(name + " runes", fmt(e.getValue()), Color.WHITE);
-				line(name + " / hr", fmt(RuneSession.perHour(e.getValue(), elapsed)), Color.WHITE);
+				line(name + " / hr", rate(e.getValue(), elapsed), Color.WHITE);
 			}
 			if (s.getRunesCrafted().size() > 1)
 			{
-				line("All runes / hr", fmt(RuneSession.perHour(s.getTotalRunes(), elapsed)), Color.WHITE);
+				line("All runes / hr", rate(s.getTotalRunes(), elapsed), Color.WHITE);
 			}
 		}
 
-		line("RC xp / hr", fmt(RuneSession.perHour(s.getXpGained(), elapsed)), Color.WHITE);
+		line("RC xp / hr", rate(s.getXpGained(), elapsed), Color.WHITE);
 
 		if (s.getBlocksImbued() > 0)
 		{
@@ -95,7 +95,7 @@ class AorcOverlay extends OverlayPanel
 			{
 				gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
 			}
-			line("GP / hr", GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
+			line("GP / hr", elapsed < 60_000L ? "-" : GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
 		}
 
 		if (config.showBonuses())
@@ -126,6 +126,16 @@ class AorcOverlay extends OverlayPanel
 			.right(right)
 			.rightColor(color)
 			.build());
+	}
+
+	/** Per hour value, or "-" during the first minute (too early to be correct). */
+	private String rate(long amount, long elapsed)
+	{
+		if (elapsed < 60_000L)
+		{
+			return "-";
+		}
+		return fmt(RuneSession.perHour(amount, elapsed));
 	}
 
 	private String fmt(long value)
