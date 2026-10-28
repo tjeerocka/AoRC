@@ -22,6 +22,7 @@ public class RuneSession
 		int blocks;
 		int crafts;
 		long activeMillis;
+		double essenceRunes;
 	}
 
 	private final Map<Integer, Integer> runesCrafted = new LinkedHashMap<>();
@@ -32,6 +33,7 @@ public class RuneSession
 	private int xpGained;
 	private int blocksImbued;
 	private int crafts;
+	private double essenceRunes;        // expected blood essence charges used (for profit)
 
 	public void setIdleTimeoutMillis(long idleTimeoutMillis)
 	{
@@ -161,6 +163,19 @@ public class RuneSession
 		return crafts;
 	}
 
+	public void addEssenceRunes(double runes)
+	{
+		if (runes > 0)
+		{
+			essenceRunes += runes;
+		}
+	}
+
+	public double getEssenceRunes()
+	{
+		return essenceRunes;
+	}
+
 	public void reset()
 	{
 		runesCrafted.clear();
@@ -170,6 +185,7 @@ public class RuneSession
 		xpGained = 0;
 		blocksImbued = 0;
 		crafts = 0;
+		essenceRunes = 0;
 	}
 
 	/** Snapshot for saving. */
@@ -180,6 +196,7 @@ public class RuneSession
 		s.xp = xpGained;
 		s.blocks = blocksImbued;
 		s.crafts = crafts;
+		s.essenceRunes = essenceRunes;
 		s.activeMillis = elapsedMillis(now, idleTimeoutMillis);
 		return s;
 	}
@@ -199,6 +216,7 @@ public class RuneSession
 		xpGained = s.xp;
 		blocksImbued = s.blocks;
 		crafts = s.crafts;
+		essenceRunes = Math.max(0, s.essenceRunes);
 		bankedMillis = Math.max(0, s.activeMillis);
 	}
 }

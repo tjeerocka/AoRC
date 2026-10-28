@@ -5,24 +5,30 @@ import com.google.inject.Provides;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.inject.Inject;
 import lombok.Getter;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Skill;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
+import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -59,6 +65,9 @@ public class AorcPlugin extends Plugin
 	@Inject
 	private ItemManager itemManager;
 
+	@Inject
+	private Notifier notifier;
+
 	private AorcPanel panel;
 	private NavigationButton navButton;
 	private boolean navShown;
@@ -70,6 +79,34 @@ public class AorcPlugin extends Plugin
 	private static final String KEY_SESSION = "savedSession";
 	private static final String KEY_TOTALS = "savedTotals";
 	private static final String KEY_HISTORY = "savedHistory";
+	private static final String KEY_TRIPS = "savedTrips";
+	private static final String KEY_ESSENCE = "savedEssence";
+
+	/** "Your blood essence has 940 charges remaining." */
+	private static final Pattern ESSENCE_CHECK = Pattern.compile("Your blood essence has ([\\d,]+) charges? remaining");
+
+	/** Trip stats (reset with "Reset per hour"). */
+	@Getter
+	private final TripTracker trips = new TripTracker();
+
+	/** Charges left on the active blood essence. */
+	@Getter
+	private final EssenceCharges essence = new EssenceCharges();
+
+	/** Latest numbers, also used by the overlay. Made on the game thread. */
+	@Getter
+	private PanelData lastData = new PanelData();
+
+	// Dark essence fragments were used up this tick (= Arceuus blood altar)
+	private boolean fragmentsUsed;
+	// Last blood craft was at the Arceuus altar (diary bonus only works there)
+	private boolean lastBloodAtArceuus = true;
+	// Inactive blood essence in the inventory
+	private int inactiveEssence;
+	// Most Raiments pieces seen worn (for the "piece missing" warning)
+	private int maxRaimentsSeen;
+	// Last time each warning was shown
+	private final Map<String, Long> lastWarn = new HashMap<>();
 
 	/** Runes and time per day (best day, today, all time). Never reset by "Reset all". */
 	private final DayLog history = new DayLog();
@@ -156,6 +193,7 @@ public class AorcPlugin extends Plugin
 	public void resetRates()
 	{
 		session.reset();
+		trips.reset();
 		save();
 	}
 
@@ -178,6 +216,7 @@ public class AorcPlugin extends Plugin
 	public void resetAll()
 	{
 		session.reset();
+		trips.reset();
 		totals.resetRunes();
 		totals.resetBonus();
 		zmiMode = false;
@@ -198,6 +237,8 @@ public class AorcPlugin extends Plugin
 		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_SESSION, gson.toJson(session.save(now)));
 		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS, gson.toJson(totals.save()));
 		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_HISTORY, gson.toJson(history.save()));
+		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_TRIPS, gson.toJson(trips.save()));
+		configManager.setRSProfileConfiguration(AorcConfig.GROUP, KEY_ESSENCE, gson.toJson(essence.save()));
 	}
 
 	private static String today()
@@ -227,6 +268,17 @@ public class AorcPlugin extends Plugin
 			history.load(null);
 		}
 
+		// Essence charges are game state: always keep them
+		try
+		{
+			String es = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_ESSENCE);
+			essence.load(es == null ? null : gson.fromJson(es, EssenceCharges.Saved.class));
+		}
+		catch (RuntimeException e)
+		{
+			essence.load(null);
+		}
+
 		String profile = configManager.getRSProfileKey();
 		boolean firstTimeThisRun = profile != null && profilesThisRun.add(profile);
 		if (firstTimeThisRun && !config.rememberSession())
@@ -234,6 +286,7 @@ public class AorcPlugin extends Plugin
 			// "Remember after closing" is off: start fresh once per client start
 			session.reset();
 			totals.load(null);
+			trips.reset();
 			save();
 			return;
 		}
@@ -244,6 +297,8 @@ public class AorcPlugin extends Plugin
 			session.load(s == null ? null : gson.fromJson(s, RuneSession.Saved.class));
 			String t = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_TOTALS);
 			totals.load(t == null ? null : gson.fromJson(t, RuneTotals.Saved.class));
+			String tr = configManager.getRSProfileConfiguration(AorcConfig.GROUP, KEY_TRIPS);
+			trips.load(tr == null ? null : gson.fromJson(tr, TripTracker.Saved.class));
 			detectZmiFromTotals();
 		}
 		catch (RuntimeException e)
@@ -251,6 +306,7 @@ public class AorcPlugin extends Plugin
 			// Broken saved data: start clean instead of crashing
 			session.reset();
 			totals.load(null);
+			trips.reset();
 		}
 		dirty = false;
 	}
@@ -293,6 +349,31 @@ public class AorcPlugin extends Plugin
 			gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
 		}
 		d.gpPerHour = RuneSession.perHour(gp, elapsed);
+
+		// Profit: GP minus the blood essence used (1 charge per extra rune, 1,000 per essence)
+		d.essenceUsed = session.getEssenceRunes();
+		long essenceCost = Math.round(d.essenceUsed / EssenceCharges.FULL * itemManager.getItemPrice(RuneIds.BLOOD_ESSENCE));
+		d.profitPerHour = RuneSession.perHour(gp - essenceCost, elapsed);
+		d.essenceCharges = bloodEssenceActive ? essence.remaining() : -1;
+		d.essenceEstimate = essence.isEstimate();
+
+		// Trips
+		d.trips = trips.getTrips();
+		d.avgTripRunes = trips.getAvgRunes();
+		d.avgTripMillis = trips.getAvgTripMillis();
+		d.fastestTripMillis = trips.getFastestMillis();
+		d.lastTripMillis = trips.getLastTripMillis();
+
+		// Goals
+		int xp = client.getSkillExperience(Skill.RUNECRAFT);
+		d.goalLevel = config.goalLevel();
+		d.currentLevel = client.getRealSkillLevel(Skill.RUNECRAFT);
+		d.xpLeft = Math.max(0, Goals.xpForLevel(d.goalLevel) - xp);
+		d.goalLevelMillis = Goals.millisToGoal(d.xpLeft, d.xpPerHour);
+		d.goalBlood = config.goalBloodRunes();
+		d.bloodLeft = Math.max(0, d.goalBlood - totals.getRunes(RuneIds.BLOOD_RUNE));
+		d.goalBloodMillis = Goals.millisToGoal(d.bloodLeft,
+			RuneSession.perHour(session.getRunes(RuneIds.BLOOD_RUNE), elapsed));
 
 		java.util.Set<Integer> types = new java.util.LinkedHashSet<>(totals.getRunes().keySet());
 		types.addAll(session.getRunesCrafted().keySet());
@@ -350,6 +431,7 @@ public class AorcPlugin extends Plugin
 		GameState state = event.getGameState();
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
+			fragmentsUsed = false;
 			if (dirty)
 			{
 				save();
@@ -387,9 +469,33 @@ public class AorcPlugin extends Plugin
 		{
 			Map<Integer, Integer> now = countTracked(event.getItemContainer());
 			bloodEssenceActive = now.getOrDefault(RuneIds.BLOOD_ESSENCE_ACTIVE, 0) > 0;
+			inactiveEssence = now.getOrDefault(RuneIds.BLOOD_ESSENCE, 0);
 
 			if (lastInventory != null)
 			{
+				int activeBefore = lastInventory.getOrDefault(RuneIds.BLOOD_ESSENCE_ACTIVE, 0);
+				int activeNow = now.getOrDefault(RuneIds.BLOOD_ESSENCE_ACTIVE, 0);
+				int inactiveBefore = lastInventory.getOrDefault(RuneIds.BLOOD_ESSENCE, 0);
+				if (activeNow > activeBefore && inactiveEssence < inactiveBefore)
+				{
+					// An inactive essence became active: 1,000 charges
+					essence.activated();
+					dirty = true;
+				}
+				else if (activeNow < activeBefore && essence.remaining() >= 0 && essence.remaining() <= 150)
+				{
+					// Gone while almost empty: used up
+					essence.empty();
+					dirty = true;
+				}
+
+				if (now.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
+					< lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0))
+				{
+					// Fragments used up: crafting at the Arceuus blood altar
+					fragmentsUsed = true;
+				}
+
 				for (Map.Entry<Integer, Integer> e : now.entrySet())
 				{
 					int gain = e.getValue() - lastInventory.getOrDefault(e.getKey(), 0);
@@ -417,16 +523,39 @@ public class AorcPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onChatMessage(ChatMessage event)
+	{
+		if (event.getType() != ChatMessageType.GAMEMESSAGE && event.getType() != ChatMessageType.SPAM)
+		{
+			return;
+		}
+		Matcher m = ESSENCE_CHECK.matcher(Text.removeTags(event.getMessage()));
+		if (m.find())
+		{
+			try
+			{
+				essence.setExact(Integer.parseInt(m.group(1).replace(",", "")));
+				dirty = true;
+			}
+			catch (NumberFormatException ignored)
+			{
+				// not a number: ignore
+			}
+		}
+	}
+
+	@Subscribe
 	public void onGameTick(GameTick event)
 	{
 		tick++;
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
 		eliteDiaryDone = client.getVarbitValue(RuneIds.VARBIT_DIARY_KOUREND_ELITE) == 1;
 
-		// Update the side panel about once a second
+		// Fresh numbers every tick (overlay), side panel about once a second
+		lastData = buildPanelData();
 		if (panel != null && tick % 2 == 0)
 		{
-			panel.post(buildPanelData());
+			panel.post(lastData);
 		}
 
 		// Save about every 10 seconds when something changed
@@ -437,6 +566,7 @@ public class AorcPlugin extends Plugin
 
 		if (pendingGains.isEmpty())
 		{
+			fragmentsUsed = false;
 			return;
 		}
 
@@ -455,6 +585,10 @@ public class AorcPlugin extends Plugin
 					runeTypes++;
 				}
 			}
+			boolean arceuusCraft = fragmentsUsed && pendingGains.containsKey(RuneIds.BLOOD_RUNE);
+			boolean imbued = false;
+			int craftRunes = 0;
+
 			if (runeTypes >= 2 && !zmiMode)
 			{
 				// Several rune types from one craft = ZMI altar
@@ -473,9 +607,21 @@ public class AorcPlugin extends Plugin
 					// Bonus % right now, for this rune type
 					// At ZMI the blood-only bonuses (essence, diary, blisterwood) do not work
 					boolean bloodAltar = id == RuneIds.BLOOD_RUNE && runeTypes < 2;
+					// Elite diary only works at the Arceuus blood altar
 					int pct = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(
-						bloodAltar, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone));
+						bloodAltar, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone && arceuusCraft));
 					totals.addCraft(id, amount, pct);
+					craftRunes += amount;
+					if (bloodAltar)
+					{
+						lastBloodAtArceuus = arceuusCraft;
+						if (bloodEssenceActive)
+						{
+							double ess = EssenceCharges.expectedEssenceRunes(amount, pct);
+							essence.use(ess);
+							session.addEssenceRunes(ess);
+						}
+					}
 					history.addRunes(today(), id, amount);
 					madeRunes = true;
 					dirty = true;
@@ -484,6 +630,7 @@ public class AorcPlugin extends Plugin
 				{
 					// Dense -> dark at the Dark Altar (2.5 xp each, already in the xp total)
 					session.addBlocksImbued(amount, now);
+					imbued = true;
 					dirty = true;
 				}
 			}
@@ -491,6 +638,12 @@ public class AorcPlugin extends Plugin
 			if (madeRunes)
 			{
 				session.addCraft(now);
+				trips.onCraft(now, craftRunes);
+			}
+			if (imbued)
+			{
+				// At the Dark Altar: check the setup before going to the blood altar
+				checkWarnings();
 			}
 			if (dirty)
 			{
@@ -499,6 +652,42 @@ public class AorcPlugin extends Plugin
 		}
 
 		pendingGains.clear();
+		fragmentsUsed = false;
+	}
+
+	private void checkWarnings()
+	{
+		if (config.warnLantern() && lantern != BonusCalculator.Lantern.BLISTERWOOD)
+		{
+			warn("lantern", "Blisterwood lantern is not lit / equipped.");
+		}
+		if (config.warnEssence() && inactiveEssence > 0 && !bloodEssenceActive)
+		{
+			warn("essence", "Your blood essence is not activated.");
+		}
+		if (config.warnRaiments() && raimentsPieces < maxRaimentsSeen)
+		{
+			warn("raiments", "Raiments of the Eye: only " + raimentsPieces + "/" + maxRaimentsSeen + " pieces worn.");
+		}
+		int left = essence.remaining();
+		if (config.warnLowCharges() && bloodEssenceActive && left >= 0 && left <= 100)
+		{
+			warn("charges", "Blood essence almost empty (about " + left + " charges left).");
+		}
+	}
+
+	/** Notification + chat message, at most once every 3 minutes per warning. */
+	private void warn(String key, String message)
+	{
+		long now = System.currentTimeMillis();
+		Long last = lastWarn.get(key);
+		if (last != null && now - last < 180_000L)
+		{
+			return;
+		}
+		lastWarn.put(key, now);
+		notifier.notify("AoRC: " + message);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> " + message, null);
 	}
 
 	private void startNewSessionIfIdle()
@@ -524,7 +713,8 @@ public class AorcPlugin extends Plugin
 				|| id == RuneIds.DARK_ESSENCE_BLOCK
 				|| id == RuneIds.DENSE_ESSENCE_BLOCK
 				|| id == RuneIds.DARK_ESSENCE_FRAGMENTS
-				|| id == RuneIds.BLOOD_ESSENCE_ACTIVE)
+				|| id == RuneIds.BLOOD_ESSENCE_ACTIVE
+				|| id == RuneIds.BLOOD_ESSENCE)
 			{
 				counts.merge(id, item.getQuantity(), Integer::sum);
 			}
@@ -575,6 +765,7 @@ public class AorcPlugin extends Plugin
 		}
 
 		raimentsPieces = Math.min(4, pieces);
+		maxRaimentsSeen = Math.max(maxRaimentsSeen, raimentsPieces);
 		lantern = lit;
 	}
 
@@ -596,6 +787,6 @@ public class AorcPlugin extends Plugin
 			raimentsPieces,
 			usedLantern,
 			bloodEssenceActive,
-			eliteDiaryDone && bloodCrafted);
+			eliteDiaryDone && bloodCrafted && lastBloodAtArceuus);
 	}
 }

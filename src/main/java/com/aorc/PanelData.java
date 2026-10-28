@@ -36,6 +36,28 @@ public final class PanelData
 	public int bonusRunes;
 	public List<Row> rows = new ArrayList<>();
 
+	// Profit and blood essence
+	public double essenceUsed;
+	public long profitPerHour;
+	public int essenceCharges = -1;   // -1 = no active essence / unknown
+	public boolean essenceEstimate;
+
+	// Trips
+	public int trips;
+	public int avgTripRunes;
+	public long avgTripMillis = -1;
+	public long fastestTripMillis = -1;
+	public long lastTripMillis = -1;
+
+	// Goals
+	public int goalLevel;
+	public int currentLevel;
+	public int xpLeft;
+	public long goalLevelMillis = -1;
+	public int goalBlood;
+	public int bloodLeft;
+	public long goalBloodMillis = -1;
+
 	// History
 	public int todayRunes;
 	public long todayMillis;

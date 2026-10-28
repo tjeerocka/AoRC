@@ -204,6 +204,76 @@ public class LogicTest
 	}
 
 	@Test
+	public void tripStats()
+	{
+		TripTracker t = new TripTracker();
+		// Trip 1: fragments craft, then blocks craft 20s later
+		t.onCraft(0, 100);
+		t.onCraft(20_000, 104);
+		// Trip 2 starts 8 minutes later
+		t.onCraft(480_000, 200);
+		t.onCraft(500_000, 10);
+		// Trip 3 starts 7 minutes after trip 2
+		t.onCraft(900_000, 196);
+
+		assertEquals(3, t.getTrips());
+		assertEquals((204 + 210 + 196) / 3, t.getAvgRunes());
+		assertEquals(450_000, t.getAvgTripMillis());     // (480 + 420) / 2 s
+		assertEquals(420_000, t.getFastestMillis());
+		assertEquals(420_000, t.getLastTripMillis());
+
+		// 1 hour break: trip counted, but its time is not used
+		t.onCraft(900_000 + 3_600_000, 200);
+		assertEquals(4, t.getTrips());
+		assertEquals(450_000, t.getAvgTripMillis());
+
+		TripTracker c = new TripTracker();
+		c.load(t.save());
+		assertEquals(4, c.getTrips());
+		t.reset();
+		assertEquals(0, t.getTrips());
+		assertEquals(-1, t.getAvgTripMillis());
+	}
+
+	@Test
+	public void essenceCharges()
+	{
+		EssenceCharges e = new EssenceCharges();
+		assertEquals(-1, e.remaining());          // unknown
+		e.use(50);
+		assertEquals(-1, e.remaining());          // still unknown
+		e.activated();
+		assertEquals(1000, e.remaining());
+		assertFalse(e.isEstimate());
+		// 190 runes with +90% (incl. essence 50%): base 100, essence ~50
+		e.use(EssenceCharges.expectedEssenceRunes(190, 90));
+		assertEquals(950, e.remaining());
+		assertTrue(e.isEstimate());
+		e.setExact(940);                          // "Check" message
+		assertEquals(940, e.remaining());
+		assertFalse(e.isEstimate());
+		e.use(5000);
+		assertEquals(0, e.remaining());           // never below 0
+
+		EssenceCharges c = new EssenceCharges();
+		c.load(e.save());
+		assertEquals(0, c.remaining());
+	}
+
+	@Test
+	public void goals()
+	{
+		assertEquals(0, Goals.xpForLevel(1));
+		assertEquals(83, Goals.xpForLevel(2));
+		assertEquals(1_210_421, Goals.xpForLevel(75));
+		assertEquals(1_475_581, Goals.xpForLevel(77));
+		assertEquals(13_034_431, Goals.xpForLevel(99));
+		assertEquals(0, Goals.millisToGoal(0, 100));
+		assertEquals(-1, Goals.millisToGoal(100, 0));
+		assertEquals(7_200_000, Goals.millisToGoal(100_000, 50_000)); // 2 hours
+	}
+
+	@Test
 	public void sessionAndIdle()
 	{
 		RuneSession s = new RuneSession();

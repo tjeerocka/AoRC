@@ -31,6 +31,8 @@ class AorcPanel extends PluginPanel
 	private final JLabel timeLabel = new JLabel();
 	private final JPanel statsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel historyPanel = new JPanel(new GridLayout(0, 2, 4, 3));
+	private final JPanel tripsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
+	private final JPanel goalsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel runesPanel = new JPanel();
 	private final JLabel emptyLabel = new JLabel("Craft some runes to start.");
 
@@ -63,6 +65,11 @@ class AorcPanel extends PluginPanel
 		statsPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 		statsPanel.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(statsPanel);
+		content.add(spacer(8));
+
+		content.add(box("Trips", tripsPanel));
+		content.add(spacer(8));
+		content.add(box("Goals", goalsPanel));
 		content.add(spacer(8));
 
 		JLabel historyTitle = new JLabel("History");
@@ -125,11 +132,50 @@ class AorcPanel extends PluginPanel
 		statsPanel.removeAll();
 		stat("RC xp / hr", fmt(d.xpPerHour), Color.WHITE);
 		stat("GP / hr", GpFormat.shortGp(d.gpPerHour), Color.YELLOW);
+		if (d.essenceUsed > 0)
+		{
+			stat("Profit / hr", GpFormat.shortGp(d.profitPerHour), Color.YELLOW);
+		}
 		stat("All runes / hr", fmt(d.allRunesPerHour), Color.WHITE);
 		stat("Crafts", fmt(d.crafts), Color.WHITE);
 		stat("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
 		stat("Bonus multiplier", GpFormat.multiplier(d.bonusPercent), BONUS);
 		stat("Bonus runes", fmt(d.bonusRunes), BONUS);
+		if (d.essenceCharges >= 0)
+		{
+			stat("Blood essence", (d.essenceEstimate ? "~" : "") + fmt(d.essenceCharges),
+				d.essenceCharges <= 100 ? Color.ORANGE : BONUS);
+		}
+
+		tripsPanel.removeAll();
+		cell(tripsPanel, "Trips", fmt(d.trips), Color.WHITE);
+		cell(tripsPanel, "Avg runes / trip", fmt(d.avgTripRunes), Color.WHITE);
+		cell(tripsPanel, "Avg trip time", time(d.avgTripMillis), Color.WHITE);
+		cell(tripsPanel, "Fastest trip", time(d.fastestTripMillis), BONUS);
+		cell(tripsPanel, "Last trip", time(d.lastTripMillis), Color.LIGHT_GRAY);
+
+		goalsPanel.removeAll();
+		if (d.currentLevel >= d.goalLevel && d.currentLevel > 0)
+		{
+			cell(goalsPanel, "Level " + d.goalLevel, "Reached!", BONUS);
+		}
+		else
+		{
+			cell(goalsPanel, "Level " + d.goalLevel + " in", time(d.goalLevelMillis), Color.CYAN);
+			cell(goalsPanel, "XP left", GpFormat.shortGp(d.xpLeft), Color.LIGHT_GRAY);
+		}
+		if (d.goalBlood > 0)
+		{
+			if (d.bloodLeft <= 0)
+			{
+				cell(goalsPanel, fmt(d.goalBlood) + " blood", "Reached!", BONUS);
+			}
+			else
+			{
+				cell(goalsPanel, fmt(d.goalBlood) + " blood in", time(d.goalBloodMillis), Color.CYAN);
+				cell(goalsPanel, "Runes left", fmt(d.bloodLeft), Color.LIGHT_GRAY);
+			}
+		}
 
 		historyPanel.removeAll();
 		cell(historyPanel, "Today", fmt(d.todayRunes) + " runes", Color.WHITE);
@@ -194,6 +240,34 @@ class AorcPanel extends PluginPanel
 		r.setHorizontalAlignment(SwingConstants.RIGHT);
 		panel.add(l);
 		panel.add(r);
+	}
+
+	/** Time text, or "-" when unknown. */
+	private static String time(long millis)
+	{
+		return millis < 0 ? "-" : PanelData.formatTime(millis);
+	}
+
+	/** A titled box with a grid inside. */
+	private static JPanel box(String title, JPanel grid)
+	{
+		JPanel wrap = new JPanel();
+		wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
+		wrap.setOpaque(false);
+		wrap.setAlignmentX(LEFT_ALIGNMENT);
+
+		JLabel t = new JLabel(title);
+		t.setFont(FontManager.getRunescapeBoldFont());
+		t.setForeground(Color.WHITE);
+		t.setAlignmentX(LEFT_ALIGNMENT);
+		wrap.add(t);
+		wrap.add(spacer(4));
+
+		grid.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		grid.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+		grid.setAlignmentX(LEFT_ALIGNMENT);
+		wrap.add(grid);
+		return wrap;
 	}
 
 	private static JButton button(String text, Runnable action)

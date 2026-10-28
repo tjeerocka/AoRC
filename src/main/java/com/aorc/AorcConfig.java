@@ -92,4 +92,107 @@ public interface AorcConfig extends Config
 	{
 		return true;
 	}
+
+	// ---- Goals ----
+
+	@ConfigSection(
+		name = "Goals",
+		description = "Time left to reach your goals, at your current speed",
+		position = 20
+	)
+	String goalSection = "goals";
+
+	@Range(min = 2, max = 99)
+	@ConfigItem(
+		keyName = "goalLevel",
+		name = "Runecraft level goal",
+		description = "Shows the time left to reach this Runecraft level",
+		section = goalSection,
+		position = 21
+	)
+	default int goalLevel()
+	{
+		return 99;
+	}
+
+	@ConfigItem(
+		keyName = "goalBloodRunes",
+		name = "Blood rune goal",
+		description = "Shows the time left to reach this many blood runes (rune count). 0 = off",
+		section = goalSection,
+		position = 22
+	)
+	default int goalBloodRunes()
+	{
+		return 0;
+	}
+
+	@ConfigItem(
+		keyName = "goalInOverlay",
+		name = "Level goal in overlay",
+		description = "Show the time to your level goal in the overlay",
+		section = goalSection,
+		position = 23
+	)
+	default boolean goalInOverlay()
+	{
+		return true;
+	}
+
+	// ---- Warnings ----
+
+	@ConfigSection(
+		name = "Warnings",
+		description = "Get a notification when something is missing (checked at the Dark Altar)",
+		position = 30
+	)
+	String warnSection = "warnings";
+
+	@ConfigItem(
+		keyName = "warnLantern",
+		name = "No blisterwood lantern",
+		description = "Warn when you imbue at the Dark Altar without the blisterwood lantern lit",
+		section = warnSection,
+		position = 31
+	)
+	default boolean warnLantern()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "warnEssence",
+		name = "Blood essence not active",
+		description = "Warn when you carry a blood essence that is not activated",
+		section = warnSection,
+		position = 32
+	)
+	default boolean warnEssence()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "warnRaiments",
+		name = "Raiments piece missing",
+		description = "Warn when you wear fewer Raiments of the Eye pieces than before",
+		section = warnSection,
+		position = 33
+	)
+	default boolean warnRaiments()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "warnLowCharges",
+		name = "Blood essence almost empty",
+		description = "Warn when your blood essence has about 100 charges or less left",
+		section = warnSection,
+		position = 34
+	)
+	default boolean warnLowCharges()
+	{
+		return true;
+	}
 }

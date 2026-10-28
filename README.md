@@ -13,6 +13,25 @@ Blood runes are shown first. Other rune types can be shown too.
 - GP per hour (GE price)
 - Active bonuses and an estimate of how many runes came from bonuses
 
+## Side panel (sidebar button)
+
+- All rune types with icon, count and per hour (ZMI: every rune type shows up here)
+- RC xp/hr, GP/hr, **Profit/hr** (GP minus blood essence used), bonus multiplier
+- **Blood essence charges** left (exact after "Check", ~ = estimate)
+- **Trips**: trips, average runes per trip, average and fastest trip time
+- **Goals**: time to your Runecraft level goal and blood rune goal
+- **History**: today, best day and all time (runes + time spent)
+
+## Warnings (checked when you imbue at the Dark Altar)
+
+- Blisterwood lantern not lit / equipped
+- Blood essence in inventory but not activated
+- Raiments of the Eye piece missing
+- Blood essence almost empty (about 100 charges or less)
+
+The elite Kourend diary bonus only counts at the Arceuus blood altar
+(detected because dark essence fragments are used up).
+
 ## How counting works
 
 The plugin counts the **real runes** that land in your inventory, but only on a tick

@@ -113,6 +113,12 @@ class AorcOverlay extends OverlayPanel
 				gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
 			}
 			line("GP / hr", elapsed <= 0 ? "-" : GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
+			PanelData d = plugin.getLastData();
+			if (d.essenceUsed > 0)
+			{
+				// GP minus the blood essence used
+				line("Profit / hr", elapsed <= 0 ? "-" : GpFormat.shortGp(d.profitPerHour), Color.YELLOW);
+			}
 		}
 
 		if (config.showBonuses())
@@ -120,6 +126,18 @@ class AorcOverlay extends OverlayPanel
 			int total = BonusCalculator.totalPercent(plugin.currentBonuses());
 			line("Bonus multiplier", GpFormat.multiplier(total), BONUS);
 			line("Bonus runes", fmt(t.getBonusRunes()), BONUS);
+		}
+
+		PanelData d = plugin.getLastData();
+		if (d.essenceCharges >= 0)
+		{
+			Color c = d.essenceCharges <= 100 ? Color.ORANGE : BONUS;
+			line("Blood essence", (d.essenceEstimate ? "~" : "") + fmt(d.essenceCharges), c);
+		}
+
+		if (config.goalInOverlay() && d.currentLevel > 0 && d.currentLevel < d.goalLevel)
+		{
+			line("Lvl " + d.goalLevel + " in", d.goalLevelMillis < 0 ? "-" : PanelData.formatTime(d.goalLevelMillis), Color.CYAN);
 		}
 
 		return super.render(graphics);
