@@ -23,7 +23,7 @@ import net.runelite.client.util.AsyncBufferedImage;
 /**
  * "Runey", the cheerleader at the bottom of the side panel:
  * the rune you craft, with legs, arms and pom-poms, hopping around.
- * Outfit per account type: iron helmets in the ironman colours, a party hat for mains.
+ * Pom-pom colours per account type, a partyhat for mains.
  */
 class BuddyPanel extends JPanel
 {
@@ -108,46 +108,10 @@ class BuddyPanel extends JPanel
 
 	void setAccountType(AccountType type)
 	{
-		if (type == null || type == sprite.type && sprite.helmLoaded)
+		if (type != null && type != sprite.type)
 		{
-			return;
-		}
-		sprite.type = type;
-		int helmId = helmItem(type);
-		if (helmId > 0)
-		{
-			// the real ironman helm icon from the game
-			AsyncBufferedImage helm = itemManager.getImage(helmId);
-			sprite.helm = helm;
-			helm.onLoaded(sprite::repaint);
-		}
-		else
-		{
-			sprite.helm = null;
-		}
-		sprite.helmLoaded = true;
-		sprite.repaint();
-	}
-
-	/** Ironman helm item per account type (OSRS Wiki item IDs), -1 for mains. */
-	static int helmItem(AccountType t)
-	{
-		switch (t)
-		{
-			case IRONMAN:
-				return 12810;  // Ironman helm
-			case ULTIMATE:
-				return 12813;  // Ultimate ironman helm
-			case HARDCORE:
-				return 20792;  // Hardcore ironman helm
-			case GROUP:
-				return 26156;  // Group ironman helm
-			case HARDCORE_GROUP:
-				return 26170;  // Hardcore group ironman helm
-			case UNRANKED_GROUP:
-				return 27042;  // Group ironman helm (unranked)
-			default:
-				return -1;
+			sprite.type = type;
+			sprite.repaint();
 		}
 	}
 
@@ -191,31 +155,9 @@ class BuddyPanel extends JPanel
 			case UNRANKED_GROUP:
 				return new Color(40, 170, 70);    // green
 			case HARDCORE_GROUP:
-				return new Color(50, 110, 220);   // blue (helmet is red)
+				return new Color(50, 110, 220);   // blue
 			default:
 				return new Color(240, 190, 30); // main: gold
-		}
-	}
-
-	/** Helmet colour per ironman type (null = main, wears a party hat). */
-	static Color helmetColor(AccountType t)
-	{
-		switch (t)
-		{
-			case IRONMAN:
-				return new Color(120, 120, 130);
-			case ULTIMATE:
-				return new Color(225, 225, 230);
-			case HARDCORE:
-				return new Color(170, 25, 25);
-			case GROUP:
-				return new Color(45, 95, 200);    // blue (ranked group)
-			case HARDCORE_GROUP:
-				return new Color(170, 25, 25);    // red, with a blue crest
-			case UNRANKED_GROUP:
-				return new Color(40, 140, 60);    // green
-			default:
-				return null;
 		}
 	}
 
@@ -227,8 +169,6 @@ class BuddyPanel extends JPanel
 		int spitStart = -100;
 		BufferedImage rune;
 		BufferedImage partyhat;
-		BufferedImage helm;
-		boolean helmLoaded;
 		AccountType type = AccountType.MAIN;
 
 		Sprite()
@@ -280,18 +220,8 @@ class BuddyPanel extends JPanel
 			// the rune itself
 			drawRune(g2, cx, cy, stone);
 
-			// outfit
-			Color helmet = helmetColor(type);
-			if (helmet != null && drawItemHat(g2, cx, cy + r * 0.05f, helm, 27f, 0))
-			{
-				// real ironman helm drawn
-			}
-			else if (helmet != null)
-			{
-				drawHelmet(g2, cx, cy, r, helmet,
-				type == AccountType.HARDCORE_GROUP ? new Color(80, 140, 240) : helmet.brighter());
-			}
-			else
+			// outfit: mains wear a partyhat (ironmen: no helm, just their pom-pom colours)
+			if (type == AccountType.MAIN)
 			{
 				drawPartyHat(g2, cx, cy, r, partyhat);
 			}
@@ -373,27 +303,6 @@ class BuddyPanel extends JPanel
 				g2.setStroke(new BasicStroke(2f));
 				g2.draw(new Ellipse2D.Float(cx - stone / 2, cy - stone / 2, stone, stone));
 			}
-		}
-
-		/** Ironman-style helmet on top of the stone. */
-		private static void drawHelmet(Graphics2D g2, float cx, float cy, float r, Color c, Color crest)
-		{
-			float top = cy - r - 5;
-			Path2D dome = new Path2D.Float();
-			dome.moveTo(cx - r * 0.8f, cy - r * 0.45f);
-			dome.curveTo(cx - r * 0.8f, top, cx + r * 0.8f, top, cx + r * 0.8f, cy - r * 0.45f);
-			dome.closePath();
-			g2.setColor(c);
-			g2.fill(dome);
-			g2.setColor(c.darker());
-			g2.setStroke(new BasicStroke(1.5f));
-			g2.draw(dome);
-			// rim
-			g2.setColor(c.darker());
-			g2.fill(new RoundRectangle2D.Float(cx - r * 0.9f, cy - r * 0.55f, r * 1.8f, 4, 3, 3));
-			// crest
-			g2.setColor(crest);
-			g2.fill(new RoundRectangle2D.Float(cx - 1.5f, top + 1, 3, r * 0.5f, 2, 2));
 		}
 
 		/** Mains wear a real partyhat (game icon), tilted a bit. */
