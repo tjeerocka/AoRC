@@ -33,6 +33,9 @@ public final class RuneIds
 	public static final int LANTERN_MAGIC = 26846;
 	public static final int LANTERN_REDWOOD = 26848;
 
+	// Varbit: elite Kourend & Kebos diary done (RuneLite Varbits.DIARY_KOUREND_ELITE)
+	public static final int VARBIT_DIARY_KOUREND_ELITE = 7928;
+
 	/** All rune types the plugin counts, in display order. */
 	public static final Map<Integer, String> RUNES;
 

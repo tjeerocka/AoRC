@@ -83,6 +83,10 @@ public class AorcPlugin extends Plugin
 	@Getter
 	private int lastCraftedRune = RuneIds.BLOOD_RUNE;
 
+	/** Elite Kourend &amp; Kebos diary done, read from the game (varbit 7928 = 1). */
+	@Getter
+	private boolean eliteDiaryDone;
+
 	@Provides
 	AorcConfig provideConfig(ConfigManager configManager)
 	{
@@ -258,6 +262,7 @@ public class AorcPlugin extends Plugin
 	{
 		tick++;
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
+		eliteDiaryDone = client.getVarbitValue(RuneIds.VARBIT_DIARY_KOUREND_ELITE) == 1;
 
 		// Save about every 10 seconds when something changed
 		if (dirty && tick % 16 == 0)
@@ -287,7 +292,7 @@ public class AorcPlugin extends Plugin
 					lastCraftedRune = id;
 					// Bonus % right now, for this rune type
 					int pct = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(
-						id == RuneIds.BLOOD_RUNE, raimentsPieces, lantern, bloodEssenceActive, config.eliteDiary()));
+						id == RuneIds.BLOOD_RUNE, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone));
 					totals.addCraft(id, amount, pct);
 					madeRunes = true;
 					dirty = true;
@@ -401,7 +406,7 @@ public class AorcPlugin extends Plugin
 		BonusCalculator.Lantern blister = lantern == BonusCalculator.Lantern.BLISTERWOOD
 			? BonusCalculator.Lantern.BLISTERWOOD
 			: BonusCalculator.Lantern.NONE;
-		return BonusCalculator.activeBonuses(true, 0, blister, false, config.eliteDiary());
+		return BonusCalculator.activeBonuses(true, 0, blister, false, eliteDiaryDone);
 	}
 
 	/** Bonuses for the rune type you crafted last. */
@@ -421,6 +426,6 @@ public class AorcPlugin extends Plugin
 			raimentsPieces,
 			usedLantern,
 			bloodEssenceActive,
-			config.eliteDiary() && bloodCrafted);
+			eliteDiaryDone && bloodCrafted);
 	}
 }
