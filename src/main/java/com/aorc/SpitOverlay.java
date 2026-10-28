@@ -175,7 +175,7 @@ class SpitOverlay extends Overlay
 			if (p < 0.92f)
 			{
 				String line = isIron()
-					? "YUCK! Good thing I'm an ironman..."
+					? "WTF Runey?! I'm an ironman!"
 					: "YUCK! I should have created an ironman instead!";
 				Point head = player.getCanvasTextLocation(g, line, player.getLogicalHeight() + 40);
 				if (head != null)
