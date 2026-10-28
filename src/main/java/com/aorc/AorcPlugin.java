@@ -283,6 +283,7 @@ public class AorcPlugin extends Plugin
 			raimentsPieces,
 			lantern,
 			bloodEssenceActive,
-			config.eliteDiary());
+			// Diary bonus only counts once blood runes were actually crafted this session
+			config.eliteDiary() && session.getRunes(RuneIds.BLOOD_RUNE) > 0);
 	}
 }
