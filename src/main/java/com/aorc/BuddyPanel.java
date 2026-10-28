@@ -142,10 +142,11 @@ class BuddyPanel extends JPanel
 			case HARDCORE:
 				return new Color(200, 30, 30);
 			case GROUP:
+				return new Color(40, 170, 70);    // green
 			case UNRANKED_GROUP:
-				return new Color(40, 170, 70);
+				return new Color(50, 110, 220);   // blue
 			case HARDCORE_GROUP:
-				return new Color(200, 60, 40);
+				return new Color(40, 170, 70);    // green (helmet is red)
 			default:
 				return new Color(240, 190, 30); // main: gold
 		}
@@ -163,11 +164,11 @@ class BuddyPanel extends JPanel
 			case HARDCORE:
 				return new Color(170, 25, 25);
 			case GROUP:
-				return new Color(40, 140, 60);
+				return new Color(40, 140, 60);    // green
 			case HARDCORE_GROUP:
-				return new Color(150, 40, 30);
+				return new Color(170, 25, 25);    // red, with a green crest
 			case UNRANKED_GROUP:
-				return new Color(70, 150, 120);
+				return new Color(45, 95, 200);    // blue
 			default:
 				return null;
 		}
@@ -235,7 +236,8 @@ class BuddyPanel extends JPanel
 			Color helmet = helmetColor(type);
 			if (helmet != null)
 			{
-				drawHelmet(g2, cx, cy, r, helmet);
+				drawHelmet(g2, cx, cy, r, helmet,
+				type == AccountType.HARDCORE_GROUP ? new Color(60, 190, 80) : helmet.brighter());
 			}
 			else
 			{
@@ -322,7 +324,7 @@ class BuddyPanel extends JPanel
 		}
 
 		/** Ironman-style helmet on top of the stone. */
-		private static void drawHelmet(Graphics2D g2, float cx, float cy, float r, Color c)
+		private static void drawHelmet(Graphics2D g2, float cx, float cy, float r, Color c, Color crest)
 		{
 			float top = cy - r - 5;
 			Path2D dome = new Path2D.Float();
@@ -338,7 +340,7 @@ class BuddyPanel extends JPanel
 			g2.setColor(c.darker());
 			g2.fill(new RoundRectangle2D.Float(cx - r * 0.9f, cy - r * 0.55f, r * 1.8f, 4, 3, 3));
 			// crest
-			g2.setColor(c.brighter());
+			g2.setColor(crest);
 			g2.fill(new RoundRectangle2D.Float(cx - 1.5f, top + 1, 3, r * 0.5f, 2, 2));
 		}
 

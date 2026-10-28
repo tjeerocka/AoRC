@@ -89,13 +89,15 @@ public class HypeBuddy
 			case MAIN:
 				return "Ugh, a main. Fine, I'll cheer. *spits*";
 			case HARDCORE:
-			case HARDCORE_GROUP:
 				return "Hardcore! Let's craft runes and NOT die today.";
+			case HARDCORE_GROUP:
+				return "Hardcore group! Craft safe, the group is watching.";
 			case ULTIMATE:
 				return "An ultimate ironman! No bank, all heart.";
 			case GROUP:
-			case UNRANKED_GROUP:
 				return "Group iron! Let's feed the group storage!";
+			case UNRANKED_GROUP:
+				return "Unranked group iron! All vibes, no ranks.";
 			default:
 				return "An ironman! Respect. Let's craft!";
 		}
