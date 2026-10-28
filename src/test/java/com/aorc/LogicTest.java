@@ -47,6 +47,18 @@ public class LogicTest
 	}
 
 	@Test
+	public void gpFormat()
+	{
+		assertEquals("1m", GpFormat.shortGp(1_000_000));
+		assertEquals("600k", GpFormat.shortGp(600_000));
+		assertEquals("2.79m", GpFormat.shortGp(2_791_216));
+		assertEquals("1.5m", GpFormat.shortGp(1_500_000));
+		assertEquals("999k", GpFormat.shortGp(999_999));
+		assertEquals("950", GpFormat.shortGp(950));
+		assertEquals("0", GpFormat.shortGp(0));
+	}
+
+	@Test
 	public void perHour()
 	{
 		assertEquals(0, RuneSession.perHour(100, 30_000)); // under 1 minute: hidden

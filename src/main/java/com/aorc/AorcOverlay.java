@@ -95,7 +95,7 @@ class AorcOverlay extends OverlayPanel
 			{
 				gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
 			}
-			line("GP / hr", fmt(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
+			line("GP / hr", GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
 		}
 
 		if (config.showBonuses())
