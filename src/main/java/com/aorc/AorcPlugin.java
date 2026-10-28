@@ -275,6 +275,22 @@ public class AorcPlugin extends Plugin
 		lantern = lit;
 	}
 
+	/**
+	 * Blood-only bonuses (diary, blisterwood) that are ready but wait for the first blood craft.
+	 * Empty once blood runes were crafted this session.
+	 */
+	public List<BonusCalculator.Bonus> pendingBloodBonuses()
+	{
+		if (session.getRunes(RuneIds.BLOOD_RUNE) > 0)
+		{
+			return java.util.Collections.emptyList();
+		}
+		BonusCalculator.Lantern blister = lantern == BonusCalculator.Lantern.BLISTERWOOD
+			? BonusCalculator.Lantern.BLISTERWOOD
+			: BonusCalculator.Lantern.NONE;
+		return BonusCalculator.activeBonuses(true, 0, blister, false, config.eliteDiary());
+	}
+
 	/** Bonuses for the rune type you crafted last. */
 	public List<BonusCalculator.Bonus> currentBonuses()
 	{

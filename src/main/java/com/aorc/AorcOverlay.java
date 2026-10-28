@@ -107,6 +107,11 @@ class AorcOverlay extends OverlayPanel
 			{
 				line("  " + b.name, "+" + b.percent + "%", BONUS);
 			}
+			// Grey: blood-only bonuses that start counting after the first blood craft
+			for (BonusCalculator.Bonus b : plugin.pendingBloodBonuses())
+			{
+				line("  " + b.name, "+" + b.percent + "%", Color.GRAY);
+			}
 			int crafted = s.getRunes(plugin.getLastCraftedRune());
 			line("Bonus runes", fmt(BonusCalculator.estimatedBonusRunes(crafted, total)), BONUS);
 		}
