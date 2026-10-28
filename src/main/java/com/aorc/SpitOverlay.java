@@ -26,7 +26,7 @@ class SpitOverlay extends Overlay
 {
 	static final long PEEK_MILLIS = 300;     // Runey slides in
 	static final long FLY_MILLIS = 700;      // the drop flies
-	static final long SPLAT_MILLIS = 2600;   // HUGE splat on the character, drips, fades
+	static final long SPLAT_MILLIS = 3200;   // HUGE splat on the character, drips, fades
 	static final long TOTAL = PEEK_MILLIS + FLY_MILLIS + SPLAT_MILLIS;
 
 	private static final Color SPIT = new Color(175, 215, 245);
@@ -82,8 +82,10 @@ class SpitOverlay extends Overlay
 		// Runey peeks in at the right edge of the game view
 		int rightX = client.getViewportXOffset() + client.getViewportWidth();
 		int headY = Math.max(client.getViewportYOffset() + 30, target.getY() - 90);
+		boolean iron = isIron();
 		float slide = Math.min(1f, t / (float) PEEK_MILLIS);
-		long leaveStart = PEEK_MILLIS + FLY_MILLIS + 500;
+		// on an ironman Runey stays to apologise, then leaves at the end
+		long leaveStart = iron ? TOTAL - 400 : PEEK_MILLIS + FLY_MILLIS + 500;
 		if (t > leaveStart)
 		{
 			slide = Math.max(0f, 1f - (t - leaveStart) / 400f);
@@ -99,6 +101,16 @@ class SpitOverlay extends Overlay
 		{
 			g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
 			drawText(g, "*ptooey*", mouthX - 50, mouthY - 36);
+		}
+
+		// ironman complained: Runey says sorry (right-aligned next to Runey)
+		long sorryStart = PEEK_MILLIS + FLY_MILLIS + 900;
+		if (iron && t >= sorryStart && t < TOTAL - 300)
+		{
+			String sorry = "Sooorrry boss, my bad!";
+			g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
+			int w = g.getFontMetrics().stringWidth(sorry);
+			drawText(g, sorry, runeyX - w - 6, headY + size / 2 + 5);
 		}
 
 		if (t >= PEEK_MILLIS && t < PEEK_MILLIS + FLY_MILLIS)
@@ -174,7 +186,7 @@ class SpitOverlay extends Overlay
 			// the character complains (OSRS-style yellow overhead text)
 			if (p < 0.92f)
 			{
-				String line = isIron()
+				String line = iron
 					? "WTF Runey?! I'm an ironman, you dum fåk!"
 					: "YUCK! I should have created an ironman instead!";
 				Point head = player.getCanvasTextLocation(g, line, player.getLogicalHeight() + 40);
