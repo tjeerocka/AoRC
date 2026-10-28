@@ -91,8 +91,7 @@ public class RuneSession
 
 	public static int perHour(long amount, long elapsedMillis)
 	{
-		// Below 1 minute the rate jumps a lot, so wait before showing it.
-		if (elapsedMillis < 60_000L)
+		if (elapsedMillis <= 0)
 		{
 			return 0;
 		}

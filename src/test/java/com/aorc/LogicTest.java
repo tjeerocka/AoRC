@@ -61,7 +61,8 @@ public class LogicTest
 	@Test
 	public void perHour()
 	{
-		assertEquals(0, RuneSession.perHour(100, 30_000)); // under 1 minute: hidden
+		assertEquals(0, RuneSession.perHour(100, 0)); // no time yet
+		assertEquals(12000, RuneSession.perHour(100, 30_000)); // shows from the start
 		assertEquals(6000, RuneSession.perHour(100, 60_000));
 		assertEquals(3381, RuneSession.perHour(3381, 3_600_000));
 	}

@@ -95,7 +95,7 @@ class AorcOverlay extends OverlayPanel
 			{
 				gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
 			}
-			line("GP / hr", elapsed < 60_000L ? "-" : GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
+			line("GP / hr", elapsed <= 0 ? "-" : GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
 		}
 
 		if (config.showBonuses())
@@ -128,10 +128,10 @@ class AorcOverlay extends OverlayPanel
 			.build());
 	}
 
-	/** Per hour value, or "-" during the first minute (too early to be correct). */
+	/** Per hour value, or "-" when no time has passed yet. */
 	private String rate(long amount, long elapsed)
 	{
-		if (elapsed < 60_000L)
+		if (elapsed <= 0)
 		{
 			return "-";
 		}
