@@ -36,6 +36,9 @@ class BuddyPanel extends JPanel
 	private final ItemManager itemManager;
 	private int runeId = -1;
 
+	/** Partyhats (red, yellow, blue, green, purple, white): mains get a random one each client start. */
+	static final int[] PARTYHATS = {1038, 1040, 1042, 1044, 1046, 1048};
+
 	BuddyPanel(ItemManager itemManager)
 	{
 		super(new BorderLayout(2, 0));
@@ -71,6 +74,11 @@ class BuddyPanel extends JPanel
 		add(bubble, BorderLayout.CENTER);
 
 		setMessage("Hi! I'm Runey. Let's craft some runes!");
+
+		// the real partyhat icon from the game, for mains
+		AsyncBufferedImage hat = itemManager.getImage(PARTYHATS[new java.util.Random().nextInt(PARTYHATS.length)]);
+		sprite.partyhat = hat;
+		hat.onLoaded(sprite::repaint);
 
 		// Animation: ~12 frames per second, only while the panel is on screen
 		timer = new Timer(80, e ->
@@ -181,6 +189,7 @@ class BuddyPanel extends JPanel
 		int cheerUntil;
 		int spitStart = -100;
 		BufferedImage rune;
+		BufferedImage partyhat;
 		AccountType type = AccountType.MAIN;
 
 		Sprite()
@@ -241,7 +250,7 @@ class BuddyPanel extends JPanel
 			}
 			else
 			{
-				drawPartyHat(g2, cx, cy, r);
+				drawPartyHat(g2, cx, cy, r, partyhat);
 			}
 
 			// mouth: open when spitting, smile otherwise
@@ -344,28 +353,28 @@ class BuddyPanel extends JPanel
 			g2.fill(new RoundRectangle2D.Float(cx - 1.5f, top + 1, 3, r * 0.5f, 2, 2));
 		}
 
-		/** Mains get a (generic) party hat. */
-		private static void drawPartyHat(Graphics2D g2, float cx, float cy, float r)
+		/** Mains wear a real partyhat (game icon), tilted a bit. */
+		private static void drawPartyHat(Graphics2D g2, float cx, float cy, float r, BufferedImage hat)
 		{
-			float baseY = cy - r * 0.6f;
-			Path2D cone = new Path2D.Float();
-			cone.moveTo(cx - 9, baseY);
-			cone.lineTo(cx + 9, baseY);
-			cone.lineTo(cx + 3, baseY - 20);
-			cone.closePath();
-			g2.setColor(new Color(240, 200, 40));
-			g2.fill(cone);
-			g2.setColor(new Color(170, 120, 10));
-			g2.setStroke(new BasicStroke(1.2f));
-			g2.draw(cone);
-			// stripes
-			g2.setColor(new Color(220, 60, 60));
-			g2.setStroke(new BasicStroke(2f));
-			g2.drawLine((int) (cx - 6), (int) (baseY - 5), (int) (cx + 7), (int) (baseY - 5));
-			g2.drawLine((int) (cx - 2), (int) (baseY - 12), (int) (cx + 5), (int) (baseY - 12));
-			// bobble
-			g2.setColor(Color.WHITE);
-			g2.fill(new Ellipse2D.Float(cx + 0.5f, baseY - 24, 5, 5));
+			Rectangle b = hat == null ? null : opaqueBounds(hat);
+			if (b == null)
+			{
+				return; // icon not loaded yet
+			}
+			float scale = 28f / b.width;        // hat about 28 px wide
+			int w = Math.round(hat.getWidth() * scale);
+			int h = Math.round(hat.getHeight() * scale);
+			// bottom-centre of the visible hat sits on top of the stone
+			float ax = (b.x + b.width / 2f) * scale;
+			float ay = (b.y + b.height) * scale;
+			float baseX = cx + 2;
+			float baseY = cy - r * 0.62f;
+
+			Graphics2D gh = (Graphics2D) g2.create();
+			gh.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			gh.rotate(Math.toRadians(-12), baseX, baseY);
+			gh.drawImage(hat, Math.round(baseX - ax), Math.round(baseY - ay), w, h, null);
+			gh.dispose();
 		}
 
 		/** Bounds of the visible pixels (the stone inside the icon), or null if empty. */
