@@ -68,7 +68,7 @@ class AorcPanel extends PluginPanel
 		timeLabel.setForeground(Color.LIGHT_GRAY);
 		timeRow.add(timeLabel, BorderLayout.CENTER);
 		pauseButton.setFocusPainted(false);
-		pauseButton.setToolTipText("Pause: the timers stop and nothing is counted until you press Resume");
+		pauseButton.setToolTipText("Pause: the timers stop and nothing is counted. Resumes by itself when you gain Runecraft xp.");
 		pauseButton.addActionListener(e -> clientThread.invokeLater(plugin::togglePause));
 		timeRow.add(pauseButton, BorderLayout.EAST);
 		timeRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));

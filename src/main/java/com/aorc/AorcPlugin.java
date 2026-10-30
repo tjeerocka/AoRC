@@ -676,6 +676,11 @@ public class AorcPlugin extends Plugin
 		}
 
 		int xp = event.getXp();
+		if (paused && lastRcXp >= 0 && xp > lastRcXp)
+		{
+			// Runecraft xp while paused: resume by itself, and count this xp
+			togglePause();
+		}
 		if (lastRcXp >= 0 && xp > lastRcXp && !paused)
 		{
 			startNewSessionIfIdle();
