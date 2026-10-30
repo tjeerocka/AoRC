@@ -255,6 +255,9 @@ public class AorcPlugin extends Plugin
 		{
 			paused = false;
 			trips.resume(now);
+			// the clocks run again right away (not only after the next xp drop)
+			session.addActivity(now);
+			activity();
 		}
 		dirty = true;
 		lastData = buildPanelData();
