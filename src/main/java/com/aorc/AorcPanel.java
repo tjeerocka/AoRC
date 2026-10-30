@@ -157,17 +157,17 @@ class AorcPanel extends PluginPanel
 		timeLabel.setText("Active time: " + PanelData.formatTime(d.activeMillis));
 
 		statsPanel.removeAll();
-		stat("RC xp / hr", fmt(d.xpPerHour), Color.WHITE);
+		stat("RC xp / hr", GpFormat.shortRate(d.xpPerHour), Color.WHITE);
 		stat("GP / hr", GpFormat.shortGp(d.gpPerHour), Color.YELLOW);
 		if (d.essenceUsed > 0)
 		{
 			stat("Profit / hr", GpFormat.shortGp(d.profitPerHour), Color.YELLOW);
 		}
-		stat("All runes / hr", fmt(d.allRunesPerHour), Color.WHITE);
+		stat("All runes / hr", GpFormat.shortRate(d.allRunesPerHour), Color.WHITE);
 		stat("Crafts", fmt(d.crafts), Color.WHITE);
 		stat("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
 		stat("Bonus multiplier", GpFormat.multiplier(d.bonusPercent), BONUS);
-		stat("Bonus runes", fmt(d.bonusRunes), BONUS);
+		stat("Bonus runes", GpFormat.shortRate(d.bonusRunes), BONUS);
 		if (d.essenceCharges >= 0)
 		{
 			stat("Blood essence", (d.essenceEstimate ? "~" : "") + fmt(d.essenceCharges),
@@ -210,11 +210,11 @@ class AorcPanel extends PluginPanel
 		}
 
 		historyPanel.removeAll();
-		cell(historyPanel, "Today", fmt(d.todayRunes) + " runes", Color.WHITE);
+		cell(historyPanel, "Today", GpFormat.shortRate(d.todayRunes) + " runes", Color.WHITE);
 		cell(historyPanel, "", PanelData.formatTime(d.todayMillis), Color.LIGHT_GRAY);
-		cell(historyPanel, "Best day", d.bestDate == null ? "-" : fmt(d.bestRunes) + " runes", BLOOD);
+		cell(historyPanel, "Best day", d.bestDate == null ? "-" : GpFormat.shortRate(d.bestRunes) + " runes", BLOOD);
 		cell(historyPanel, PanelData.formatDate(d.bestDate), d.bestDate == null ? "" : PanelData.formatTime(d.bestMillis), Color.LIGHT_GRAY);
-		cell(historyPanel, "All time", fmt(d.allRunes) + " runes", Color.WHITE);
+		cell(historyPanel, "All time", GpFormat.shortRate(d.allRunes) + " runes", Color.WHITE);
 		cell(historyPanel, d.days + (d.days == 1 ? " day" : " days"), PanelData.formatTime(d.allMillis), Color.LIGHT_GRAY);
 
 		runesPanel.removeAll();
@@ -257,8 +257,8 @@ class AorcPanel extends PluginPanel
 		name.setForeground(c);
 		row.add(name, BorderLayout.CENTER);
 
-		JLabel right = new JLabel("<html><div style='text-align:right'>" + fmt(r.count)
-			+ "<br><span style='color:#aaaaaa'>" + fmt(r.perHour) + " / hr</span></div></html>");
+		JLabel right = new JLabel("<html><div style='text-align:right'>" + GpFormat.shortRate(r.count)
+			+ "<br><span style='color:#aaaaaa'>" + GpFormat.shortRate(r.perHour) + " / hr</span></div></html>");
 		right.setHorizontalAlignment(SwingConstants.RIGHT);
 		right.setForeground(c);
 		row.add(right, BorderLayout.EAST);

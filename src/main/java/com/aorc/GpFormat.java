@@ -37,6 +37,25 @@ public final class GpFormat
 			.toPlainString();
 	}
 
+	/**
+	 * Short per-hour text: up to 9,999 the full number ("2,356"), then one decimal with a
+	 * comma and k or m, rounded down: 30895 -> "30,8k", 250000 -> "250k", 1234567 -> "1,23m".
+	 */
+	public static String shortRate(long value)
+	{
+		long abs = Math.abs(value);
+		String sign = value < 0 ? "-" : "";
+		if (abs >= 1_000_000L)
+		{
+			return sign + trim(abs / 1_000_000.0, 2).replace('.', ',') + "m";
+		}
+		if (abs >= 10_000L)
+		{
+			return sign + trim(abs / 1_000.0, 1).replace('.', ',') + "k";
+		}
+		return sign + java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(abs);
+	}
+
 	/** Bonus % as a multiplier: 90 -> "x1.90", 0 -> "x1.00". */
 	public static String multiplier(int bonusPercent)
 	{

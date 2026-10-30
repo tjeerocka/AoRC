@@ -68,12 +68,12 @@ class AorcOverlay extends OverlayPanel
 			{
 				all += v;
 			}
-			line("All runes", fmt(all), Color.WHITE);
+			line("All runes", GpFormat.shortRate(all), Color.WHITE);
 			line("All runes / hr", rate(s.getTotalRunes(), elapsed), Color.WHITE);
 		}
 		else
 		{
-			line("Blood runes", fmt(t.getRunes(RuneIds.BLOOD_RUNE)), BLOOD);
+			line("Blood runes", GpFormat.shortRate(t.getRunes(RuneIds.BLOOD_RUNE)), BLOOD);
 			line("Blood / hr", rate(s.getRunes(RuneIds.BLOOD_RUNE), elapsed), BLOOD);
 		}
 
@@ -88,7 +88,7 @@ class AorcOverlay extends OverlayPanel
 					continue;
 				}
 				String name = RuneIds.RUNES.get(id);
-				line(name + " runes", fmt(t.getRunes(id)), Color.WHITE);
+				line(name + " runes", GpFormat.shortRate(t.getRunes(id)), Color.WHITE);
 				line(name + " / hr", rate(s.getRunes(id), elapsed), Color.WHITE);
 			}
 			if (s.getRunesCrafted().size() > 1)
@@ -125,7 +125,7 @@ class AorcOverlay extends OverlayPanel
 		{
 			int total = BonusCalculator.totalPercent(plugin.currentBonuses());
 			line("Bonus multiplier", GpFormat.multiplier(total), BONUS);
-			line("Bonus runes", fmt(t.getBonusRunes()), BONUS);
+			line("Bonus runes", GpFormat.shortRate(t.getBonusRunes()), BONUS);
 		}
 
 		PanelData d = plugin.getLastData();
@@ -159,7 +159,7 @@ class AorcOverlay extends OverlayPanel
 		{
 			return "-";
 		}
-		return fmt(RuneSession.perHour(amount, elapsed));
+		return GpFormat.shortRate(RuneSession.perHour(amount, elapsed));
 	}
 
 	private String fmt(long value)
