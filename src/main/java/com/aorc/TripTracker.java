@@ -32,6 +32,29 @@ public class TripTracker
 	}
 
 	private Saved s = new Saved();
+	private long pausedAt = -1;   // while paused the trip clock stands still
+
+	/** Stop the trip clock (the trip in progress waits). */
+	public void pause(long now)
+	{
+		if (pausedAt < 0)
+		{
+			pausedAt = now;
+		}
+	}
+
+	/** Start the trip clock again; the paused time is not part of the trip. */
+	public void resume(long now)
+	{
+		if (pausedAt >= 0)
+		{
+			if (s.tripStart >= 0)
+			{
+				s.tripStart += Math.max(0, now - pausedAt);
+			}
+			pausedAt = -1;
+		}
+	}
 
 	/** Runes from one craft (all rune types together). */
 	public void onCraft(int runes)
@@ -109,7 +132,8 @@ public class TripTracker
 	/** Time of the trip in progress, -1 when no trip has started. */
 	public long getCurrentMillis(long now)
 	{
-		return s.tripStart < 0 ? -1 : Math.max(0, now - s.tripStart);
+		long end = pausedAt >= 0 ? pausedAt : now;
+		return s.tripStart < 0 ? -1 : Math.max(0, end - s.tripStart);
 	}
 
 	/** Runes crafted in the trip in progress. */
@@ -153,6 +177,7 @@ public class TripTracker
 	public void reset()
 	{
 		s = new Saved();
+		pausedAt = -1;
 	}
 
 	public Saved save()
@@ -163,7 +188,7 @@ public class TripTracker
 	public Saved save(long now)
 	{
 		Saved c = new Saved();
-		c.currentMillis = s.tripStart < 0 ? 0 : Math.max(0, now - s.tripStart);
+		c.currentMillis = Math.max(0, getCurrentMillis(now));
 		c.trips = s.trips;
 		c.tripRunes = s.tripRunes;
 		c.timedTrips = s.timedTrips;
@@ -185,6 +210,7 @@ public class TripTracker
 	public void load(Saved saved, long now)
 	{
 		s = saved == null ? new Saved() : saved;
+		pausedAt = -1;
 		s.tripStart = s.tripStart < 0 && s.currentRunes == 0 && s.currentMillis == 0
 			? -1
 			: now - Math.max(0, s.currentMillis);

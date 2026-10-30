@@ -84,6 +84,9 @@ public class AorcPlugin extends Plugin
 	/** ZMI (Ourania): one craft gives several rune types. Changes the overlay and bonuses. */
 	@Getter
 	private boolean zmiMode;
+	// Paused: the clocks stand still and nothing is counted until Resume
+	@Getter
+	private volatile boolean paused;
 
 	private static final String KEY_SESSION = "savedSession";
 	private static final String KEY_TOTALS = "savedTotals";
@@ -237,6 +240,30 @@ public class AorcPlugin extends Plugin
 		save();
 	}
 
+	/** Pause or resume tracking (call on the client thread). */
+	public void togglePause()
+	{
+		long now = System.currentTimeMillis();
+		if (!paused)
+		{
+			paused = true;
+			session.pause(now);
+			trips.pause(now);
+			history.pause();
+		}
+		else
+		{
+			paused = false;
+			trips.resume(now);
+		}
+		dirty = true;
+		lastData = buildPanelData();
+		if (panel != null)
+		{
+			panel.post(lastData);
+		}
+	}
+
 	public void resetAll()
 	{
 		session.reset();
@@ -303,6 +330,7 @@ public class AorcPlugin extends Plugin
 			save(); // other account was logged in before: save that one first
 		}
 		loadedAccount = hash;
+		paused = false;
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
 
 		AorcStorage.Data d = null;
@@ -502,6 +530,7 @@ public class AorcPlugin extends Plugin
 		long elapsed = session.elapsedMillis(now, idleTimeoutMillis());
 
 		PanelData d = new PanelData();
+		d.paused = paused;
 		d.activeMillis = elapsed;
 		d.xpPerHour = RuneSession.perHour(session.getXpGained(), elapsed);
 		d.allRunesPerHour = RuneSession.perHour(session.getTotalRunes(), elapsed);
@@ -647,7 +676,7 @@ public class AorcPlugin extends Plugin
 		}
 
 		int xp = event.getXp();
-		if (lastRcXp >= 0 && xp > lastRcXp)
+		if (lastRcXp >= 0 && xp > lastRcXp && !paused)
 		{
 			startNewSessionIfIdle();
 			session.addXp(xp - lastRcXp, System.currentTimeMillis());
@@ -715,9 +744,12 @@ public class AorcPlugin extends Plugin
 						|| id == RuneIds.DARK_ESSENCE_FRAGMENTS)
 					{
 						// Mining, imbuing or chiseling: starts / keeps the Active time timer running
-						startNewSessionIfIdle();
-						session.addActivity(System.currentTimeMillis());
-						activity();
+						if (!paused)
+						{
+							startNewSessionIfIdle();
+							session.addActivity(System.currentTimeMillis());
+							activity();
+						}
 					}
 					if (id != RuneIds.DENSE_ESSENCE_BLOCK && id != RuneIds.DARK_ESSENCE_FRAGMENTS)
 					{
@@ -775,6 +807,15 @@ public class AorcPlugin extends Plugin
 		if (dirty && tick % 3 == 0)
 		{
 			save();
+		}
+
+		if (paused)
+		{
+			// nothing is counted while paused (also no trip end)
+			pendingGains.clear();
+			fragmentsUsed = false;
+			essenceEmptied = false;
+			return;
 		}
 
 		if (pendingGains.isEmpty())

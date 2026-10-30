@@ -29,6 +29,7 @@ class AorcPanel extends PluginPanel
 	private final NumberFormat nf = NumberFormat.getIntegerInstance();
 
 	private final JLabel timeLabel = new JLabel();
+	private final JButton pauseButton = new JButton("Pause");
 	private final JPanel statsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel historyPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel tripsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
@@ -60,9 +61,18 @@ class AorcPanel extends PluginPanel
 		title.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(title);
 
+		// active time on the left, Pause / Resume on the right
+		JPanel timeRow = new JPanel(new BorderLayout(4, 0));
+		timeRow.setOpaque(false);
+		timeRow.setAlignmentX(LEFT_ALIGNMENT);
 		timeLabel.setForeground(Color.LIGHT_GRAY);
-		timeLabel.setAlignmentX(LEFT_ALIGNMENT);
-		content.add(timeLabel);
+		timeRow.add(timeLabel, BorderLayout.CENTER);
+		pauseButton.setFocusPainted(false);
+		pauseButton.setToolTipText("Pause: the timers stop and nothing is counted until you press Resume");
+		pauseButton.addActionListener(e -> clientThread.invokeLater(plugin::togglePause));
+		timeRow.add(pauseButton, BorderLayout.EAST);
+		timeRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+		content.add(timeRow);
 		content.add(spacer(8));
 
 		statsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -154,7 +164,18 @@ class AorcPanel extends PluginPanel
 
 	private void update(PanelData d)
 	{
-		timeLabel.setText("Active time: " + PanelData.formatTime(d.activeMillis));
+		if (d.paused)
+		{
+			timeLabel.setText("Paused - " + PanelData.formatTime(d.activeMillis));
+			timeLabel.setForeground(Color.ORANGE);
+			pauseButton.setText("Resume");
+		}
+		else
+		{
+			timeLabel.setText("Active time: " + PanelData.formatTime(d.activeMillis));
+			timeLabel.setForeground(Color.LIGHT_GRAY);
+			pauseButton.setText("Pause");
+		}
 
 		statsPanel.removeAll();
 		stat("RC xp / hr", GpFormat.shortRate(d.xpPerHour), Color.WHITE);

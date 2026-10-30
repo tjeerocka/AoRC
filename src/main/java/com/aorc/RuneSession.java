@@ -104,6 +104,20 @@ public class RuneSession
 		blocksImbued += amount;
 	}
 
+	/**
+	 * Pause: bank the active time up to now and stop the clock.
+	 * The next action starts a new segment, so the paused time is never counted.
+	 */
+	public void pause(long now)
+	{
+		if (segmentStart >= 0)
+		{
+			long end = lastActionMillis >= 0 && now - lastActionMillis > idleTimeoutMillis ? lastActionMillis : now;
+			bankedMillis += Math.max(0, end - segmentStart);
+			segmentStart = -1;
+		}
+	}
+
 	/** True when nothing happened for longer than the timeout. */
 	public boolean isIdle(long now, long timeoutMillis)
 	{

@@ -26,6 +26,7 @@ public final class PanelData
 		}
 	}
 
+	public boolean paused;
 	public long activeMillis;
 	public int xpPerHour;
 	public long gpPerHour;

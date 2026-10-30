@@ -46,7 +46,8 @@ class AorcOverlay extends OverlayPanel
 		long now = System.currentTimeMillis();
 		long timeout = plugin.idleTimeoutMillis();
 
-		if ((!s.isStarted() && t.getRunes().isEmpty()) || s.isIdle(now, timeout))
+		boolean paused = plugin.isPaused();
+		if ((!s.isStarted() && t.getRunes().isEmpty()) || (s.isIdle(now, timeout) && !paused))
 		{
 			return null;
 		}
@@ -54,7 +55,7 @@ class AorcOverlay extends OverlayPanel
 		long elapsed = s.elapsedMillis(now, timeout);
 
 		panelComponent.getChildren().add(TitleComponent.builder()
-			.text("AoRC")
+			.text(paused ? "AoRC (paused)" : "AoRC")
 			.color(BLOOD)
 			.build());
 

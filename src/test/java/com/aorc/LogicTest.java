@@ -459,4 +459,27 @@ public class LogicTest
 		assertFalse(s.isStarted());
 		assertEquals(0, s.getTotalRunes());
 	}
+
+	@Test
+	public void pauseStopsSessionAndTripClock()
+	{
+		RuneSession s = new RuneSession();
+		s.addRunes(RuneIds.BLOOD_RUNE, 100, 0);
+		s.addRunes(RuneIds.BLOOD_RUNE, 100, 60_000);
+		s.pause(120_000);
+		// 10 minutes paused: time stays at 2 minutes
+		assertEquals(120_000, s.elapsedMillis(720_000, 5 * 60_000L));
+		s.addRunes(RuneIds.BLOOD_RUNE, 100, 720_000);
+		assertEquals(150_000, s.elapsedMillis(750_000, 5 * 60_000L));
+
+		TripTracker t = new TripTracker();
+		t.onStartEmpty(0);
+		t.pause(30_000);
+		assertEquals(30_000, t.getCurrentMillis(500_000));
+		t.resume(500_000);
+		assertEquals(40_000, t.getCurrentMillis(510_000));
+		t.onCraft(200);
+		t.onEssenceEmpty(600_000);
+		assertEquals(130_000, t.getLastTripMillis());
+	}
 }
