@@ -1366,6 +1366,26 @@ public class AorcPlugin extends Plugin
 		}
 	}
 
+	/**
+	 * Test the pouch warning: the pouches you carry (or the colossal pouch) count as worn,
+	 * so you see the warning and the highlights. They go away after a repair at the Dark Mage.
+	 */
+	public void testPouchWarning()
+	{
+		java.util.Set<PouchTracker.Pouch> which = pouchesCarried.isEmpty()
+			? java.util.EnumSet.of(PouchTracker.Pouch.COLOSSAL) : pouchesCarried;
+		for (PouchTracker.Pouch p : which)
+		{
+			pouches.markNeedsRepair(p);
+		}
+		dirty = true;
+		String name = which.iterator().next().getName();
+		notifier.notify("AoRC: " + name + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage). (test)");
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			"<col=ff3030>AoRC:</col> " + name + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage). (test)", null);
+		refreshPanel();
+	}
+
 	/** An essence pouch with this item ID needs a repair (for the inventory highlight). */
 	boolean pouchNeedsRepair(int itemId)
 	{

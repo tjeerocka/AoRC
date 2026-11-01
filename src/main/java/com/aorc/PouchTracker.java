@@ -92,6 +92,16 @@ public class PouchTracker
 		}
 	}
 
+	/** For the test button: this pouch counts as needing a repair (until the next repair). */
+	public void markNeedsRepair(Pouch p)
+	{
+		if (p != null)
+		{
+			int warnAt = (int) Math.ceil(p.limit * WARN_AT);
+			stored.put(p.name(), Math.max(warnAt, stored.getOrDefault(p.name(), 0)));
+		}
+	}
+
 	/** Part used since the last repair, 0..1. */
 	public double used(Pouch p)
 	{

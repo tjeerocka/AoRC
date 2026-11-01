@@ -74,6 +74,7 @@ class AorcPanel extends PluginPanel
 	private final JPanel sessionBody = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final Grid session = new Grid(sessionBody);
 	private final Bar essenceBar = new Bar();
+	private final JButton testPouch = button("Test pouch warning");
 	private final JPanel tripsBody = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final Grid tripsGrid = new Grid(tripsBody);
 	// full-width line for the trip in progress (the place name needs the room)
@@ -141,6 +142,14 @@ class AorcPanel extends PluginPanel
 		sessionWrap.add(sessionBody);
 		essenceBar.setVisible(false);
 		sessionWrap.add(essenceBar);
+		// try the essence pouch warning (it goes away after a repair at the Dark Mage)
+		testPouch.setToolTipText("Show the pouch warning and highlights now. They go away after you repair your pouches.");
+		testPouch.setAlignmentX(LEFT_ALIGNMENT);
+		testPouch.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+		testPouch.setMargin(new Insets(1, 4, 1, 4));
+		testPouch.addActionListener(e -> run(clientThread, () -> plugin.testPouchWarning()));
+		sessionWrap.add(gap(4));
+		sessionWrap.add(testPouch);
 		sessionSec = new Section("session", "Session", sessionWrap);
 		content.add(sessionSec);
 		content.add(gap(6));
@@ -512,6 +521,7 @@ class AorcPanel extends PluginPanel
 				used >= 0.75 ? Color.ORANGE : Color.LIGHT_GRAY);
 		}
 		session.end();
+		testPouch.setVisible(!d.pouchNames.isEmpty());
 		essenceBar.setVisible(d.essenceCharges >= 0);
 		essenceBar.set(d.essenceCharges / (double) EssenceCharges.FULL, d.essenceCharges <= 100 ? Color.ORANGE : BONUS);
 		sessionSec.setSummary(GpFormat.shortRate(d.xpPerHour) + " xp / hr");
