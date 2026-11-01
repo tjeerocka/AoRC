@@ -25,6 +25,7 @@ public class AorcStorage
 		java.util.Map<Integer, Integer> goalRunes;
 		// older version: blood runes only
 		Integer goalBlood;
+		TripLocations.Saved tripPlaces;
 		// level goal bar: the goal level and the XP the bar starts from
 		Integer goalStartLevel;
 		Integer goalStartXp;

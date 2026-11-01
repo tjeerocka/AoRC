@@ -11,6 +11,7 @@ import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseAdapter;
@@ -97,6 +98,12 @@ class AorcPanel extends PluginPanel
 	private final Section historySec;
 	private final Section runesSec;
 
+	// Trips filter: "" = where you craft now, "*" = all trips, else a place
+	private final JComboBox<String> tripFilterBox = new JComboBox<>();
+	private final List<String> tripFilterKeys = new ArrayList<>();
+	private volatile String tripFilter = "";
+	private boolean fillingTrips;
+
 	// History filter: "All runes" or one rune type you crafted
 	private final JComboBox<String> historyFilterBox = new JComboBox<>();
 	private final List<Integer> filterIds = new ArrayList<>();
@@ -136,9 +143,31 @@ class AorcPanel extends PluginPanel
 		content.add(sessionSec);
 		content.add(gap(6));
 
-		// Trips
+		// Trips: dropdown (where you craft now / all / one place) and the numbers
+		JPanel tripsWrap = column();
+		tripFilterBox.setToolTipText("Trips where you craft now, all trips, or one place (like Blood - Zeah or Blood - Mory)");
+		tripFilterBox.setAlignmentX(LEFT_ALIGNMENT);
+		tripFilterBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+		tripFilterKeys.add("");
+		tripFilterKeys.add("*");
+		tripFilterBox.addItem("This location");
+		tripFilterBox.addItem("All trips");
+		tripFilterBox.addActionListener(e ->
+		{
+			int i = tripFilterBox.getSelectedIndex();
+			if (fillingTrips || i < 0 || i >= tripFilterKeys.size())
+			{
+				return;
+			}
+			tripFilter = tripFilterKeys.get(i);
+			run(clientThread, () -> plugin.refreshPanel());
+		});
+		tripsWrap.add(tripFilterBox);
+		tripsWrap.add(gap(5));
 		tripsBody.setOpaque(false);
-		tripsSec = new Section("trips", "Trips", tripsBody);
+		tripsBody.setAlignmentX(LEFT_ALIGNMENT);
+		tripsWrap.add(tripsBody);
+		tripsSec = new Section("trips", "Trips", tripsWrap);
 		content.add(tripsSec);
 		content.add(gap(6));
 
@@ -200,7 +229,7 @@ class AorcPanel extends PluginPanel
 		buttons.setOpaque(false);
 		buttons.setAlignmentX(LEFT_ALIGNMENT);
 		buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
-		JButton reset = button("Reset ▾");
+		JButton reset = button("Reset \u25BE");
 		JPopupMenu menu = new JPopupMenu();
 		menu.add(menuItem("Reset per hour", "Per-hour numbers, active time and trips",
 			() -> run(clientThread, () -> plugin.resetRates())));
@@ -268,13 +297,18 @@ class AorcPanel extends PluginPanel
 		status.setOpaque(false);
 		status.setAlignmentX(LEFT_ALIGNMENT);
 		status.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
-		JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 6));
+		// dot and text side by side (never wraps to a second line)
+		JPanel left = new JPanel(new BorderLayout(5, 0));
 		left.setOpaque(false);
-		left.add(statusDot);
+		JPanel dotBox = new JPanel(new GridBagLayout());
+		dotBox.setOpaque(false);
+		dotBox.add(statusDot);
+		left.add(dotBox, BorderLayout.WEST);
 		statusLabel.setFont(FontManager.getRunescapeSmallFont());
-		left.add(statusLabel);
+		left.add(statusLabel, BorderLayout.CENTER);
 		status.add(left, BorderLayout.CENTER);
 		pauseButton.setFocusPainted(false);
+		pauseButton.setMargin(new Insets(2, 6, 2, 6));
 		pauseButton.setToolTipText("Pause: the timers stop and nothing is counted. Resumes by itself when you gain Runecraft xp.");
 		status.add(pauseButton, BorderLayout.EAST);
 		hero.add(status);
@@ -346,6 +380,45 @@ class AorcPanel extends PluginPanel
 		buddy.stop();
 	}
 
+	/** Trips filter chosen in the dropdown: "" = where you craft now, "*" = all, else a place (any thread). */
+	String getTripFilter()
+	{
+		return tripFilter;
+	}
+
+	/** Trips dropdown: "This location (Blood - Zeah)", "All trips", then every place with trips. */
+	private void updateTripChoices(List<String> placeNames, String shown)
+	{
+		List<String> keys = new ArrayList<>();
+		keys.add("");
+		keys.add("*");
+		keys.addAll(placeNames);
+		String hereText = "This location" + (shown != null && "".equals(tripFilter) ? " (" + shown + ")" : "");
+		if (keys.equals(tripFilterKeys) && hereText.equals(tripFilterBox.getItemAt(0)))
+		{
+			return;
+		}
+		fillingTrips = true;
+		try
+		{
+			String keep = tripFilter;
+			tripFilterKeys.clear();
+			tripFilterKeys.addAll(keys);
+			tripFilterBox.removeAllItems();
+			for (String k : keys)
+			{
+				tripFilterBox.addItem("".equals(k) ? hereText : "*".equals(k) ? "All trips" : k);
+			}
+			int i = Math.max(0, tripFilterKeys.indexOf(keep));
+			tripFilterBox.setSelectedIndex(i);
+			tripFilter = tripFilterKeys.get(i);
+		}
+		finally
+		{
+			fillingTrips = false;
+		}
+	}
+
 	/** History filter chosen in the dropdown: 0 = all runes, else a rune item ID (any thread). */
 	int getHistoryFilter()
 	{
@@ -375,14 +448,14 @@ class AorcPanel extends PluginPanel
 		{
 			statusDot.setColor(Color.ORANGE);
 			statusLabel.setForeground(Color.ORANGE);
-			statusLabel.setText("Paused · " + PanelData.formatTime(d.activeMillis));
+			statusLabel.setText("Paused - " + PanelData.formatTime(d.activeMillis));
 			pauseButton.setText("Resume");
 		}
 		else
 		{
 			statusDot.setColor(d.crafting ? new Color(86, 196, 86) : MUTED);
 			statusLabel.setForeground(d.crafting ? new Color(127, 209, 127) : MUTED);
-			statusLabel.setText((d.crafting ? "Crafting" : "Idle") + " · " + PanelData.formatTime(d.activeMillis));
+			statusLabel.setText((d.crafting ? "Crafting" : "Idle") + " - " + PanelData.formatTime(d.activeMillis));
 			pauseButton.setText("Pause");
 		}
 
@@ -399,7 +472,7 @@ class AorcPanel extends PluginPanel
 			bigNumber.setText(GpFormat.shortRate(d.mainPerHour));
 			bigUnit.setText(what + " / hr");
 			heroSub.setText(GpFormat.shortRate(d.mainCount) + " " + what
-				+ (d.mainName.equals("All runes") ? "" : " runes") + " · +" + GpFormat.shortRate(d.mainToday) + " today");
+				+ (d.mainName.equals("All runes") ? "" : " runes") + ", +" + GpFormat.shortRate(d.mainToday) + " today");
 		}
 		chipXp.setText(GpFormat.shortRate(d.xpPerHour));
 		chipGp.setText(GpFormat.shortGp(d.gpPerHour));
@@ -412,7 +485,12 @@ class AorcPanel extends PluginPanel
 			session.cell("Profit / hr", GpFormat.shortGp(d.profitPerHour), GOLD);
 		}
 		session.cell("All runes / hr", GpFormat.shortRate(d.allRunesPerHour), Color.WHITE);
-		session.cell("Crafts · Blocks", fmt(d.crafts) + " · " + fmt(d.blocksImbued), Color.WHITE);
+		session.cell("Crafts", fmt(d.crafts), Color.WHITE);
+		if (d.showBlocks)
+		{
+			// only at Zeah (blood / soul altar there, or the Dark Altar)
+			session.cell("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
+		}
 		session.cell("Bonus runes", GpFormat.shortRate(d.bonusRunes), BONUS);
 		if (d.essenceCharges >= 0)
 		{
@@ -431,11 +509,13 @@ class AorcPanel extends PluginPanel
 		{
 			tripsGrid.cell("Runes this trip", fmt(d.currentTripRunes), Color.LIGHT_GRAY);
 		}
-		tripsGrid.cell("Trips · avg", fmt(d.trips) + " · " + time(d.avgTripMillis), Color.WHITE);
+		tripsGrid.cell("Trips", fmt(d.trips), Color.WHITE);
+		tripsGrid.cell("Avg trip", time(d.avgTripMillis), Color.WHITE);
 		tripsGrid.cell("Fastest", time(d.fastestTripMillis), BONUS);
 		tripsGrid.cell("Last trip", time(d.lastTripMillis), Color.LIGHT_GRAY);
 		tripsGrid.cell("Avg runes / trip", fmt(d.avgTripRunes), Color.WHITE);
 		tripsGrid.end();
+		updateTripChoices(d.tripPlaces, d.tripPlace);
 		tripsSec.setSummary(d.currentTripMillis >= 0 ? "now " + time(d.currentTripMillis) : fmt(d.trips) + " trips");
 
 		// Goals
@@ -458,7 +538,7 @@ class AorcPanel extends PluginPanel
 		String sub = levelDone ? "" : GpFormat.shortGp(d.xpLeft) + " xp left";
 		if (runeGoal && d.runesLeft > 0)
 		{
-			sub += (sub.isEmpty() ? "" : " · ") + fmt(d.runesLeft) + " runes left";
+			sub += (sub.isEmpty() ? "" :  ", ") + fmt(d.runesLeft) + " runes left";
 		}
 		goalSub.setText(sub);
 		goalSub.setVisible(!sub.isEmpty());
@@ -835,7 +915,7 @@ class AorcPanel extends PluginPanel
 			this.open = open;
 			body.setVisible(open);
 			summary.setVisible(!open);
-			chevron.setText(open ? "▾" : "▸");
+			chevron.setText(open ? "\u25BE" : "\u25B8");
 			revalidate();
 			repaint();
 		}

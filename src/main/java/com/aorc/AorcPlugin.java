@@ -115,6 +115,12 @@ public class AorcPlugin extends Plugin
 	private boolean essenceEmptied;
 	// Last blood craft was at the Arceuus altar (diary bonus only works there)
 	private boolean lastBloodAtArceuus = true;
+	// trip stats per place (Blood - Zeah, Blood - Mory, Lava - Fire altar, ...)
+	private final TripLocations places = new TripLocations();
+	// guardian essence used this tick (Guardians of the Rift)
+	private boolean guardianUsed;
+	// blocks imbued at the Dark Altar since your last craft
+	private boolean imbuedSinceCraft;
 	// Inactive blood essence in the inventory
 	private int inactiveEssence;
 	// Most Raiments pieces seen worn (for the "piece missing" warning)
@@ -311,6 +317,7 @@ public class AorcPlugin extends Plugin
 	{
 		session.reset();
 		trips.reset();
+		places.reset();
 		totals.resetRunes();
 		totals.resetBonus();
 		zmiMode = false;
@@ -333,6 +340,7 @@ public class AorcPlugin extends Plugin
 		d.totals = totals.save();
 		d.history = history.save();
 		d.trips = trips.save();
+		d.tripPlaces = places.save();
 		d.essence = essence.save();
 		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
 		d.goalStartLevel = goalStartLevel;
@@ -400,6 +408,7 @@ public class AorcPlugin extends Plugin
 		// History, essence charges and goal progress are always kept
 		history.load(d.history);
 		essence.load(d.essence);
+		places.load(d.tripPlaces);
 		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;
 		goalStartXp = d.goalStartXp != null ? d.goalStartXp : -1;
 		// older files have no goal counter yet: start from the rune counts
@@ -620,12 +629,33 @@ public class AorcPlugin extends Plugin
 		d.essenceCharges = bloodEssenceActive ? essence.remaining() : -1;
 		d.essenceEstimate = essence.isEstimate();
 
-		// Trips
-		d.trips = trips.getTrips();
-		d.avgTripRunes = trips.getAvgRunes();
-		d.avgTripMillis = trips.getAvgTripMillis();
-		d.fastestTripMillis = trips.getFastestMillis();
-		d.lastTripMillis = trips.getLastTripMillis();
+		// Trips: all trips, or one place (dropdown in the side panel; "" = where you craft now)
+		d.tripPlaces = places.names();
+		String place = panel == null ? "" : panel.getTripFilter();
+		if ("".equals(place))
+		{
+			place = places.getLast();
+		}
+		if (place == null || "*".equals(place))
+		{
+			d.tripPlace = null;
+			d.trips = trips.getTrips();
+			d.avgTripRunes = trips.getAvgRunes();
+			d.avgTripMillis = trips.getAvgTripMillis();
+			d.fastestTripMillis = trips.getFastestMillis();
+			d.lastTripMillis = trips.getLastTripMillis();
+		}
+		else
+		{
+			TripLocations.Stats p = places.get(place);
+			d.tripPlace = place;
+			d.trips = p.getTrips();
+			d.avgTripRunes = p.getAvgRunes();
+			d.avgTripMillis = p.getAvgMillis();
+			d.fastestTripMillis = p.getFastestMillis();
+			d.lastTripMillis = p.getLastMillis();
+		}
+		d.showBlocks = isAtZeah();
 		d.currentTripMillis = trips.getCurrentMillis(now);
 		d.currentTripRunes = trips.getCurrentRunes();
 
@@ -778,7 +808,7 @@ public class AorcPlugin extends Plugin
 			}
 			trips.onCraft(runes);
 			essenceEmptied = false;
-			trips.onEssenceEmpty(System.currentTimeMillis());
+			tripEvent(() -> trips.onEssenceEmpty(System.currentTimeMillis()));
 		}
 		save();
 	}
@@ -856,7 +886,7 @@ public class AorcPlugin extends Plugin
 			if (lastInventory == null && essenceCount(now) == 0)
 			{
 				// Logged in with no essence: the next trip is a full trip
-				trips.onStartEmpty(System.currentTimeMillis());
+				tripEvent(() -> trips.onStartEmpty(System.currentTimeMillis()));
 			}
 
 			if (lastInventory != null)
@@ -887,6 +917,12 @@ public class AorcPlugin extends Plugin
 				{
 					// Fragments used up: crafting at the Arceuus blood altar
 					fragmentsUsed = true;
+				}
+				if (now.getOrDefault(RuneIds.GUARDIAN_ESSENCE, 0)
+					< lastInventory.getOrDefault(RuneIds.GUARDIAN_ESSENCE, 0))
+				{
+					// Guardian essence used up: crafting inside Guardians of the Rift
+					guardianUsed = true;
 				}
 
 				for (Map.Entry<Integer, Integer> e : now.entrySet())
@@ -1055,6 +1091,24 @@ public class AorcPlugin extends Plugin
 			{
 				session.addCraft(now);
 				trips.onCraft(craftRunes);
+				// the place of this craft (for trips per place)
+				int mainRune = -1;
+				int most = 0;
+				for (Map.Entry<Integer, Integer> e : pendingGains.entrySet())
+				{
+					if (RuneIds.isRune(e.getKey()) && e.getValue() > most)
+					{
+						most = e.getValue();
+						mainRune = e.getKey();
+					}
+				}
+				boolean soulAtZeah = fragmentsUsed && pendingGains.containsKey(RuneIds.SOUL_RUNE);
+				places.onCraft(TripLocations.placeOf(mainRune, runeTypes, arceuusCraft || soulAtZeah, guardianUsed, regionId()));
+				imbuedSinceCraft = false;
+			}
+			if (imbued)
+			{
+				imbuedSinceCraft = true;
 			}
 			if (imbued)
 			{
@@ -1069,8 +1123,34 @@ public class AorcPlugin extends Plugin
 
 		pendingGains.clear();
 		fragmentsUsed = false;
+		guardianUsed = false;
 		// After the runes of this craft are counted, so they belong to this trip
 		endTripIfEmptied();
+	}
+
+	/** Run a trip event; when it finished a trip, add that trip to its place too. */
+	private void tripEvent(Runnable event)
+	{
+		int before = trips.getTrips();
+		event.run();
+		if (trips.getTrips() > before)
+		{
+			places.onTripDone(trips.getLastTripRunes(), trips.getLastTripMillis());
+		}
+	}
+
+	/** Map region of your character (-1 when unknown). */
+	private int regionId()
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		return p == null || p.getWorldLocation() == null ? -1 : p.getWorldLocation().getRegionID();
+	}
+
+	/** At Zeah right now: your last craft was at the Arceuus blood or soul altar, or you just imbued blocks. */
+	boolean isAtZeah()
+	{
+		String last = places.getLast();
+		return imbuedSinceCraft || (last != null && last.endsWith("- Zeah"));
 	}
 
 	private void endTripIfEmptied()
@@ -1078,7 +1158,7 @@ public class AorcPlugin extends Plugin
 		if (essenceEmptied)
 		{
 			essenceEmptied = false;
-			trips.onEssenceEmpty(System.currentTimeMillis());
+			tripEvent(() -> trips.onEssenceEmpty(System.currentTimeMillis()));
 			// Save right away, so a finished trip is never lost
 			save();
 		}

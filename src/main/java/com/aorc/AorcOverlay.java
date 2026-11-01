@@ -134,7 +134,8 @@ class AorcOverlay extends OverlayPanel
 
 		line("RC xp / hr", rate(s.getXpGained(), elapsed), Color.WHITE);
 
-		if (s.getBlocksImbued() > 0)
+		// only at Zeah (blood / soul altar there, or the Dark Altar)
+		if (s.getBlocksImbued() > 0 && plugin.isAtZeah())
 		{
 			line("Blocks imbued", fmt(s.getBlocksImbued()), Color.WHITE);
 		}

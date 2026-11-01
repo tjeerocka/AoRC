@@ -562,4 +562,31 @@ public class LogicTest
 		assertEquals(1.0, Goals.progress(goal + 5, start, goal), 0.0);
 		assertEquals(0.0, Goals.progress(start, start, goal), 0.0);
 	}
+
+	@Test
+	public void tripsPerPlace()
+	{
+		assertEquals("Blood - Zeah", TripLocations.placeOf(RuneIds.BLOOD_RUNE, 1, true, false, 6715));
+		assertEquals("Blood - Mory", TripLocations.placeOf(RuneIds.BLOOD_RUNE, 1, false, false, 12875));
+		assertEquals("Lava - Fire altar", TripLocations.placeOf(4699, 1, false, false, 10315));
+		assertEquals("Lava - Earth altar", TripLocations.placeOf(4699, 1, false, false, 10571));
+		assertEquals("Nature", TripLocations.placeOf(561, 1, false, false, 1));
+		assertEquals("Fire - GOTR", TripLocations.placeOf(554, 1, false, true, 14484));
+		assertEquals("ZMI (Ourania)", TripLocations.placeOf(554, 4, false, false, 1));
+
+		TripLocations p = new TripLocations();
+		p.onCraft("Blood - Mory");
+		p.onTripDone(250, 120_000);
+		p.onCraft("Blood - Zeah");
+		p.onTripDone(300, 420_000);
+		p.onCraft("Blood - Mory");
+		p.onTripDone(260, 100_000);
+		assertEquals(2, p.get("Blood - Mory").getTrips());
+		assertEquals(100_000, p.get("Blood - Mory").getFastestMillis());
+		assertEquals(420_000, p.get("Blood - Zeah").getFastestMillis());
+		assertEquals("Blood - Mory", p.getLast());
+		// a trip without a craft place is not added anywhere
+		p.onTripDone(10, 5_000);
+		assertEquals(2, p.get("Blood - Mory").getTrips());
+	}
 }
