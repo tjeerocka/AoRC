@@ -59,7 +59,6 @@ class AorcOverlay extends OverlayPanel
 			.color(BLOOD)
 			.build());
 
-		// Blood runes always first
 		// Count = own counter (own reset). Per hour = rate session (Reset per hour).
 		if (plugin.isZmiMode())
 		{
@@ -74,25 +73,37 @@ class AorcOverlay extends OverlayPanel
 		}
 		else
 		{
-			line("Blood runes", GpFormat.shortRate(t.getRunes(RuneIds.BLOOD_RUNE)), BLOOD);
-			line("Blood / hr", rate(s.getRunes(RuneIds.BLOOD_RUNE), elapsed), BLOOD);
-		}
-
-		if (config.showAllRunes() && !plugin.isZmiMode())
-		{
-			java.util.Set<Integer> types = new java.util.LinkedHashSet<>(t.getRunes().keySet());
-			types.addAll(s.getRunesCrafted().keySet());
+			// Rune types you craft now (this session); blood first.
+			// Blood lines only show when you craft blood runes.
+			// Nothing crafted this session yet: the types you have a count for.
+			Map<Integer, Integer> source = s.getRunesCrafted().isEmpty() ? t.getRunes() : s.getRunesCrafted();
+			java.util.Set<Integer> types = new java.util.LinkedHashSet<>();
+			if (source.getOrDefault(RuneIds.BLOOD_RUNE, 0) > 0)
+			{
+				types.add(RuneIds.BLOOD_RUNE);
+			}
+			for (Map.Entry<Integer, Integer> e : source.entrySet())
+			{
+				if (e.getValue() > 0)
+				{
+					types.add(e.getKey());
+				}
+			}
+			// "All rune types" off: only blood when you craft blood, otherwise every type you craft
+			boolean onlyBlood = !config.showAllRunes() && types.contains(RuneIds.BLOOD_RUNE);
 			for (int id : types)
 			{
-				if (id == RuneIds.BLOOD_RUNE)
+				if (onlyBlood && id != RuneIds.BLOOD_RUNE)
 				{
 					continue;
 				}
-				String name = RuneIds.RUNES.get(id);
-				line(name + " runes", GpFormat.shortRate(t.getRunes(id)), Color.WHITE);
-				line(name + " / hr", rate(s.getRunes(id), elapsed), Color.WHITE);
+				boolean blood = id == RuneIds.BLOOD_RUNE;
+				String name = blood ? "Blood" : RuneIds.RUNES.get(id);
+				Color c = blood ? BLOOD : Color.WHITE;
+				line(name + " runes", GpFormat.shortRate(t.getRunes(id)), c);
+				line(name + " / hr", rate(s.getRunes(id), elapsed), c);
 			}
-			if (s.getRunesCrafted().size() > 1)
+			if (!onlyBlood && s.getRunesCrafted().size() > 1)
 			{
 				line("All runes / hr", rate(s.getTotalRunes(), elapsed), Color.WHITE);
 			}
