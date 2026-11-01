@@ -23,8 +23,6 @@ public class AorcStorage
 		EssenceCharges.Saved essence;
 		// runes counted for the rune goal, per rune type (own counter, not cleared by the resets)
 		java.util.Map<Integer, Integer> goalRunes;
-		// older version: blood runes only
-		Integer goalBlood;
 		TripLocations.Saved tripPlaces;
 		PouchTracker.Saved pouches;
 		// level goal bar: the goal level and the XP the bar starts from

@@ -50,11 +50,6 @@ public class DayLog
 			return runes;
 		}
 
-		public int getBloodRunes()
-		{
-			return bloodRunes;
-		}
-
 		public int getXp()
 		{
 			return xp;

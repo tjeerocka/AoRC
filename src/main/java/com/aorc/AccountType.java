@@ -33,14 +33,4 @@ public enum AccountType
 				return MAIN;
 		}
 	}
-
-	public boolean isGroup()
-	{
-		return this == GROUP || this == HARDCORE_GROUP || this == UNRANKED_GROUP;
-	}
-
-	public boolean isHardcore()
-	{
-		return this == HARDCORE || this == HARDCORE_GROUP;
-	}
 }

@@ -152,13 +152,13 @@ public interface AorcConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "goalBloodRunes",
+		keyName = "goalBloodRunes",   // old key name kept, so your saved goal stays
 		name = "Rune goal",
 		description = "Shows the time left to craft this many runes (of the type above). Has its own counter: the reset buttons do not clear it, only \"Clear goal progress\" in the side panel. 0 = off",
 		section = goalSection,
 		position = 23
 	)
-	default int goalBloodRunes()
+	default int goalRunes()
 	{
 		return 0;
 	}

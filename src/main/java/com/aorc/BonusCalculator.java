@@ -115,21 +115,4 @@ public final class BonusCalculator
 		}
 		return sum;
 	}
-
-	/** Expected total runes for a number of base runes. */
-	public static double expectedRunes(int baseRunes, int totalPercent)
-	{
-		return baseRunes * (1.0 + totalPercent / 100.0);
-	}
-
-	/** Estimate of how many of the crafted runes came from bonuses. */
-	public static int estimatedBonusRunes(int craftedRunes, int totalPercent)
-	{
-		if (totalPercent <= 0 || craftedRunes <= 0)
-		{
-			return 0;
-		}
-		double base = craftedRunes / (1.0 + totalPercent / 100.0);
-		return (int) Math.round(craftedRunes - base);
-	}
 }

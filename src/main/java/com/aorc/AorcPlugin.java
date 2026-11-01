@@ -25,7 +25,6 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
-import net.runelite.client.callback.ClientThread;
 import net.runelite.client.RuneLite;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -67,8 +66,6 @@ public class AorcPlugin extends Plugin
 	@Inject
 	private RepairSpellOverlay repairSpellOverlay;
 
-	@Inject
-	private RepairDialogOverlay repairDialogOverlay;
 
 	@Inject
 	private ConfigManager configManager;
@@ -85,8 +82,6 @@ public class AorcPlugin extends Plugin
 	@Inject
 	private Notifier notifier;
 
-	@Inject
-	private ClientThread clientThread;
 
 	private AorcPanel panel;
 	private NavigationButton navButton;
@@ -99,21 +94,14 @@ public class AorcPlugin extends Plugin
 	@Getter
 	private volatile boolean paused;
 
-	private static final String KEY_SESSION = "savedSession";
-	private static final String KEY_TOTALS = "savedTotals";
-	private static final String KEY_HISTORY = "savedHistory";
-	private static final String KEY_TRIPS = "savedTrips";
-	private static final String KEY_ESSENCE = "savedEssence";
 
 	/** "Your blood essence has 940 charges remaining." */
 	private static final Pattern ESSENCE_CHECK = Pattern.compile("Your blood essence has ([\\d,]+) charges? remaining");
 
 	/** Trip stats (reset with "Reset per hour"). */
-	@Getter
 	private final TripTracker trips = new TripTracker();
 
 	/** Charges left on the active blood essence. */
-	@Getter
 	private final EssenceCharges essence = new EssenceCharges();
 
 	/** Latest numbers, also used by the overlay. Made on the game thread. */
@@ -134,9 +122,6 @@ public class AorcPlugin extends Plugin
 	private boolean imbuedSinceCraft;
 	// map area of your last craft: moving to another area = you left the altar
 	private int craftRegion = -1;
-	// NPC dialogue box (chatbox): interface 231, text child 6
-	private static final int DIALOG_NPC = 231;
-	private static final int DIALOG_NPC_TEXT = 6;
 	// essence pouch wear
 	private final PouchTracker pouches = new PouchTracker();
 	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
@@ -198,17 +183,12 @@ public class AorcPlugin extends Plugin
 	private int lastXpTick = -100;
 
 	// Current gear state, shown in the overlay
-	@Getter
 	private int raimentsPieces;
-	@Getter
 	private BonusCalculator.Lantern lantern = BonusCalculator.Lantern.NONE;
-	@Getter
 	private boolean bloodEssenceActive;
-	@Getter
 	private int lastCraftedRune = RuneIds.BLOOD_RUNE;
 
 	/** Elite Kourend &amp; Kebos diary done, read from the game (varbit 7928 = 1). */
-	@Getter
 	private boolean eliteDiaryDone;
 
 	@Provides
@@ -224,7 +204,6 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(spitOverlay);
 		overlayManager.add(pouchOverlay);
 		overlayManager.add(repairSpellOverlay);
-		overlayManager.add(repairDialogOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = buildNav(ImageUtil.loadImageResource(getClass(), "icon.png"));
@@ -250,7 +229,6 @@ public class AorcPlugin extends Plugin
 		overlayManager.remove(spitOverlay);
 		overlayManager.remove(pouchOverlay);
 		overlayManager.remove(repairSpellOverlay);
-		overlayManager.remove(repairDialogOverlay);
 		if (panel != null)
 		{
 			panel.stop();
@@ -442,7 +420,7 @@ public class AorcPlugin extends Plugin
 		}
 		if (d == null)
 		{
-			d = loadOldConfig();
+			d = new AorcStorage.Data();
 		}
 
 		// History, essence charges and goal progress are always kept
@@ -457,10 +435,6 @@ public class AorcPlugin extends Plugin
 		if (d.goalRunes != null)
 		{
 			goalRunes.putAll(d.goalRunes);
-		}
-		else if (d.goalBlood != null)
-		{
-			goalRunes.put(RuneIds.BLOOD_RUNE, d.goalBlood);
 		}
 		else if (d.totals != null && d.totals.runes != null)
 		{
@@ -483,35 +457,6 @@ public class AorcPlugin extends Plugin
 		}
 		detectZmiFromTotals();
 		dirty = fresh;
-	}
-
-	/** Older AoRC versions saved in the RuneLite config. Read it once when there is no file yet. */
-	private AorcStorage.Data loadOldConfig()
-	{
-		AorcStorage.Data d = new AorcStorage.Data();
-		if (configManager.getRSProfileKey() == null)
-		{
-			return d;
-		}
-		try
-		{
-			d.session = fromConfig(KEY_SESSION, RuneSession.Saved.class);
-			d.totals = fromConfig(KEY_TOTALS, RuneTotals.Saved.class);
-			d.history = fromConfig(KEY_HISTORY, DayLog.Saved.class);
-			d.trips = fromConfig(KEY_TRIPS, TripTracker.Saved.class);
-			d.essence = fromConfig(KEY_ESSENCE, EssenceCharges.Saved.class);
-		}
-		catch (RuntimeException e)
-		{
-			return new AorcStorage.Data();
-		}
-		return d;
-	}
-
-	private <T> T fromConfig(String key, Class<T> type)
-	{
-		String json = configManager.getRSProfileConfiguration(AorcConfig.GROUP, key);
-		return json == null ? null : gson.fromJson(json, type);
 	}
 
 	/** Spit on the character: from the side panel if Runey is visible there, otherwise he peeks in. */
@@ -714,7 +659,7 @@ public class AorcPlugin extends Plugin
 		d.xpLeft = Math.max(0, Goals.xpForLevel(d.goalLevel) - xp);
 		d.goalLevelMillis = Goals.millisToGoal(d.xpLeft, d.xpPerHour);
 		GoalRune goalType = config.goalRuneType() == null ? GoalRune.BLOOD : config.goalRuneType();
-		d.goalRunes = config.goalBloodRunes();
+		d.goalRunes = config.goalRunes();
 		d.goalRuneName = goalType.shortName();
 		int goalDone = 0;
 		for (Map.Entry<Integer, Integer> e : goalRunes.entrySet())
@@ -1359,7 +1304,7 @@ public class AorcPlugin extends Plugin
 	/** The Dark Mage (or Cordelia) repaired your pouches: his dialogue says so. */
 	private void checkRepairDialogue()
 	{
-		net.runelite.api.widgets.Widget text = client.getWidget(DIALOG_NPC, DIALOG_NPC_TEXT);
+		net.runelite.api.widgets.Widget text = client.getWidget(RepairDialog.DIALOG_NPC, RepairDialog.DIALOG_NPC_TEXT);
 		if (text == null || text.isHidden() || text.getText() == null)
 		{
 			return;
@@ -1401,15 +1346,15 @@ public class AorcPlugin extends Plugin
 	 */
 	private void updateRepairGuide()
 	{
-		net.runelite.api.widgets.Widget name = client.getWidget(DIALOG_NPC, 4);
-		net.runelite.api.widgets.Widget line = client.getWidget(DIALOG_NPC, DIALOG_NPC_TEXT);
+		net.runelite.api.widgets.Widget name = client.getWidget(RepairDialog.DIALOG_NPC, RepairDialog.DIALOG_NPC_NAME);
+		net.runelite.api.widgets.Widget line = client.getWidget(RepairDialog.DIALOG_NPC, RepairDialog.DIALOG_NPC_TEXT);
 		boolean mageTalks = (name != null && !name.isHidden() && name.getText() != null
 			&& Text.removeTags(name.getText()).contains("Dark Mage"))
 			// his first line, in case the name is somewhere else in the chat box
 			|| (line != null && !line.isHidden() && line.getText() != null
 			&& Text.removeTags(line.getText()).toLowerCase().contains("can't you see i'm busy"));
-		boolean repairOption = RepairDialogOverlay.findOption(client, RepairDialogOverlay.REPAIR_OPTION) != null;
-		boolean anyDialogue = RepairDialogOverlay.findContinue(client) != null || repairOption;
+		boolean repairOption = RepairDialog.findOption(client, RepairDialog.REPAIR_OPTION) != null;
+		boolean anyDialogue = RepairDialog.findContinue(client) != null || repairOption;
 
 		if (!anyDialogue && !mageTalks)
 		{
@@ -1427,7 +1372,7 @@ public class AorcPlugin extends Plugin
 	{
 		if (repairGuide)
 		{
-			RepairDialogOverlay.colourTarget(client, repairColor().getRgb());
+			RepairDialog.colourTarget(client, repairColor().getRgb());
 		}
 	}
 
@@ -1436,11 +1381,6 @@ public class AorcPlugin extends Plugin
 	{
 		HighlightColor c = config.repairColor();
 		return c == null ? HighlightColor.DARK_GREEN : c;
-	}
-
-	boolean isRepairGuide()
-	{
-		return repairGuide;
 	}
 
 	/** An essence pouch with this item ID needs a repair (for the inventory highlight). */

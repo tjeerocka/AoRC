@@ -42,8 +42,6 @@ public class LogicTest
 		int total = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(true, 4,
 			BonusCalculator.Lantern.BLISTERWOOD, true, false));
 		assertEquals(130, total);
-		assertEquals(1470 + 882 + 735 + 294, (int) Math.round(BonusCalculator.expectedRunes(1470, total)));
-		assertEquals(882 + 735 + 294, BonusCalculator.estimatedBonusRunes(3381, total));
 	}
 
 	@Test
@@ -167,8 +165,6 @@ public class LogicTest
 		assertEquals(AccountType.GROUP, AccountType.fromVarbit(4));
 		assertEquals(AccountType.HARDCORE_GROUP, AccountType.fromVarbit(5));
 		assertEquals(AccountType.UNRANKED_GROUP, AccountType.fromVarbit(6));
-		assertTrue(AccountType.HARDCORE_GROUP.isGroup());
-		assertTrue(AccountType.HARDCORE_GROUP.isHardcore());
 	}
 
 	@Test
@@ -277,7 +273,7 @@ public class LogicTest
 		assertEquals(240_000, log.get("2026-10-28").getActiveMillis());
 		assertEquals("2026-10-28", log.bestDate());
 		assertEquals(1000, log.get("2026-10-28").getRunes());
-		assertEquals(900, log.get("2026-10-28").getBloodRunes());
+		assertEquals(900, log.get("2026-10-28").runesOf(RuneIds.BLOOD_RUNE));
 		assertEquals(1400, log.total().getRunes());
 		assertEquals(480_000, log.total().getActiveMillis());
 
