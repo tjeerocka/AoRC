@@ -247,9 +247,9 @@ public interface AorcConfig extends Config
 
 	@ConfigItem(
 		keyName = "repairColor",
-		name = "Repair highlight colour",
-		description = "Colour of the repair highlights: the text to click when talking to the Dark Mage, "
-			+ "and the boxes around the pouch and Astral Contact",
+		name = "Repair chat colour",
+		description = "Colour of the text to click in the chat box when talking to the Dark Mage "
+			+ "(the pouch and Astral Contact stay orange)",
 		section = warnSection,
 		position = 36
 	)

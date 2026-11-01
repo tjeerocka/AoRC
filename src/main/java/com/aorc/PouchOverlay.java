@@ -13,6 +13,9 @@ import net.runelite.client.ui.overlay.WidgetItemOverlay;
 class PouchOverlay extends WidgetItemOverlay
 {
 
+	/** Box colour around the pouch and Astral Contact (always orange). */
+	static final Color REPAIR = new Color(255, 140, 0);
+
 	private final AorcPlugin plugin;
 
 	@Inject
@@ -37,7 +40,7 @@ class PouchOverlay extends WidgetItemOverlay
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		// pulse a little so it catches the eye
 		int a = 120 + (int) (80 * Math.abs(Math.sin(System.currentTimeMillis() / 400.0)));
-		Color c = plugin.repairColor().boxColor();
+		Color c = PouchOverlay.REPAIR;
 		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 60));
 		g.fillRoundRect(b.x - 1, b.y - 1, b.width + 2, b.height + 2, 6, 6);
 		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), a));

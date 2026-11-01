@@ -1,8 +1,6 @@
 package com.aorc;
 
-import java.awt.Color;
-
-/** Colour for the pouch repair highlights (setting). All read well on the beige chat box. */
+/** Colour of the text to click in the chat box during a pouch repair (setting). All read well on the beige chat box. */
 public enum HighlightColor
 {
 	DARK_GREEN("Dark green", 0x007F00),
@@ -27,14 +25,6 @@ public enum HighlightColor
 	public int getRgb()
 	{
 		return rgb;
-	}
-
-	/** For the boxes around the pouch and the spell (a bit brighter, so they show on dark backgrounds). */
-	public Color boxColor()
-	{
-		Color c = new Color(rgb);
-		float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
-		return Color.getHSBColor(hsb[0], hsb[1], Math.max(hsb[2], 0.95f));
 	}
 
 	@Override
