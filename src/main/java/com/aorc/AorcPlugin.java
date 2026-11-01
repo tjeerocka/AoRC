@@ -18,6 +18,7 @@ import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Skill;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
@@ -1417,6 +1418,16 @@ public class AorcPlugin extends Plugin
 		else if ((mageTalks || repairOption) && config.warnPouch() && pouches.anyNeedsRepair(java.util.EnumSet.allOf(PouchTracker.Pouch.class)))
 		{
 			repairGuide = true;      // started: keep going until the end of the conversation
+		}
+	}
+
+	/** Every frame: colour what to click orange while the repair guide runs. */
+	@Subscribe
+	public void onClientTick(ClientTick event)
+	{
+		if (repairGuide)
+		{
+			RepairDialogOverlay.colourTarget(client);
 		}
 	}
 

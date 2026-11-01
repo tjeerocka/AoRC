@@ -1,11 +1,7 @@
 package com.aorc;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
@@ -15,8 +11,8 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.util.Text;
 
 /**
- * Talking to the Dark Mage to repair pouches: highlights what to click in the chat box,
- * "Click here to continue" and "Can you repair my pouches?".
+ * Talking to the Dark Mage to repair pouches: what to click in the chat box
+ * ("Click here to continue" and "Can you repair my pouches?") is coloured orange.
  */
 class RepairDialogOverlay extends Overlay
 {
@@ -25,6 +21,8 @@ class RepairDialogOverlay extends Overlay
 	static final int DIALOG_PLAYER = 217;
 	static final int DIALOG_OPTIONS = 219;
 	static final String REPAIR_OPTION = "Can you repair my pouches?";
+	/** Orange that reads well on the chat box background. */
+	static final int ORANGE = 0xE06A00;
 
 	private final Client client;
 	private final AorcPlugin plugin;
@@ -41,20 +39,22 @@ class RepairDialogOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D g)
 	{
-		if (!plugin.isRepairGuide())
-		{
-			return null;
-		}
+		// nothing to draw: the plugin colours the text itself (see colourTarget)
+		return null;
+	}
+
+	/** Colour what to click orange: "Can you repair my pouches?", else "Click here to continue". */
+	static void colourTarget(Client client)
+	{
 		Widget target = findOption(client, REPAIR_OPTION);
 		if (target == null)
 		{
 			target = findContinue(client);
 		}
-		if (target != null && !target.isHidden())
+		if (target != null && !target.isHidden() && target.getTextColor() != ORANGE)
 		{
-			box(g, target.getBounds());
+			target.setTextColor(ORANGE);
 		}
-		return null;
 	}
 
 	/** The option line with this text in the "Select an option" box, or null. */
@@ -96,21 +96,5 @@ class RepairDialogOverlay extends Overlay
 			}
 		}
 		return null;
-	}
-
-	private static void box(Graphics2D g, Rectangle b)
-	{
-		if (b == null || b.width <= 0)
-		{
-			return;
-		}
-		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		int a = 120 + (int) (80 * Math.abs(Math.sin(System.currentTimeMillis() / 400.0)));
-		Color c = PouchOverlay.REPAIR;
-		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 50));
-		g.fillRoundRect(b.x - 3, b.y - 2, b.width + 6, b.height + 4, 6, 6);
-		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), a));
-		g.setStroke(new BasicStroke(2f));
-		g.drawRoundRect(b.x - 3, b.y - 2, b.width + 6, b.height + 4, 6, 6);
 	}
 }
