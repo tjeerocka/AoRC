@@ -12,7 +12,6 @@ import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
-import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -32,30 +31,26 @@ class SpitOverlay extends Overlay
 	private static final Color SPIT = new Color(175, 215, 245);
 
 	private final Client client;
-	private final ItemManager itemManager;
 	private volatile long spitAt = -1;
-	private volatile int runeId = RuneIds.BLOOD_RUNE;
 	// true: the drop comes from Runey in the side panel (enters at the right edge of the game view)
 	private volatile boolean fromPanel;
 
 	@Inject
-	SpitOverlay(Client client, ItemManager itemManager)
+	SpitOverlay(Client client)
 	{
 		this.client = client;
-		this.itemManager = itemManager;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
 
 	/** Start a spit (any thread). Ignored while one is still running. */
-	void spit(int runeItemId, boolean fromSidePanel)
+	void spit(boolean fromSidePanel)
 	{
 		long now = System.currentTimeMillis();
 		if (spitAt > 0 && now - spitAt < TOTAL)
 		{
 			return;
 		}
-		runeId = runeItemId;
 		fromPanel = fromSidePanel;
 		spitAt = now;
 	}

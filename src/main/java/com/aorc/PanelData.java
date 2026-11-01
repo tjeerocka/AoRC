@@ -63,7 +63,6 @@ public final class PanelData
 
 	// Hype buddy
 	public boolean showBuddy = true;
-	public int buddyRuneId = RuneIds.BLOOD_RUNE;
 	public AccountType accountType = AccountType.MAIN;
 
 	// History

@@ -10,17 +10,16 @@ import javax.imageio.ImageIO;
 /**
  * Runey's animation frames (pre-rendered from the 3D model), with the headband
  * recoloured per account type. Frames are 96x96 in one sheet:
- * 0-7 idle sway, 8-15 cheer, 16-19 spit to the left, 20-23 spit to the right,
- * 24-36 turn (yaw -36 .. 0 degrees in steps of 3; 0 = facing you).
+ * 0-7 cheer, 8-11 spit to the left, 12-15 spit to the right,
+ * 16-28 turn (yaw -36 .. 0 degrees in steps of 3; 0 = facing you).
  */
 final class RuneyFrames
 {
 	static final int SIZE = 96;
-	static final int IDLE = 0;
-	static final int CHEER = 8;
-	static final int SPIT_LEFT = 16;
-	static final int SPIT_RIGHT = 20;
-	static final int TURN = 24;
+	static final int CHEER = 0;
+	static final int SPIT_LEFT = 8;
+	static final int SPIT_RIGHT = 12;
+	static final int TURN = 16;
 	static final int TURN_MIN_YAW = -36;
 	static final int TURN_STEP = 3;
 	static final int TURN_FRAMES = 13;

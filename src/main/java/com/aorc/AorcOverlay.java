@@ -4,11 +4,11 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.MenuAction;
-import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
@@ -21,16 +21,17 @@ class AorcOverlay extends OverlayPanel
 
 	private final AorcPlugin plugin;
 	private final AorcConfig config;
-	private final ItemManager itemManager;
+	private final List<Line> lines = new ArrayList<>();
+	private int linesTick = Integer.MIN_VALUE;
+	private boolean linesPaused;
 	private final NumberFormat nf = NumberFormat.getIntegerInstance();
 
 	@Inject
-	AorcOverlay(AorcPlugin plugin, AorcConfig config, ItemManager itemManager)
+	AorcOverlay(AorcPlugin plugin, AorcConfig config)
 	{
 		super(plugin);
 		this.plugin = plugin;
 		this.config = config;
-		this.itemManager = itemManager;
 		setPosition(OverlayPosition.TOP_LEFT);
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset per hour", "AoRC", e -> plugin.resetRates());
 		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset blood runes", "AoRC", e -> plugin.resetRuneCount());
@@ -52,12 +53,34 @@ class AorcOverlay extends OverlayPanel
 			return null;
 		}
 
-		long elapsed = s.elapsedMillis(now, timeout);
+		// The numbers only change once per game tick: work the lines out once per tick,
+		// and only draw them on the other frames.
+		int tick = plugin.getTick();
+		if (tick != linesTick || paused != linesPaused)
+		{
+			linesTick = tick;
+			linesPaused = paused;
+			lines.clear();
+			buildLines(s, t, s.elapsedMillis(now, timeout));
+		}
 
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(paused ? "AoRC (paused)" : "AoRC")
 			.color(BLOOD)
 			.build());
+		for (Line l : lines)
+		{
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left(l.left)
+				.right(l.right)
+				.rightColor(l.color)
+				.build());
+		}
+		return super.render(graphics);
+	}
+
+	private void buildLines(RuneSession s, RuneTotals t, long elapsed)
+	{
 
 		// Count = own counter (own reset). Per hour = rate session (Reset per hour).
 		if (plugin.isZmiMode())
@@ -119,13 +142,9 @@ class AorcOverlay extends OverlayPanel
 
 		if (config.showProfit())
 		{
-			long gp = 0;
-			for (Map.Entry<Integer, Integer> e : s.getRunesCrafted().entrySet())
-			{
-				gp += (long) itemManager.getItemPrice(e.getKey()) * e.getValue();
-			}
-			line("GP / hr", elapsed <= 0 ? "-" : GpFormat.shortGp(RuneSession.perHour(gp, elapsed)), Color.YELLOW);
+			// worked out once per tick by the plugin (GE prices)
 			PanelData d = plugin.getLastData();
+			line("GP / hr", elapsed <= 0 ? "-" : GpFormat.shortGp(d.gpPerHour), Color.YELLOW);
 			if (d.essenceUsed > 0)
 			{
 				// GP minus the blood essence used
@@ -151,17 +170,26 @@ class AorcOverlay extends OverlayPanel
 		{
 			line("Lvl " + d.goalLevel + " in", d.goalLevelMillis < 0 ? "-" : PanelData.formatTime(d.goalLevelMillis), Color.CYAN);
 		}
-
-		return super.render(graphics);
 	}
 
 	private void line(String left, String right, Color color)
 	{
-		panelComponent.getChildren().add(LineComponent.builder()
-			.left(left)
-			.right(right)
-			.rightColor(color)
-			.build());
+		lines.add(new Line(left, right, color));
+	}
+
+	/** One overlay line: text left, value right. */
+	private static final class Line
+	{
+		final String left;
+		final String right;
+		final Color color;
+
+		Line(String left, String right, Color color)
+		{
+			this.left = left;
+			this.right = right;
+			this.color = color;
+		}
 	}
 
 	/** Per hour value, or "-" when no time has passed yet. */

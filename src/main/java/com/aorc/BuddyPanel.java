@@ -171,6 +171,9 @@ class BuddyPanel extends JPanel
 		int spitLeftStart = -100;
 		BufferedImage partyhat;
 		AccountType type = AccountType.MAIN;
+		// visible part of the partyhat icon, measured once (not on every frame)
+		private BufferedImage hatMeasured;
+		private Rectangle hatBounds;
 
 		Sprite()
 		{
@@ -275,7 +278,12 @@ class BuddyPanel extends JPanel
 			if (type == AccountType.MAIN)
 			{
 				Point h = RuneyFrames.head(idx);
-				drawItemHat(g2, h.x + SHIFT + 2, top + h.y + 5, partyhat, 30f, -10);
+				if (partyhat != null && (hatMeasured != partyhat || hatBounds == null))
+				{
+					hatBounds = opaqueBounds(partyhat);   // null until the icon has loaded
+					hatMeasured = partyhat;
+				}
+				drawItemHat(g2, h.x + SHIFT + 2, top + h.y + 5, partyhat, hatBounds, 30f, -10);
 			}
 
 			Point nose = RuneyFrames.nose(idx);
@@ -324,10 +332,9 @@ class BuddyPanel extends JPanel
 		/**
 		 * Draw an item icon (partyhat) with the bottom-centre of its visible pixels at (baseX, baseY).
 		 */
-		private static void drawItemHat(Graphics2D g2, float baseX, float baseY, BufferedImage img, float width, double tiltDeg)
+		private static void drawItemHat(Graphics2D g2, float baseX, float baseY, BufferedImage img, Rectangle b, float width, double tiltDeg)
 		{
-			Rectangle b = img == null ? null : opaqueBounds(img);
-			if (b == null)
+			if (img == null || b == null)
 			{
 				return;
 			}

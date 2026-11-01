@@ -154,6 +154,12 @@ public class AorcPlugin extends Plugin
 
 	private int lastRcXp = -1;
 	private int tick;
+
+	/** Game tick counter (the overlay uses it to work out its lines once per tick). */
+	int getTick()
+	{
+		return tick;
+	}
 	private int lastXpTick = -100;
 
 	// Current gear state, shown in the overlay
@@ -414,7 +420,7 @@ public class AorcPlugin extends Plugin
 		{
 			panel.spitAcross(iron);
 		}
-		spitOverlay.spit(lastCraftedRune, fromPanel);
+		spitOverlay.spit(fromPanel);
 	}
 
 	/** Mains: Runey spits on the character 1 minute after login, then every 30 minutes. */
@@ -605,7 +611,6 @@ public class AorcPlugin extends Plugin
 		d.allMillis = all.getActiveMillis() + live;
 		d.days = history.dayCount();
 		d.showBuddy = config.showBuddy();
-		d.buddyRuneId = lastCraftedRune;
 		d.accountType = AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT));
 		return d;
 	}
@@ -811,8 +816,9 @@ public class AorcPlugin extends Plugin
 			panel.post(lastData);
 		}
 
-		// Save about every 2 seconds when something changed (3 ticks = 1.8 s)
-		if (dirty && tick % 3 == 0)
+		// Save every 30 seconds when something changed (50 ticks).
+		// Crafts, trip ends, logout and closing the client save right away.
+		if (dirty && tick % 50 == 0)
 		{
 			save();
 		}

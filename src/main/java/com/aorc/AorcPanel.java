@@ -4,7 +4,10 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.awt.event.HierarchyEvent;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -36,6 +39,14 @@ class AorcPanel extends PluginPanel
 	private final JPanel goalsPanel = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final JPanel runesPanel = new JPanel();
 	private final JLabel emptyLabel = new JLabel("Craft some runes to start.");
+	private final Grid stats = new Grid(statsPanel);
+	private final Grid tripsGrid = new Grid(tripsPanel);
+	private final Grid goalsGrid = new Grid(goalsPanel);
+	private final Grid historyGrid = new Grid(historyPanel);
+	// rune rows are kept and only get new text; rebuilt only when the rune types change
+	private final List<Integer> rowIds = new ArrayList<>();
+	private final List<JLabel[]> rowLabels = new ArrayList<>();
+	private volatile PanelData latest = new PanelData();
 	private final BuddyPanel buddy;
 	private final HypeBuddy hype = new HypeBuddy();
 
@@ -137,6 +148,15 @@ class AorcPanel extends PluginPanel
 
 		emptyLabel.setForeground(Color.GRAY);
 		update(new PanelData());
+
+		// the panel is only updated while it is open; catch up when it is opened
+		addHierarchyListener(e ->
+		{
+			if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && isShowing())
+			{
+				update(latest);
+			}
+		});
 	}
 
 	/** Runey is visible in the side panel right now. */
@@ -160,7 +180,15 @@ class AorcPanel extends PluginPanel
 	/** Call from any thread; the panel updates on the Swing thread. */
 	void post(PanelData data)
 	{
-		SwingUtilities.invokeLater(() -> update(data));
+		latest = data;
+		SwingUtilities.invokeLater(() ->
+		{
+			// closed panel: skip the work (it catches up when opened)
+			if (isShowing() && latest == data)
+			{
+				update(data);
+			}
+		});
 	}
 
 	private void update(PanelData d)
@@ -178,77 +206,72 @@ class AorcPanel extends PluginPanel
 			pauseButton.setText("Pause");
 		}
 
-		statsPanel.removeAll();
-		stat("RC xp / hr", GpFormat.shortRate(d.xpPerHour), Color.WHITE);
-		stat("GP / hr", GpFormat.shortGp(d.gpPerHour), Color.YELLOW);
+		stats.begin();
+		stats.cell("RC xp / hr", GpFormat.shortRate(d.xpPerHour), Color.WHITE);
+		stats.cell("GP / hr", GpFormat.shortGp(d.gpPerHour), Color.YELLOW);
 		if (d.essenceUsed > 0)
 		{
-			stat("Profit / hr", GpFormat.shortGp(d.profitPerHour), Color.YELLOW);
+			stats.cell("Profit / hr", GpFormat.shortGp(d.profitPerHour), Color.YELLOW);
 		}
-		stat("All runes / hr", GpFormat.shortRate(d.allRunesPerHour), Color.WHITE);
-		stat("Crafts", fmt(d.crafts), Color.WHITE);
-		stat("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
-		stat("Bonus multiplier", GpFormat.multiplier(d.bonusPercent), BONUS);
-		stat("Bonus runes", GpFormat.shortRate(d.bonusRunes), BONUS);
+		stats.cell("All runes / hr", GpFormat.shortRate(d.allRunesPerHour), Color.WHITE);
+		stats.cell("Crafts", fmt(d.crafts), Color.WHITE);
+		stats.cell("Blocks imbued", fmt(d.blocksImbued), Color.WHITE);
+		stats.cell("Bonus multiplier", GpFormat.multiplier(d.bonusPercent), BONUS);
+		stats.cell("Bonus runes", GpFormat.shortRate(d.bonusRunes), BONUS);
 		if (d.essenceCharges >= 0)
 		{
-			stat("Blood essence", (d.essenceEstimate ? "~" : "") + fmt(d.essenceCharges),
+			stats.cell("Blood essence", (d.essenceEstimate ? "~" : "") + fmt(d.essenceCharges),
 				d.essenceCharges <= 100 ? Color.ORANGE : BONUS);
 		}
+		stats.end();
 
-		tripsPanel.removeAll();
-		cell(tripsPanel, "Current trip", time(d.currentTripMillis), Color.CYAN);
+		tripsGrid.begin();
+		tripsGrid.cell("Current trip", time(d.currentTripMillis), Color.CYAN);
 		if (d.currentTripRunes > 0)
 		{
-			cell(tripsPanel, "Runes this trip", fmt(d.currentTripRunes), Color.LIGHT_GRAY);
+			tripsGrid.cell("Runes this trip", fmt(d.currentTripRunes), Color.LIGHT_GRAY);
 		}
-		cell(tripsPanel, "Trips", fmt(d.trips), Color.WHITE);
-		cell(tripsPanel, "Avg runes / trip", fmt(d.avgTripRunes), Color.WHITE);
-		cell(tripsPanel, "Avg trip time", time(d.avgTripMillis), Color.WHITE);
-		cell(tripsPanel, "Fastest trip", time(d.fastestTripMillis), BONUS);
-		cell(tripsPanel, "Last trip", time(d.lastTripMillis), Color.LIGHT_GRAY);
+		tripsGrid.cell("Trips", fmt(d.trips), Color.WHITE);
+		tripsGrid.cell("Avg runes / trip", fmt(d.avgTripRunes), Color.WHITE);
+		tripsGrid.cell("Avg trip time", time(d.avgTripMillis), Color.WHITE);
+		tripsGrid.cell("Fastest trip", time(d.fastestTripMillis), BONUS);
+		tripsGrid.cell("Last trip", time(d.lastTripMillis), Color.LIGHT_GRAY);
+		tripsGrid.end();
 
-		goalsPanel.removeAll();
+		goalsGrid.begin();
 		if (d.currentLevel >= d.goalLevel && d.currentLevel > 0)
 		{
-			cell(goalsPanel, "Level " + d.goalLevel, "Reached!", BONUS);
+			goalsGrid.cell("Level " + d.goalLevel, "Reached!", BONUS);
 		}
 		else
 		{
-			cell(goalsPanel, "Level " + d.goalLevel + " in", time(d.goalLevelMillis), Color.CYAN);
-			cell(goalsPanel, "XP left", GpFormat.shortGp(d.xpLeft), Color.LIGHT_GRAY);
+			goalsGrid.cell("Level " + d.goalLevel + " in", time(d.goalLevelMillis), Color.CYAN);
+			goalsGrid.cell("XP left", GpFormat.shortGp(d.xpLeft), Color.LIGHT_GRAY);
 		}
 		if (d.goalBlood > 0)
 		{
 			if (d.bloodLeft <= 0)
 			{
-				cell(goalsPanel, fmt(d.goalBlood) + " blood", "Reached!", BONUS);
+				goalsGrid.cell(fmt(d.goalBlood) + " blood", "Reached!", BONUS);
 			}
 			else
 			{
-				cell(goalsPanel, fmt(d.goalBlood) + " blood in", time(d.goalBloodMillis), Color.CYAN);
-				cell(goalsPanel, "Runes left", fmt(d.bloodLeft), Color.LIGHT_GRAY);
+				goalsGrid.cell(fmt(d.goalBlood) + " blood in", time(d.goalBloodMillis), Color.CYAN);
+				goalsGrid.cell("Runes left", fmt(d.bloodLeft), Color.LIGHT_GRAY);
 			}
 		}
+		goalsGrid.end();
 
-		historyPanel.removeAll();
-		cell(historyPanel, "Today", GpFormat.shortRate(d.todayRunes) + " runes", Color.WHITE);
-		cell(historyPanel, "", PanelData.formatTime(d.todayMillis), Color.LIGHT_GRAY);
-		cell(historyPanel, "Best day", d.bestDate == null ? "-" : GpFormat.shortRate(d.bestRunes) + " runes", BLOOD);
-		cell(historyPanel, PanelData.formatDate(d.bestDate), d.bestDate == null ? "" : PanelData.formatTime(d.bestMillis), Color.LIGHT_GRAY);
-		cell(historyPanel, "All time", GpFormat.shortRate(d.allRunes) + " runes", Color.WHITE);
-		cell(historyPanel, d.days + (d.days == 1 ? " day" : " days"), PanelData.formatTime(d.allMillis), Color.LIGHT_GRAY);
+		historyGrid.begin();
+		historyGrid.cell("Today", GpFormat.shortRate(d.todayRunes) + " runes", Color.WHITE);
+		historyGrid.cell("", PanelData.formatTime(d.todayMillis), Color.LIGHT_GRAY);
+		historyGrid.cell("Best day", d.bestDate == null ? "-" : GpFormat.shortRate(d.bestRunes) + " runes", BLOOD);
+		historyGrid.cell(PanelData.formatDate(d.bestDate), d.bestDate == null ? "" : PanelData.formatTime(d.bestMillis), Color.LIGHT_GRAY);
+		historyGrid.cell("All time", GpFormat.shortRate(d.allRunes) + " runes", Color.WHITE);
+		historyGrid.cell(d.days + (d.days == 1 ? " day" : " days"), PanelData.formatTime(d.allMillis), Color.LIGHT_GRAY);
+		historyGrid.end();
 
-		runesPanel.removeAll();
-		if (d.rows.isEmpty())
-		{
-			runesPanel.add(emptyLabel);
-		}
-		for (PanelData.Row r : d.rows)
-		{
-			runesPanel.add(runeRow(r));
-			runesPanel.add(spacer(3));
-		}
+		updateRuneRows(d.rows);
 
 		buddy.setVisible(d.showBuddy);
 		if (d.showBuddy)
@@ -257,8 +280,41 @@ class AorcPanel extends PluginPanel
 			buddy.setMessage(hype.message(d, System.currentTimeMillis()));
 		}
 
-		revalidate();
-		repaint();
+	}
+
+	/** Rune rows: same rune types = only new text; other types = build the rows again. */
+	private void updateRuneRows(List<PanelData.Row> rows)
+	{
+		List<Integer> ids = new ArrayList<>();
+		for (PanelData.Row r : rows)
+		{
+			ids.add(r.itemId);
+		}
+		if (!ids.equals(rowIds) || runesPanel.getComponentCount() == 0)
+		{
+			rowIds.clear();
+			rowIds.addAll(ids);
+			rowLabels.clear();
+			runesPanel.removeAll();
+			if (rows.isEmpty())
+			{
+				runesPanel.add(emptyLabel);
+			}
+			for (PanelData.Row r : rows)
+			{
+				runesPanel.add(runeRow(r));
+				runesPanel.add(spacer(3));
+			}
+			runesPanel.revalidate();
+			runesPanel.repaint();
+		}
+		for (int i = 0; i < rows.size(); i++)
+		{
+			PanelData.Row r = rows.get(i);
+			rowLabels.get(i)[0].setText(r.name);
+			rowLabels.get(i)[1].setText("<html><div style='text-align:right'>" + GpFormat.shortRate(r.count)
+				+ "<br><span style='color:#aaaaaa'>" + GpFormat.shortRate(r.perHour) + " / hr</span></div></html>");
+		}
 	}
 
 	private JPanel runeRow(PanelData.Row r)
@@ -275,32 +331,79 @@ class AorcPanel extends PluginPanel
 
 		Color c = r.itemId == RuneIds.BLOOD_RUNE ? BLOOD : Color.WHITE;
 
-		JLabel name = new JLabel(r.name);
+		JLabel name = new JLabel();
 		name.setForeground(c);
 		row.add(name, BorderLayout.CENTER);
 
-		JLabel right = new JLabel("<html><div style='text-align:right'>" + GpFormat.shortRate(r.count)
-			+ "<br><span style='color:#aaaaaa'>" + GpFormat.shortRate(r.perHour) + " / hr</span></div></html>");
+		JLabel right = new JLabel();
+		rowLabels.add(new JLabel[]{name, right});
 		right.setHorizontalAlignment(SwingConstants.RIGHT);
 		right.setForeground(c);
 		row.add(right, BorderLayout.EAST);
 		return row;
 	}
 
-	private void stat(String left, String right, Color color)
+	/**
+	 * A 2-column grid whose labels are kept between updates: only the text changes.
+	 * Labels are only added or removed when the number of lines changes.
+	 */
+	private static final class Grid
 	{
-		cell(statsPanel, left, right, color);
-	}
+		private final JPanel panel;
+		private final List<JLabel[]> cells = new ArrayList<>();
+		private int used;
 
-	private static void cell(JPanel panel, String left, String right, Color color)
-	{
-		JLabel l = new JLabel(left);
-		l.setForeground(Color.LIGHT_GRAY);
-		JLabel r = new JLabel(right);
-		r.setForeground(color);
-		r.setHorizontalAlignment(SwingConstants.RIGHT);
-		panel.add(l);
-		panel.add(r);
+		Grid(JPanel panel)
+		{
+			this.panel = panel;
+		}
+
+		void begin()
+		{
+			used = 0;
+		}
+
+		void cell(String left, String right, Color color)
+		{
+			JLabel[] pair;
+			if (used < cells.size())
+			{
+				pair = cells.get(used);
+			}
+			else
+			{
+				pair = new JLabel[]{new JLabel(), new JLabel()};
+				pair[0].setForeground(Color.LIGHT_GRAY);
+				pair[1].setHorizontalAlignment(SwingConstants.RIGHT);
+				cells.add(pair);
+			}
+			if (pair[0].getParent() != panel)
+			{
+				panel.add(pair[0]);
+				panel.add(pair[1]);
+				panel.revalidate();
+			}
+			pair[0].setText(left);
+			pair[1].setText(right);
+			if (!color.equals(pair[1].getForeground()))
+			{
+				pair[1].setForeground(color);
+			}
+			used++;
+		}
+
+		void end()
+		{
+			if (panel.getComponentCount() > used * 2)
+			{
+				while (panel.getComponentCount() > used * 2)
+				{
+					panel.remove(panel.getComponentCount() - 1);
+				}
+				panel.revalidate();
+				panel.repaint();
+			}
+		}
 	}
 
 	/** Time text, or "-" when unknown. */
