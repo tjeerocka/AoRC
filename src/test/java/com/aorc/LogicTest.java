@@ -482,4 +482,13 @@ public class LogicTest
 		t.onEssenceEmpty(600_000);
 		assertEquals(130_000, t.getLastTripMillis());
 	}
+
+	@Test
+	public void goalStartsFromSavedBloodRunes()
+	{
+		RuneTotals t = new RuneTotals();
+		t.addCraft(RuneIds.BLOOD_RUNE, 274, 0);
+		assertEquals(274, RuneTotals.bloodIn(t.save()));
+		assertEquals(0, RuneTotals.bloodIn(null));
+	}
 }

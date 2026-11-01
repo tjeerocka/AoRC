@@ -96,6 +96,12 @@ class AorcPanel extends PluginPanel
 		content.add(box("Trips", tripsPanel));
 		content.add(spacer(8));
 		content.add(box("Goals", goalsPanel));
+		content.add(spacer(4));
+		JButton clearGoal = button("Clear goal progress", () -> clientThread.invokeLater(plugin::clearGoalProgress));
+		clearGoal.setToolTipText("Count the blood rune goal from 0 again. The reset buttons never touch your goals.");
+		clearGoal.setAlignmentX(LEFT_ALIGNMENT);
+		clearGoal.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+		content.add(clearGoal);
 		content.add(spacer(8));
 
 		JLabel historyTitle = new JLabel("History");

@@ -142,7 +142,7 @@ public interface AorcConfig extends Config
 	@ConfigItem(
 		keyName = "goalBloodRunes",
 		name = "Blood rune goal",
-		description = "Shows the time left to reach this many blood runes (rune count). 0 = off",
+		description = "Shows the time left to reach this many blood runes. Has its own counter: the reset buttons do not clear it, only \"Clear goal progress\" in the side panel. 0 = off",
 		section = goalSection,
 		position = 22
 	)

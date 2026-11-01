@@ -21,6 +21,8 @@ public class AorcStorage
 		DayLog.Saved history;
 		TripTracker.Saved trips;
 		EssenceCharges.Saved essence;
+		// blood runes counted for the blood rune goal (own counter, not cleared by the resets); null = older file
+		Integer goalBlood;
 	}
 
 	private final File dir;
