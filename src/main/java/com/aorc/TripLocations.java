@@ -96,6 +96,12 @@ public class TripLocations
 		current = null;
 	}
 
+	/** Place of the trip in progress, else the place of your last craft, or null. */
+	public String getCurrentOrLast()
+	{
+		return current != null ? current : last;
+	}
+
 	/** Place of your last craft, or null. */
 	public String getLast()
 	{

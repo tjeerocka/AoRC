@@ -83,6 +83,7 @@ public final class PanelData
 	public long currentTripMillis = -1;
 	public int currentTripRunes;
 	public List<String> tripPlaces = new ArrayList<>();   // places with finished trips
+	public String currentPlace;       // place of the trip in progress (or your last place), null = unknown
 	public String tripPlace;          // place shown in Trips, null = all trips
 	public boolean showBlocks;        // at Zeah: show "Blocks imbued"
 

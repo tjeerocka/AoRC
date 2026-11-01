@@ -313,6 +313,15 @@ public class AorcPlugin extends Plugin
 		save();
 	}
 
+	/** Clear all trip numbers, also the records per place. */
+	public void resetTrips()
+	{
+		trips.reset();
+		places.reset();
+		save();
+		refreshPanel();
+	}
+
 	public void resetAll()
 	{
 		session.reset();
@@ -631,6 +640,7 @@ public class AorcPlugin extends Plugin
 
 		// Trips: all trips, or one place (dropdown in the side panel; "" = where you craft now)
 		d.tripPlaces = places.names();
+		d.currentPlace = places.getCurrentOrLast();
 		String place = panel == null ? "" : panel.getTripFilter();
 		if ("".equals(place))
 		{

@@ -76,6 +76,8 @@ class AorcPanel extends PluginPanel
 	private final Bar essenceBar = new Bar();
 	private final JPanel tripsBody = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final Grid tripsGrid = new Grid(tripsBody);
+	// full-width line for the trip in progress (the place name needs the room)
+	private final JLabel[] nowRow = row2();
 	private final JLabel[] levelRow = row2();
 	private final Bar levelBar = new Bar();
 	private final JLabel[] runeGoalRow = row2();
@@ -166,6 +168,9 @@ class AorcPanel extends PluginPanel
 		tripsWrap.add(gap(5));
 		tripsBody.setOpaque(false);
 		tripsBody.setAlignmentX(LEFT_ALIGNMENT);
+		nowRow[1].setForeground(TIME);
+		tripsWrap.add(line(nowRow));
+		tripsWrap.add(gap(3));
 		tripsWrap.add(tripsBody);
 		tripsSec = new Section("trips", "Trips", tripsWrap);
 		content.add(tripsSec);
@@ -237,6 +242,8 @@ class AorcPanel extends PluginPanel
 			() -> run(clientThread, () -> plugin.resetRuneCount())));
 		menu.add(menuItem("Reset bonus runes", "The bonus rune count",
 			() -> run(clientThread, () -> plugin.resetBonusRunes())));
+		menu.add(menuItem("Reset trips", "All trip numbers, also the records per place (Blood - Zeah, Blood - Mory, ...)",
+			() -> run(clientThread, () -> plugin.resetTrips())));
 		menu.addSeparator();
 		menu.add(menuItem("Reset all", "All of the above (goals and history stay)",
 			() -> run(clientThread, () -> plugin.resetAll())));
@@ -504,7 +511,9 @@ class AorcPanel extends PluginPanel
 
 		// Trips
 		tripsGrid.begin();
-		tripsGrid.cell("Current trip", time(d.currentTripMillis), TIME);
+		// the place of the trip in progress (where you craft), e.g. "Now: Blood - Mory"
+		nowRow[0].setText(d.currentPlace == null ? "Current trip" : "Now: " + d.currentPlace);
+		nowRow[1].setText(time(d.currentTripMillis));
 		if (d.currentTripRunes > 0)
 		{
 			tripsGrid.cell("Runes this trip", fmt(d.currentTripRunes), Color.LIGHT_GRAY);
