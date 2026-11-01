@@ -27,6 +27,18 @@ public final class PanelData
 	}
 
 	public boolean paused;
+	public boolean crafting;           // active now (not idle)
+
+	// Top card: the rune you craft now (blood first; "All runes" at ZMI)
+	public int mainRuneId;
+	public String mainName;            // null = nothing crafted yet
+	public int mainPerHour;
+	public int mainCount;
+	public int mainToday;
+
+	// Goal progress bars (0..1)
+	public double levelProgress;
+	public double runeGoalProgress;
 	public long activeMillis;
 	public int xpPerHour;
 	public long gpPerHour;

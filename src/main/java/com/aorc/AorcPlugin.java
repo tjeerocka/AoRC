@@ -275,6 +275,18 @@ public class AorcPlugin extends Plugin
 		}
 	}
 
+	/** Side panel sections: open (true) or folded, remembered in the RuneLite settings. */
+	boolean isSectionOpen(String key)
+	{
+		String v = configManager.getConfiguration(AorcConfig.GROUP, "open." + key);
+		return v == null || Boolean.parseBoolean(v);
+	}
+
+	void setSectionOpen(String key, boolean open)
+	{
+		configManager.setConfiguration(AorcConfig.GROUP, "open." + key, open);
+	}
+
 	/** New numbers for the side panel right away (for example after changing the History filter). */
 	public void refreshPanel()
 	{
@@ -578,6 +590,7 @@ public class AorcPlugin extends Plugin
 
 		PanelData d = new PanelData();
 		d.paused = paused;
+		d.crafting = session.isStarted() && !session.isIdle(now, idleTimeoutMillis()) && !session.getRunesCrafted().isEmpty();
 		d.activeMillis = elapsed;
 		d.xpPerHour = RuneSession.perHour(session.getXpGained(), elapsed);
 		d.allRunesPerHour = RuneSession.perHour(session.getTotalRunes(), elapsed);
@@ -627,6 +640,8 @@ public class AorcPlugin extends Plugin
 			}
 		}
 		d.runesLeft = Math.max(0, d.goalRunes - goalDone);
+		d.runeGoalProgress = d.goalRunes <= 0 ? 0 : Math.min(1.0, goalDone / (double) d.goalRunes);
+		d.levelProgress = Math.min(1.0, xp / (double) Math.max(1, Goals.xpForLevel(d.goalLevel)));
 		long goalRate = goalType == GoalRune.ANY ? session.getTotalRunes() : session.getRunes(goalType.getItemId());
 		d.goalRunesMillis = Goals.millisToGoal(d.runesLeft, RuneSession.perHour(goalRate, elapsed));
 
@@ -662,6 +677,53 @@ public class AorcPlugin extends Plugin
 		d.allRunes = all.runesOf(f);
 		d.allMillis = f == 0 ? all.getActiveMillis() + live : -1;
 		d.days = history.dayCount(f);
+
+		// Top card: the rune you craft now. Blood when you craft blood, else your most crafted
+		// rune this session, else the last rune you crafted. ZMI: all runes together.
+		if (zmiMode)
+		{
+			d.mainName = "All runes";
+			d.mainPerHour = d.allRunesPerHour;
+			int count = 0;
+			for (int v : totals.getRunes().values())
+			{
+				count += v;
+			}
+			d.mainCount = count;
+			d.mainToday = t.getRunes();
+		}
+		else
+		{
+			int main = -1;
+			if (session.getRunes(RuneIds.BLOOD_RUNE) > 0)
+			{
+				main = RuneIds.BLOOD_RUNE;
+			}
+			else
+			{
+				int most = 0;
+				for (Map.Entry<Integer, Integer> e : session.getRunesCrafted().entrySet())
+				{
+					if (e.getValue() > most)
+					{
+						most = e.getValue();
+						main = e.getKey();
+					}
+				}
+			}
+			if (main < 0 && totals.getRunes(lastCraftedRune) > 0)
+			{
+				main = lastCraftedRune;
+			}
+			if (main > 0)
+			{
+				d.mainRuneId = main;
+				d.mainName = RuneIds.RUNES.get(main);
+				d.mainPerHour = RuneSession.perHour(session.getRunes(main), elapsed);
+				d.mainCount = totals.getRunes(main);
+				d.mainToday = t.runesOf(main);
+			}
+		}
 		// history per rune type: rune list order, older untyped runes last
 		Map<Integer, Integer> todayTypes = t.getTypes();
 		for (int id : RuneIds.RUNES.keySet())
