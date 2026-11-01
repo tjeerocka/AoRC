@@ -3,6 +3,8 @@ package com.aorc;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.HierarchyEvent;
 import java.text.NumberFormat;
@@ -44,8 +46,10 @@ class AorcPanel extends PluginPanel
 	private final Grid tripsGrid = new Grid(tripsPanel);
 	private final Grid goalsGrid = new Grid(goalsPanel);
 	private final Grid historyGrid = new Grid(historyPanel);
-	private final JPanel typesPanel = new JPanel(new GridLayout(0, 2, 4, 3));
-	private final Grid typesGrid = new Grid(typesPanel);
+	// history per rune type: 3 columns (type | all time | today) with a line before "today"
+	private final JPanel typesPanel = new JPanel(new GridBagLayout());
+	private final List<Integer> typeIds = new ArrayList<>();
+	private final List<JLabel[]> typeLabels = new ArrayList<>();
 	// History filter: "All runes" or one rune type you crafted
 	private final JComboBox<String> historyFilterBox = new JComboBox<>();
 	private final List<Integer> filterIds = new ArrayList<>();
@@ -147,7 +151,7 @@ class AorcPanel extends PluginPanel
 		typesPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		typesPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 		typesPanel.setAlignmentX(LEFT_ALIGNMENT);
-		typesPanel.setToolTipText("Runes crafted per type: all time, and in grey how many of them today.");
+		typesPanel.setToolTipText("Runes crafted per type: all time, and today.");
 		content.add(typesPanel);
 		content.add(spacer(8));
 
@@ -315,23 +319,7 @@ class AorcPanel extends PluginPanel
 		// the list per rune type only with "All runes"
 		typesPanel.setVisible(d.historyFilter == 0);
 
-		typesGrid.begin();
-		if (d.historyTypes.isEmpty())
-		{
-			typesGrid.cell("Per rune type", "-", Color.LIGHT_GRAY);
-		}
-		else
-		{
-			typesGrid.cell("Rune type", "<html>All time <span style='color:#999999'>+today</span></html>", Color.LIGHT_GRAY);
-		}
-		for (PanelData.TypeRow r : d.historyTypes)
-		{
-			String right = r.today > 0
-				? "<html>" + GpFormat.shortRate(r.allTime) + " <span style='color:#999999'>+" + GpFormat.shortRate(r.today) + "</span></html>"
-				: GpFormat.shortRate(r.allTime);
-			typesGrid.cell(r.name, right, r.itemId == RuneIds.BLOOD_RUNE ? BLOOD : Color.WHITE);
-		}
-		typesGrid.end();
+		updateTypeRows(d.historyTypes);
 
 		updateRuneRows(d.rows);
 
@@ -342,6 +330,76 @@ class AorcPanel extends PluginPanel
 			buddy.setMessage(hype.message(d, System.currentTimeMillis()));
 		}
 
+	}
+
+	/**
+	 * History per rune type as a table: type | all time | today, with a thin line between
+	 * all time and today. Rows are built again only when the rune types change.
+	 */
+	private void updateTypeRows(List<PanelData.TypeRow> rows)
+	{
+		List<Integer> ids = new ArrayList<>();
+		for (PanelData.TypeRow r : rows)
+		{
+			ids.add(r.itemId);
+		}
+		if (!ids.equals(typeIds) || typesPanel.getComponentCount() == 0)
+		{
+			typeIds.clear();
+			typeIds.addAll(ids);
+			typeLabels.clear();
+			typesPanel.removeAll();
+			addTypeRow(0, "Rune type", "All time", "Today", Color.LIGHT_GRAY);
+			for (int i = 0; i < rows.size(); i++)
+			{
+				PanelData.TypeRow r = rows.get(i);
+				typeLabels.add(addTypeRow(i + 1, r.name, "", "",
+					r.itemId == RuneIds.BLOOD_RUNE ? BLOOD : Color.WHITE));
+			}
+			if (rows.isEmpty())
+			{
+				addTypeRow(1, "-", "", "", Color.LIGHT_GRAY);
+			}
+			typesPanel.revalidate();
+			typesPanel.repaint();
+		}
+		for (int i = 0; i < rows.size(); i++)
+		{
+			PanelData.TypeRow r = rows.get(i);
+			typeLabels.get(i)[0].setText(GpFormat.shortRate(r.allTime));
+			typeLabels.get(i)[1].setText(r.today > 0 ? "+" + GpFormat.shortRate(r.today) : "-");
+		}
+	}
+
+	/** One table row; returns the all-time and today labels. */
+	private JLabel[] addTypeRow(int row, String name, String allTime, String today, Color color)
+	{
+		boolean head = row == 0;
+		JLabel n = new JLabel(name);
+		n.setForeground(Color.LIGHT_GRAY);
+		JLabel a = new JLabel(allTime, SwingConstants.RIGHT);
+		a.setForeground(head ? Color.LIGHT_GRAY : color);
+		JLabel t = new JLabel(today, SwingConstants.RIGHT);
+		t.setForeground(head ? Color.LIGHT_GRAY : new Color(150, 150, 150));
+		// same top/bottom padding on every label and no gaps, so the line runs unbroken
+		n.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
+		a.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 6));
+		t.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createMatteBorder(0, 1, 0, 0, new Color(80, 80, 80)),
+			BorderFactory.createEmptyBorder(2, 6, 2, 0)));
+
+		GridBagConstraints c = new GridBagConstraints();
+		c.gridy = row;
+		c.fill = GridBagConstraints.BOTH;
+		c.gridx = 0;
+		c.weightx = 1;
+		typesPanel.add(n, c);
+		c.gridx = 1;
+		c.weightx = 0;
+		typesPanel.add(a, c);
+		c.gridx = 2;
+		typesPanel.add(t, c);
+		return new JLabel[]{a, t};
 	}
 
 	/** History filter chosen in the dropdown: 0 = all runes, else a rune item ID (any thread). */
