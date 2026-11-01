@@ -131,6 +131,37 @@ public class DayLog
 		return now - lastActivity;
 	}
 
+	/**
+	 * Runes saved before the rune types were kept (also part of a day, when the update came
+	 * in the middle of it): blood runes were always known, the rest becomes "other".
+	 */
+	static void fillMissingTypes(Day d)
+	{
+		if (d.types == null)
+		{
+			d.types = new LinkedHashMap<>();
+		}
+		int known = 0;
+		for (int n : d.types.values())
+		{
+			known += n;
+		}
+		int missing = d.runes - known;
+		if (missing <= 0)
+		{
+			return;
+		}
+		int bloodMissing = Math.min(missing, Math.max(0, d.bloodRunes - d.types.getOrDefault(RuneIds.BLOOD_RUNE, 0)));
+		if (bloodMissing > 0)
+		{
+			d.types.merge(RuneIds.BLOOD_RUNE, bloodMissing, Integer::sum);
+		}
+		if (missing - bloodMissing > 0)
+		{
+			d.types.merge(OTHER, missing - bloodMissing, Integer::sum);
+		}
+	}
+
 	/** Days on which runes of this type (0 = any) were crafted. */
 	public int dayCount(int itemId)
 	{
@@ -238,19 +269,7 @@ public class DayLog
 				if (e.getKey() != null && e.getValue() != null)
 				{
 					Day d = e.getValue();
-					if (d.types == null)
-					{
-						// older save: only the blood runes are known, the rest is "other"
-						d.types = new LinkedHashMap<>();
-						if (d.bloodRunes > 0)
-						{
-							d.types.put(RuneIds.BLOOD_RUNE, d.bloodRunes);
-						}
-						if (d.runes - d.bloodRunes > 0)
-						{
-							d.types.put(OTHER, d.runes - d.bloodRunes);
-						}
-					}
+					fillMissingTypes(d);
 					days.put(e.getKey(), d);
 				}
 			}

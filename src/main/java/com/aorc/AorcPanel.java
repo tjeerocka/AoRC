@@ -147,7 +147,7 @@ class AorcPanel extends PluginPanel
 		typesPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		typesPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 		typesPanel.setAlignmentX(LEFT_ALIGNMENT);
-		typesPanel.setToolTipText("All runes crafted per type (all time). In grey: today.");
+		typesPanel.setToolTipText("Runes crafted per type: all time, and in grey how many of them today.");
 		content.add(typesPanel);
 		content.add(spacer(8));
 
@@ -319,6 +319,10 @@ class AorcPanel extends PluginPanel
 		if (d.historyTypes.isEmpty())
 		{
 			typesGrid.cell("Per rune type", "-", Color.LIGHT_GRAY);
+		}
+		else
+		{
+			typesGrid.cell("Rune type", "<html>All time <span style='color:#999999'>+today</span></html>", Color.LIGHT_GRAY);
 		}
 		for (PanelData.TypeRow r : d.historyTypes)
 		{

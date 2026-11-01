@@ -530,4 +530,24 @@ public class LogicTest
 		assertEquals(400, (int) h2.total().getTypes().get(RuneIds.BLOOD_RUNE));
 		assertEquals(100, (int) h2.total().getTypes().get(DayLog.OTHER));
 	}
+
+	@Test
+	public void historyTypesFilledForOldAndHalfDays()
+	{
+		// saved by the old version: types empty (not null)
+		DayLog.Day old = new DayLog.Day();
+		old.runes = 8309;
+		old.bloodRunes = 8309;
+		DayLog.fillMissingTypes(old);
+		assertEquals(8309, (int) old.types.get(RuneIds.BLOOD_RUNE));
+
+		// update in the middle of a day: 5,779 blood before, 190 after
+		DayLog.Day half = new DayLog.Day();
+		half.runes = 5969 + 100;
+		half.bloodRunes = 5969;
+		half.types.put(RuneIds.BLOOD_RUNE, 190);
+		DayLog.fillMissingTypes(half);
+		assertEquals(5969, (int) half.types.get(RuneIds.BLOOD_RUNE));
+		assertEquals(100, (int) half.types.get(DayLog.OTHER));
+	}
 }
