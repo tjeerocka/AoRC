@@ -43,7 +43,8 @@ class AorcPanel extends PluginPanel
 	@Inject
 	AorcPanel(AorcPlugin plugin, ItemManager itemManager, ClientThread clientThread)
 	{
-		super(false);
+		// wrapped in a scroll pane: a long panel scrolls instead of making the client window taller
+		super(true);
 		this.itemManager = itemManager;
 		this.buddy = new BuddyPanel(itemManager);
 
