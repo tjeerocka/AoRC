@@ -1015,6 +1015,12 @@ public class AorcPlugin extends Plugin
 			save();
 		}
 
+		// a trip that ended over 60 s ago (no more pouch crafts) is counted now
+		if (!paused)
+		{
+			tripEvent(() -> trips.tick(System.currentTimeMillis()));
+		}
+
 		if (paused)
 		{
 			// nothing is counted while paused (also no trip end)

@@ -318,6 +318,8 @@ public class LogicTest
 		// Started mid-trip: counts as a trip with its runes, but without a time
 		t.onCraft(150);
 		t.onEssenceEmpty(0);
+		assertEquals(0, t.getTrips());          // waits 60 s for pouch crafts
+		t.tick(60_000);
 		assertEquals(1, t.getTrips());
 		assertEquals(-1, t.getLastTripMillis());
 		assertEquals(-1, t.getAvgTripMillis());
@@ -326,27 +328,34 @@ public class LogicTest
 		t.onCraft(100);
 		t.onCraft(104);
 		t.onEssenceEmpty(480_000);
-		// Trip 3 (7 min)
+		t.tick(540_000);
+		// Trip 3: inventory crafted at 15:00, pouch emptied and crafted again at 15:20
 		t.onCraft(210);
 		t.onEssenceEmpty(900_000);
-		// Emptied again 20s later (pouch refill): same trip, nothing changes
+		t.tick(910_000);                       // still waiting
 		t.onCraft(10);
-		t.onEssenceEmpty(920_000);
+		t.onEssenceEmpty(920_000);             // same trip, it now ends at 15:20
+		t.tick(979_000);
+		assertEquals(2, t.getTrips());
+		t.tick(980_000);
 
 		assertEquals(3, t.getTrips());
-		assertEquals((150 + 204 + 210) / 3, t.getAvgRunes());
-		assertEquals(450_000, t.getAvgTripMillis());     // only the timed trips
-		assertEquals(420_000, t.getFastestMillis());
-		assertEquals(420_000, t.getLastTripMillis());
+		assertEquals((150 + 204 + 220) / 3, t.getAvgRunes());
+		assertEquals((480_000 + 440_000) / 2, t.getAvgTripMillis());   // only the timed trips
+		assertEquals(440_000, t.getFastestMillis());
+		assertEquals(440_000, t.getLastTripMillis());
 
 		// Trip 4 after a 1 hour break: counted, but its time is not used
-		t.onEssenceEmpty(900_000 + 3_600_000);  // includes the 10 runes from above
+		t.onCraft(10);
+		t.onEssenceEmpty(920_000 + 3_600_000);
+		t.tick(920_000 + 3_660_000);
 		assertEquals(4, t.getTrips());
-		assertEquals(450_000, t.getAvgTripMillis());
+		assertEquals(460_000, t.getAvgTripMillis());
 		assertEquals(-1, t.getLastTripMillis());
 
 		// Essence deposited (no runes): not a trip
-		t.onEssenceEmpty(900_000 + 3_600_000 + 120_000);
+		t.onEssenceEmpty(920_000 + 3_800_000);
+		t.tick(920_000 + 3_900_000);
 		assertEquals(4, t.getTrips());
 
 		t.reset();
@@ -358,11 +367,13 @@ public class LogicTest
 		f.onStartEmpty(0);
 		f.onCraft(204);
 		f.onEssenceEmpty(480_000);
+		// the new trip's timer starts at the last craft right away
+		assertEquals(30_000, f.getCurrentMillis(510_000));
+		assertEquals(0, f.getCurrentRunes());
+		f.tick(540_000);
 		assertEquals(1, f.getTrips());
 		assertEquals(480_000, f.getLastTripMillis());
-		// current trip timer starts again at the end of the last trip
 		assertEquals(90_000, f.getCurrentMillis(570_000));
-		assertEquals(0, f.getCurrentRunes());
 		assertEquals(-1, new TripTracker().getCurrentMillis(570_000));
 	}
 
@@ -381,6 +392,7 @@ public class LogicTest
 		assertEquals(100, c.getCurrentRunes());
 		c.onCraft(104);
 		c.onEssenceEmpty(3_780_000 + 120_000);        // 2 more minutes
+		c.tick(3_780_000 + 180_000);
 		assertEquals(1, c.getTrips());
 		assertEquals(300_000, c.getLastTripMillis()); // 3 + 2 min, the hour closed is not counted
 		assertEquals(204, c.getAvgRunes());
@@ -392,7 +404,20 @@ public class LogicTest
 		TripTracker e = new TripTracker();
 		e.load(d.save(200_000), 9_000_000);
 		e.onStartEmpty(9_000_000);
+		e.tick(9_060_000);
 		assertEquals(1, e.getTrips());
+
+		// closed right after the last craft (trip waiting for pouches): counted after the restart
+		TripTracker g = new TripTracker();
+		g.onStartEmpty(0);
+		g.onCraft(200);
+		g.onEssenceEmpty(400_000);
+		TripTracker h = new TripTracker();
+		h.load(g.save(410_000), 5_000_000);
+		h.tick(5_000_600);
+		assertEquals(1, h.getTrips());
+		assertEquals(400_000, h.getLastTripMillis());
+		assertEquals(10_600, h.getCurrentMillis(5_000_600));   // new trip: 10 s + 0.6 s
 	}
 
 	@Test
@@ -480,6 +505,7 @@ public class LogicTest
 		assertEquals(40_000, t.getCurrentMillis(510_000));
 		t.onCraft(200);
 		t.onEssenceEmpty(600_000);
+		t.tick(660_000);
 		assertEquals(130_000, t.getLastTripMillis());
 	}
 
