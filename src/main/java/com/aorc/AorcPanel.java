@@ -123,7 +123,7 @@ class AorcPanel extends PluginPanel
 		runesTitle.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(runesTitle);
 
-		JLabel zmiNote = new JLabel("<html><div style='width:170px'>Crafting runes at ZMI? Every rune type you get will appear here.</div></html>");
+		JLabel zmiNote = new JLabel("<html><div style='width:170px'>Every rune type you craft appears here (also ZMI, Guardians of the Rift, sunfire and aether).</div></html>");
 		zmiNote.setForeground(Color.GRAY);
 		zmiNote.setFont(FontManager.getRunescapeSmallFont());
 		zmiNote.setAlignmentX(LEFT_ALIGNMENT);

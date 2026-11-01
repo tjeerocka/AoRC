@@ -550,9 +550,13 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** ZMI if the saved counts have many rune types (Ourania gives random runes). */
+	/**
+	 * ZMI mode follows your last craft (several rune types in one craft = ZMI).
+	 * Not from the saved counts: crafting blood, water and earth on different days is not ZMI.
+	 */
 	private void detectZmiFromTotals()
 	{
-		zmiMode = totals.getRunes().size() >= 3;
+		zmiMode = false;
 		updateNav();
 	}
 
@@ -894,10 +898,10 @@ public class AorcPlugin extends Plugin
 			boolean imbued = false;
 			int craftRunes = 0;
 
-			if (runeTypes >= 2 && !zmiMode)
+			if (runeTypes >= 1 && (runeTypes >= 2) != zmiMode)
 			{
-				// Several rune types from one craft = ZMI altar
-				zmiMode = true;
+				// Several rune types from one craft = ZMI altar; one type = a normal altar
+				zmiMode = runeTypes >= 2;
 				updateNav();
 			}
 

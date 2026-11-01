@@ -24,7 +24,9 @@ public enum GoalRune
 	MUD("Mud", 4698),
 	SMOKE("Smoke", 4697),
 	STEAM("Steam", 4694),
-	LAVA("Lava", 4699);
+	LAVA("Lava", 4699),
+	SUNFIRE("Sunfire", 28929),
+	AETHER("Aether", 30843);
 
 	private final String name;
 	private final int itemId;

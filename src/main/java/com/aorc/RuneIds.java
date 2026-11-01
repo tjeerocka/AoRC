@@ -25,13 +25,15 @@ public final class RuneIds
 	public static final int RUNE_ESSENCE = 1436;
 	public static final int PURE_ESSENCE = 7936;
 	public static final int DAEYALT_ESSENCE = 24704;
+	public static final int GUARDIAN_ESSENCE = 26879;   // Guardians of the Rift
 
 	/** Essence that is used up at an altar. None left = end of a trip. */
 	public static boolean isTripEssence(int itemId)
 	{
 		return itemId == DENSE_ESSENCE_BLOCK || itemId == DARK_ESSENCE_BLOCK
 			|| itemId == DARK_ESSENCE_FRAGMENTS || itemId == RUNE_ESSENCE
-			|| itemId == PURE_ESSENCE || itemId == DAEYALT_ESSENCE;
+			|| itemId == PURE_ESSENCE || itemId == DAEYALT_ESSENCE
+			|| itemId == GUARDIAN_ESSENCE;
 	}
 
 	// Blood essence (wiki: inactive 26390, active 26392)
@@ -74,6 +76,8 @@ public final class RuneIds
 		m.put(4697, "Smoke");
 		m.put(4694, "Steam");
 		m.put(4699, "Lava");
+		m.put(28929, "Sunfire");   // Shrine of Ralos (Varlamore)
+		m.put(30843, "Aether");    // Cosmic altar with soul runes and aether catalysts
 		RUNES = Collections.unmodifiableMap(m);
 	}
 

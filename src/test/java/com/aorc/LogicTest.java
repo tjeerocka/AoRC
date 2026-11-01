@@ -498,4 +498,13 @@ public class LogicTest
 			}
 		}
 	}
+
+	@Test
+	public void newerRunesAndEssence()
+	{
+		assertTrue(RuneIds.isRune(28929));   // sunfire
+		assertTrue(RuneIds.isRune(30843));   // aether
+		assertTrue(RuneIds.isTripEssence(RuneIds.GUARDIAN_ESSENCE));
+		assertEquals("Aether", RuneIds.RUNES.get(30843));
+	}
 }
