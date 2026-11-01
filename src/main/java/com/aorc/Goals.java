@@ -19,6 +19,20 @@ public final class Goals
 		return (int) Math.floor(points / 4);
 	}
 
+	/** How far from start to goal (0..1). */
+	public static double progress(long now, long start, long goal)
+	{
+		if (now >= goal)
+		{
+			return 1;
+		}
+		if (goal <= start)
+		{
+			return 0;
+		}
+		return Math.max(0, Math.min(1, (now - start) / (double) (goal - start)));
+	}
+
 	/** 0 = goal reached, -1 = no rate yet. */
 	public static long millisToGoal(long remaining, long perHour)
 	{

@@ -156,6 +156,9 @@ public class AorcPlugin extends Plugin
 	private int tick;
 	// runes crafted towards the rune goal, per type; only "Clear goal progress" resets it
 	private final Map<Integer, Integer> goalRunes = new java.util.LinkedHashMap<>();
+	// level goal bar: starts at the start of the level you had when you set the goal
+	private int goalStartLevel = -1;
+	private int goalStartXp = -1;
 
 	/** Game tick counter (the overlay uses it to work out its lines once per tick). */
 	int getTick()
@@ -332,6 +335,8 @@ public class AorcPlugin extends Plugin
 		d.trips = trips.save();
 		d.essence = essence.save();
 		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
+		d.goalStartLevel = goalStartLevel;
+		d.goalStartXp = goalStartXp;
 		try
 		{
 			storage.write(loadedAccount, gson.toJson(d));
@@ -395,6 +400,8 @@ public class AorcPlugin extends Plugin
 		// History, essence charges and goal progress are always kept
 		history.load(d.history);
 		essence.load(d.essence);
+		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;
+		goalStartXp = d.goalStartXp != null ? d.goalStartXp : -1;
 		// older files have no goal counter yet: start from the rune counts
 		goalRunes.clear();
 		if (d.goalRunes != null)
@@ -641,7 +648,15 @@ public class AorcPlugin extends Plugin
 		}
 		d.runesLeft = Math.max(0, d.goalRunes - goalDone);
 		d.runeGoalProgress = d.goalRunes <= 0 ? 0 : Math.min(1.0, goalDone / (double) d.goalRunes);
-		d.levelProgress = Math.min(1.0, xp / (double) Math.max(1, Goals.xpForLevel(d.goalLevel)));
+		// Level bar: from where you started this goal to the goal level (not from level 1).
+		// A new goal level (or no start yet) starts the bar at the start of your current level.
+		if (xp > 0 && (goalStartLevel != d.goalLevel || goalStartXp < 0 || goalStartXp > xp))
+		{
+			goalStartLevel = d.goalLevel;
+			goalStartXp = Goals.xpForLevel(Math.max(1, d.currentLevel));
+			dirty = true;
+		}
+		d.levelProgress = Goals.progress(xp, goalStartXp, Goals.xpForLevel(d.goalLevel));
 		long goalRate = goalType == GoalRune.ANY ? session.getTotalRunes() : session.getRunes(goalType.getItemId());
 		d.goalRunesMillis = Goals.millisToGoal(d.runesLeft, RuneSession.perHour(goalRate, elapsed));
 

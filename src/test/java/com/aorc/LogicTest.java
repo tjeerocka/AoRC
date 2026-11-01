@@ -550,4 +550,16 @@ public class LogicTest
 		assertEquals(5969, (int) half.types.get(RuneIds.BLOOD_RUNE));
 		assertEquals(100, (int) half.types.get(DayLog.OTHER));
 	}
+
+	@Test
+	public void levelGoalBarStartsAtYourLevel()
+	{
+		// level 82 -> 85 with 800k xp left: about 4% along, not 75% (that would be from level 1)
+		int start = Goals.xpForLevel(82);
+		int goal = Goals.xpForLevel(85);
+		double p = Goals.progress(goal - 800_000, start, goal);
+		assertTrue(p > 0.03 && p < 0.06);
+		assertEquals(1.0, Goals.progress(goal + 5, start, goal), 0.0);
+		assertEquals(0.0, Goals.progress(start, start, goal), 0.0);
+	}
 }
