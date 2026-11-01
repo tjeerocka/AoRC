@@ -504,6 +504,13 @@ class AorcPanel extends PluginPanel
 			session.cell("Blood essence", (d.essenceEstimate ? "~" : "") + fmt(d.essenceCharges),
 				d.essenceCharges <= 100 ? Color.ORANGE : BONUS);
 		}
+		// essence pouches: part used since the last repair (orange = repair soon)
+		for (int i = 0; i < d.pouchNames.size(); i++)
+		{
+			double used = d.pouchUsed.get(i);
+			session.cell(d.pouchNames.get(i), used >= 0.75 ? "Repair! " + Math.round(used * 100) + "%" : Math.round(used * 100) + "% used",
+				used >= 0.75 ? Color.ORANGE : Color.LIGHT_GRAY);
+		}
 		session.end();
 		essenceBar.setVisible(d.essenceCharges >= 0);
 		essenceBar.set(d.essenceCharges / (double) EssenceCharges.FULL, d.essenceCharges <= 100 ? Color.ORANGE : BONUS);

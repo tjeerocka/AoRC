@@ -231,4 +231,17 @@ public interface AorcConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "warnPouch",
+		name = "Essence pouch needs repair",
+		description = "Warn when an essence pouch is about to decay (25% left). The pouch is highlighted in your inventory "
+			+ "and Astral Contact in your spellbook, until the Dark Mage repairs it.",
+		section = warnSection,
+		position = 35
+	)
+	default boolean warnPouch()
+	{
+		return true;
+	}
 }

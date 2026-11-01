@@ -85,7 +85,9 @@ public final class PanelData
 	public List<String> tripPlaces = new ArrayList<>();   // places with finished trips
 	public String currentPlace;       // place of the trip in progress (or your last place), null = unknown
 	public String tripPlace;          // place shown in Trips, null = all trips
-	public boolean showBlocks;        // at Zeah: show "Blocks imbued"
+	public boolean showBlocks;
+	public List<String> pouchNames = new ArrayList<>();   // essence pouches you carry
+	public List<Double> pouchUsed = new ArrayList<>();    // part used since the last repair (0..1)        // at Zeah: show "Blocks imbued"
 
 	// Goals
 	public int goalLevel;

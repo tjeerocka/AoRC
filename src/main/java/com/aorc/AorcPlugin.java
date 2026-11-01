@@ -21,6 +21,7 @@ import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -58,6 +59,12 @@ public class AorcPlugin extends Plugin
 
 	@Inject
 	private SpitOverlay spitOverlay;
+
+	@Inject
+	private PouchOverlay pouchOverlay;
+
+	@Inject
+	private RepairSpellOverlay repairSpellOverlay;
 
 	@Inject
 	private ConfigManager configManager;
@@ -123,6 +130,15 @@ public class AorcPlugin extends Plugin
 	private boolean imbuedSinceCraft;
 	// map area of your last craft: moving to another area = you left the altar
 	private int craftRegion = -1;
+	// NPC dialogue box (chatbox): interface 231, text child 6
+	private static final int DIALOG_NPC = 231;
+	private static final int DIALOG_NPC_TEXT = 6;
+	// essence pouch wear
+	private final PouchTracker pouches = new PouchTracker();
+	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
+	private PouchTracker.Pouch fillPouch;   // pouch you just clicked "Fill" on
+	private int fillTick;
+	private boolean noPouchWear;            // Runecraft / max cape or redwood lantern: pouches do not decay
 	// Inactive blood essence in the inventory
 	private int inactiveEssence;
 	// Most Raiments pieces seen worn (for the "piece missing" warning)
@@ -200,6 +216,8 @@ public class AorcPlugin extends Plugin
 	{
 		overlayManager.add(overlay);
 		overlayManager.add(spitOverlay);
+		overlayManager.add(pouchOverlay);
+		overlayManager.add(repairSpellOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = buildNav(ImageUtil.loadImageResource(getClass(), "icon.png"));
@@ -223,6 +241,8 @@ public class AorcPlugin extends Plugin
 		save();
 		overlayManager.remove(overlay);
 		overlayManager.remove(spitOverlay);
+		overlayManager.remove(pouchOverlay);
+		overlayManager.remove(repairSpellOverlay);
 		if (panel != null)
 		{
 			panel.stop();
@@ -352,6 +372,7 @@ public class AorcPlugin extends Plugin
 		d.history = history.save();
 		d.trips = trips.save();
 		d.tripPlaces = places.save();
+		d.pouches = pouches.save();
 		d.essence = essence.save();
 		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
 		d.goalStartLevel = goalStartLevel;
@@ -420,6 +441,7 @@ public class AorcPlugin extends Plugin
 		history.load(d.history);
 		essence.load(d.essence);
 		places.load(d.tripPlaces);
+		pouches.load(d.pouches);
 		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;
 		goalStartXp = d.goalStartXp != null ? d.goalStartXp : -1;
 		// older files have no goal counter yet: start from the rune counts
@@ -668,6 +690,12 @@ public class AorcPlugin extends Plugin
 			d.lastTripMillis = p.getLastMillis();
 		}
 		d.showBlocks = isAtZeah();
+		// essence pouches you carry: part used since the last repair
+		for (PouchTracker.Pouch p : pouchesCarried)
+		{
+			d.pouchNames.add(p.getName());
+			d.pouchUsed.add(pouches.used(p));
+		}
 		d.currentTripMillis = trips.getCurrentMillis(now);
 		d.currentTripRunes = trips.getCurrentRunes();
 
@@ -963,6 +991,7 @@ public class AorcPlugin extends Plugin
 					}
 				}
 			}
+			checkPouches(event.getItemContainer(), now);
 			lastInventory = now;
 		}
 		else if (event.getContainerId() == InventoryID.EQUIPMENT.getId())
@@ -977,6 +1006,19 @@ public class AorcPlugin extends Plugin
 		if (event.getType() != ChatMessageType.GAMEMESSAGE && event.getType() != ChatMessageType.SPAM)
 		{
 			return;
+		}
+		if (Text.removeTags(event.getMessage()).startsWith("Your pouch has decayed through use"))
+		{
+			// one of the pouches you carry decayed (the game does not say which): all need a repair
+			for (PouchTracker.Pouch p : new java.util.ArrayList<>(pouchesCarried))
+			{
+				pouches.markDecayed(p);
+			}
+			dirty = true;
+			if (config.warnPouch())
+			{
+				warn("pouch", "Your pouch has decayed. Repair it with Astral Contact (Dark Mage).");
+			}
 		}
 		Matcher m = ESSENCE_CHECK.matcher(Text.removeTags(event.getMessage()));
 		if (m.find())
@@ -1016,6 +1058,8 @@ public class AorcPlugin extends Plugin
 		{
 			save();
 		}
+
+		checkRepairDialogue();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
 		// or 60 s after the last craft if you stay.
@@ -1237,6 +1281,104 @@ public class AorcPlugin extends Plugin
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> " + message, null);
 	}
 
+	// ---------- essence pouches ----------
+
+	/** Pouches in your inventory, essence put into a pouch, decayed / repaired pouches. */
+	private void checkPouches(ItemContainer inv, Map<Integer, Integer> now)
+	{
+		java.util.Set<PouchTracker.Pouch> carried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
+		boolean changed = false;
+		if (inv != null)
+		{
+			for (Item item : inv.getItems())
+			{
+				PouchTracker.Pouch p = PouchTracker.of(item.getId());
+				if (p == null)
+				{
+					continue;
+				}
+				carried.add(p);
+				if (PouchTracker.isDegraded(item.getId()) && !pouches.needsRepair(p))
+				{
+					pouches.markDecayed(p);   // decayed already: needs a repair now
+					changed = true;
+				}
+			}
+		}
+		pouchesCarried.clear();
+		pouchesCarried.addAll(carried);
+
+		// "Fill" clicked on a pouch, and essence left the inventory right after: it went into that pouch
+		if (fillPouch != null && lastInventory != null && tick - fillTick <= 2)
+		{
+			int before = pouchEssence(lastInventory);
+			int after = pouchEssence(now);
+			if (after < before)
+			{
+				if (!noPouchWear && pouches.addFilled(fillPouch, before - after) && config.warnPouch())
+				{
+					warn("pouch", fillPouch.getName() + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage).");
+				}
+				fillPouch = null;
+				changed = true;
+			}
+		}
+		if (changed)
+		{
+			dirty = true;
+		}
+	}
+
+	/** Essence that fits in pouches. */
+	private static int pouchEssence(Map<Integer, Integer> inv)
+	{
+		return inv.getOrDefault(RuneIds.RUNE_ESSENCE, 0) + inv.getOrDefault(RuneIds.PURE_ESSENCE, 0)
+			+ inv.getOrDefault(RuneIds.DAEYALT_ESSENCE, 0) + inv.getOrDefault(RuneIds.GUARDIAN_ESSENCE, 0);
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event)
+	{
+		PouchTracker.Pouch p = PouchTracker.of(event.getItemId());
+		if (p != null && event.getMenuOption() != null && event.getMenuOption().startsWith("Fill"))
+		{
+			fillPouch = p;
+			fillTick = tick;
+		}
+	}
+
+	/** The Dark Mage (or Cordelia) repaired your pouches: his dialogue says so. */
+	private void checkRepairDialogue()
+	{
+		net.runelite.api.widgets.Widget text = client.getWidget(DIALOG_NPC, DIALOG_NPC_TEXT);
+		if (text == null || text.isHidden() || text.getText() == null)
+		{
+			return;
+		}
+		String t = Text.removeTags(text.getText()).toLowerCase();
+		if (t.contains("repaired your pouches") || t.contains("transfiguration spell") || t.contains("repaired your pouch"))
+		{
+			if (pouches.hasAny())
+			{
+				pouches.repaired();
+				dirty = true;
+			}
+		}
+	}
+
+	/** An essence pouch with this item ID needs a repair (for the inventory highlight). */
+	boolean pouchNeedsRepair(int itemId)
+	{
+		PouchTracker.Pouch p = PouchTracker.of(itemId);
+		return p != null && config.warnPouch() && pouches.needsRepair(p);
+	}
+
+	/** A pouch you carry needs a repair (for the spellbook highlight). */
+	boolean anyPouchNeedsRepair()
+	{
+		return config.warnPouch() && pouches.anyNeedsRepair(pouchesCarried);
+	}
+
 	private void startNewSessionIfIdle()
 	{
 		if (config.resetOnIdle() && session.isIdle(System.currentTimeMillis(), idleTimeoutMillis()))
@@ -1272,6 +1414,7 @@ public class AorcPlugin extends Plugin
 	private void updateGear(ItemContainer equipment)
 	{
 		int pieces = 0;
+		boolean noWear = false;
 		BonusCalculator.Lantern lit = BonusCalculator.Lantern.NONE;
 
 		if (equipment != null)
@@ -1304,6 +1447,11 @@ public class AorcPlugin extends Plugin
 
 				// Raiments have colour variants, so match by name: "Hat of the Eye (red)" etc.
 				String name = client.getItemDefinition(id).getName();
+				// Runecraft cape or a max cape: essence pouches do not decay
+				if (name != null && (name.startsWith("Runecraft cape") || name.contains("Max cape") || name.contains("max cape")))
+				{
+					noWear = true;
+				}
 				if (name != null && name.contains("of the Eye") && !name.startsWith("Amulet"))
 				{
 					pieces++;
@@ -1311,6 +1459,7 @@ public class AorcPlugin extends Plugin
 			}
 		}
 
+		noPouchWear = noWear || lit == BonusCalculator.Lantern.REDWOOD;
 		raimentsPieces = Math.min(4, pieces);
 		maxRaimentsSeen = Math.max(maxRaimentsSeen, raimentsPieces);
 		lantern = lit;

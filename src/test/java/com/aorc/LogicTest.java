@@ -630,4 +630,32 @@ public class LogicTest
 		p.onTripDone(10, 5_000);
 		assertEquals(2, p.get("Blood - Mory").getTrips());
 	}
+
+	@Test
+	public void pouchWear()
+	{
+		PouchTracker t = new PouchTracker();
+		PouchTracker.Pouch c = PouchTracker.of(26784);
+		assertEquals(PouchTracker.Pouch.COLOSSAL, c);
+		assertEquals(c, PouchTracker.of(26786));
+		assertTrue(PouchTracker.isDegraded(26786));
+		assertEquals(null, PouchTracker.of(5509));   // small pouch never decays
+
+		// colossal: about 320 essence before it decays, warn at 240 (25% left)
+		for (int i = 0; i < 5; i++)
+		{
+			assertFalse(t.addFilled(c, 40));     // 200
+		}
+		assertFalse(t.needsRepair(c));
+		assertTrue(t.addFilled(c, 40));          // 240: warn once
+		assertFalse(t.addFilled(c, 40));         // no second warning
+		assertTrue(t.needsRepair(c));
+		t.repaired();
+		assertFalse(t.needsRepair(c));
+		assertEquals(0.0, t.used(c), 0.0);
+
+		// a decayed pouch needs a repair right away
+		t.markDecayed(PouchTracker.Pouch.GIANT);
+		assertTrue(t.needsRepair(PouchTracker.Pouch.GIANT));
+	}
 }
