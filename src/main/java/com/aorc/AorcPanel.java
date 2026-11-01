@@ -12,6 +12,7 @@ import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
@@ -43,6 +44,13 @@ class AorcPanel extends PluginPanel
 	private final Grid tripsGrid = new Grid(tripsPanel);
 	private final Grid goalsGrid = new Grid(goalsPanel);
 	private final Grid historyGrid = new Grid(historyPanel);
+	private final JPanel typesPanel = new JPanel(new GridLayout(0, 2, 4, 3));
+	private final Grid typesGrid = new Grid(typesPanel);
+	// History filter: "All runes" or one rune type you crafted
+	private final JComboBox<String> historyFilterBox = new JComboBox<>();
+	private final List<Integer> filterIds = new ArrayList<>();
+	private volatile int historyFilter;
+	private boolean fillingFilter;
 	// rune rows are kept and only get new text; rebuilt only when the rune types change
 	private final List<Integer> rowIds = new ArrayList<>();
 	private final List<JLabel[]> rowLabels = new ArrayList<>();
@@ -104,17 +112,43 @@ class AorcPanel extends PluginPanel
 		content.add(clearGoal);
 		content.add(spacer(8));
 
+		// "History" title with the rune type dropdown next to it
+		JPanel historyHead = new JPanel(new BorderLayout(6, 0));
+		historyHead.setOpaque(false);
+		historyHead.setAlignmentX(LEFT_ALIGNMENT);
+		historyHead.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 		JLabel historyTitle = new JLabel("History");
 		historyTitle.setFont(FontManager.getRunescapeBoldFont());
 		historyTitle.setForeground(Color.WHITE);
-		historyTitle.setAlignmentX(LEFT_ALIGNMENT);
-		content.add(historyTitle);
+		historyHead.add(historyTitle, BorderLayout.WEST);
+		historyFilterBox.setToolTipText("Show the history of all runes, or of one rune type");
+		filterIds.add(0);
+		historyFilterBox.addItem("All runes");
+		historyFilterBox.addActionListener(e ->
+		{
+			int i = historyFilterBox.getSelectedIndex();
+			if (fillingFilter || i < 0 || i >= filterIds.size())
+			{
+				return;
+			}
+			historyFilter = filterIds.get(i);
+			clientThread.invokeLater(plugin::refreshPanel);
+		});
+		historyHead.add(historyFilterBox, BorderLayout.CENTER);
+		content.add(historyHead);
 		content.add(spacer(4));
 
 		historyPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		historyPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 		historyPanel.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(historyPanel);
+		content.add(spacer(4));
+		// all-time runes per type (today in grey)
+		typesPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		typesPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+		typesPanel.setAlignmentX(LEFT_ALIGNMENT);
+		typesPanel.setToolTipText("All runes crafted per type (all time). In grey: today.");
+		content.add(typesPanel);
 		content.add(spacer(8));
 
 		JLabel runesTitle = new JLabel("Runes crafted");
@@ -268,14 +302,32 @@ class AorcPanel extends PluginPanel
 		}
 		goalsGrid.end();
 
+		updateFilterChoices(d.historyTypes);
+		// time is only kept per day, so it shows for "All runes" only (-1 = none)
 		historyGrid.begin();
 		historyGrid.cell("Today", GpFormat.shortRate(d.todayRunes) + " runes", Color.WHITE);
-		historyGrid.cell("", PanelData.formatTime(d.todayMillis), Color.LIGHT_GRAY);
+		historyGrid.cell("", d.todayMillis < 0 ? "" : PanelData.formatTime(d.todayMillis), Color.LIGHT_GRAY);
 		historyGrid.cell("Best day", d.bestDate == null ? "-" : GpFormat.shortRate(d.bestRunes) + " runes", BLOOD);
-		historyGrid.cell(PanelData.formatDate(d.bestDate), d.bestDate == null ? "" : PanelData.formatTime(d.bestMillis), Color.LIGHT_GRAY);
+		historyGrid.cell(PanelData.formatDate(d.bestDate), d.bestDate == null || d.bestMillis < 0 ? "" : PanelData.formatTime(d.bestMillis), Color.LIGHT_GRAY);
 		historyGrid.cell("All time", GpFormat.shortRate(d.allRunes) + " runes", Color.WHITE);
-		historyGrid.cell(d.days + (d.days == 1 ? " day" : " days"), PanelData.formatTime(d.allMillis), Color.LIGHT_GRAY);
+		historyGrid.cell(d.days + (d.days == 1 ? " day" : " days"), d.allMillis < 0 ? "" : PanelData.formatTime(d.allMillis), Color.LIGHT_GRAY);
 		historyGrid.end();
+		// the list per rune type only with "All runes"
+		typesPanel.setVisible(d.historyFilter == 0);
+
+		typesGrid.begin();
+		if (d.historyTypes.isEmpty())
+		{
+			typesGrid.cell("Per rune type", "-", Color.LIGHT_GRAY);
+		}
+		for (PanelData.TypeRow r : d.historyTypes)
+		{
+			String right = r.today > 0
+				? "<html>" + GpFormat.shortRate(r.allTime) + " <span style='color:#999999'>+" + GpFormat.shortRate(r.today) + "</span></html>"
+				: GpFormat.shortRate(r.allTime);
+			typesGrid.cell(r.name, right, r.itemId == RuneIds.BLOOD_RUNE ? BLOOD : Color.WHITE);
+		}
+		typesGrid.end();
 
 		updateRuneRows(d.rows);
 
@@ -286,6 +338,49 @@ class AorcPanel extends PluginPanel
 			buddy.setMessage(hype.message(d, System.currentTimeMillis()));
 		}
 
+	}
+
+	/** History filter chosen in the dropdown: 0 = all runes, else a rune item ID (any thread). */
+	int getHistoryFilter()
+	{
+		return historyFilter;
+	}
+
+	/** Dropdown: "All runes" plus every rune type in your history (kept in rune order). */
+	private void updateFilterChoices(List<PanelData.TypeRow> types)
+	{
+		List<Integer> ids = new ArrayList<>();
+		ids.add(0);
+		for (PanelData.TypeRow r : types)
+		{
+			if (r.itemId != DayLog.OTHER)
+			{
+				ids.add(r.itemId);
+			}
+		}
+		if (ids.equals(filterIds))
+		{
+			return;
+		}
+		fillingFilter = true;
+		try
+		{
+			int keep = historyFilter;
+			filterIds.clear();
+			filterIds.addAll(ids);
+			historyFilterBox.removeAllItems();
+			for (int id : ids)
+			{
+				historyFilterBox.addItem(id == 0 ? "All runes" : RuneIds.RUNES.get(id));
+			}
+			int i = Math.max(0, filterIds.indexOf(keep));
+			historyFilterBox.setSelectedIndex(i);
+			historyFilter = filterIds.get(i);
+		}
+		finally
+		{
+			fillingFilter = false;
+		}
 	}
 
 	/** Rune rows: same rune types = only new text; other types = build the rows again. */

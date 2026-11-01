@@ -35,6 +35,25 @@ public final class PanelData
 	public int blocksImbued;
 	public int bonusPercent;
 	public int bonusRunes;
+	/** History per rune type: all time, and today. */
+	public static class TypeRow
+	{
+		public final int itemId;
+		public final String name;
+		public final int allTime;
+		public final int today;
+
+		public TypeRow(int itemId, String name, int allTime, int today)
+		{
+			this.itemId = itemId;
+			this.name = name;
+			this.allTime = allTime;
+			this.today = today;
+		}
+	}
+
+	public List<TypeRow> historyTypes = new ArrayList<>();
+	public int historyFilter;          // 0 = all runes, else the rune type shown in History
 	public List<Row> rows = new ArrayList<>();
 
 	// Profit and blood essence

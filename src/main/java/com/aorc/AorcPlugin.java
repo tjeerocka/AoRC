@@ -275,6 +275,16 @@ public class AorcPlugin extends Plugin
 		}
 	}
 
+	/** New numbers for the side panel right away (for example after changing the History filter). */
+	public void refreshPanel()
+	{
+		lastData = buildPanelData();
+		if (panel != null)
+		{
+			panel.post(lastData);
+		}
+	}
+
 	/** Start counting the blood rune goal from 0 again (the resets do not touch it). */
 	public void clearGoalProgress()
 	{
@@ -633,21 +643,40 @@ public class AorcPlugin extends Plugin
 		String today = today();
 		long live = history.liveMillis(now, idleTimeoutMillis());
 
+		// History filter (dropdown in the side panel): 0 = all runes, else one rune type.
+		// Time is only kept per day (not per rune type), so it shows for "All" only.
+		int f = panel == null ? 0 : panel.getHistoryFilter();
+		d.historyFilter = f;
 		DayLog.Day t = history.get(today);
-		d.todayRunes = t.getRunes();
-		d.todayMillis = t.getActiveMillis() + live;
-		String best = history.bestDate();
+		d.todayRunes = t.runesOf(f);
+		d.todayMillis = f == 0 ? t.getActiveMillis() + live : -1;
+		String best = history.bestDate(f);
 		if (best != null)
 		{
 			DayLog.Day b = history.get(best);
 			d.bestDate = best;
-			d.bestRunes = b.getRunes();
-			d.bestMillis = b.getActiveMillis() + (best.equals(today) ? live : 0);
+			d.bestRunes = b.runesOf(f);
+			d.bestMillis = f == 0 ? b.getActiveMillis() + (best.equals(today) ? live : 0) : -1;
 		}
 		DayLog.Day all = history.total();
-		d.allRunes = all.getRunes();
-		d.allMillis = all.getActiveMillis() + live;
-		d.days = history.dayCount();
+		d.allRunes = all.runesOf(f);
+		d.allMillis = f == 0 ? all.getActiveMillis() + live : -1;
+		d.days = history.dayCount(f);
+		// history per rune type: rune list order, older untyped runes last
+		Map<Integer, Integer> todayTypes = t.getTypes();
+		for (int id : RuneIds.RUNES.keySet())
+		{
+			int n = all.getTypes().getOrDefault(id, 0);
+			if (n > 0)
+			{
+				d.historyTypes.add(new PanelData.TypeRow(id, RuneIds.RUNES.get(id), n, todayTypes.getOrDefault(id, 0)));
+			}
+		}
+		int other = all.getTypes().getOrDefault(DayLog.OTHER, 0);
+		if (other > 0)
+		{
+			d.historyTypes.add(new PanelData.TypeRow(DayLog.OTHER, "Other (older)", other, todayTypes.getOrDefault(DayLog.OTHER, 0)));
+		}
 		d.showBuddy = config.showBuddy();
 		d.accountType = AccountType.fromVarbit(client.getVarbitValue(AccountType.VARBIT));
 		return d;

@@ -507,4 +507,27 @@ public class LogicTest
 		assertTrue(RuneIds.isTripEssence(RuneIds.GUARDIAN_ESSENCE));
 		assertEquals("Aether", RuneIds.RUNES.get(30843));
 	}
+
+	@Test
+	public void historyKeepsRuneTypes()
+	{
+		DayLog h = new DayLog();
+		h.addRunes("2026-11-01", RuneIds.BLOOD_RUNE, 300);
+		h.addRunes("2026-11-01", 555, 100);
+		h.addRunes("2026-11-02", 555, 50);
+		assertEquals(150, (int) h.total().getTypes().get(555));
+		assertEquals(300, (int) h.total().getTypes().get(RuneIds.BLOOD_RUNE));
+
+		// older save without types: blood is known, the rest becomes "other"
+		DayLog.Saved old = new DayLog.Saved();
+		DayLog.Day d = new DayLog.Day();
+		d.runes = 500;
+		d.bloodRunes = 400;
+		d.types = null;
+		old.days.put("2026-10-01", d);
+		DayLog h2 = new DayLog();
+		h2.load(old);
+		assertEquals(400, (int) h2.total().getTypes().get(RuneIds.BLOOD_RUNE));
+		assertEquals(100, (int) h2.total().getTypes().get(DayLog.OTHER));
+	}
 }

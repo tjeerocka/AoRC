@@ -1,6 +1,8 @@
 package com.aorc;
 
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -11,6 +13,9 @@ import java.util.TreeMap;
  */
 public class DayLog
 {
+	/** Key for runes saved before the rune types were kept (only blood was known). */
+	public static final int OTHER = -1;
+
 	/** Keep about one year. */
 	static final int MAX_DAYS = 400;
 
@@ -20,6 +25,25 @@ public class DayLog
 		int bloodRunes;
 		int xp;
 		long activeMillis;
+		// runes per rune type (item ID); OTHER = runes from before types were saved
+		Map<Integer, Integer> types = new LinkedHashMap<>();
+
+		/** Runes of one type (item ID), or all runes for 0. */
+		public int runesOf(int itemId)
+		{
+			if (itemId == 0)
+			{
+				return runes;
+			}
+			Integer n = types == null ? null : types.get(itemId);
+			return n == null ? 0 : n;
+		}
+
+		/** Runes per rune type (item ID). */
+		public Map<Integer, Integer> getTypes()
+		{
+			return types == null ? Collections.emptyMap() : Collections.unmodifiableMap(types);
+		}
 
 		public int getRunes()
 		{
@@ -75,6 +99,11 @@ public class DayLog
 		}
 		Day d = day(date);
 		d.runes += amount;
+		if (d.types == null)
+		{
+			d.types = new LinkedHashMap<>();
+		}
+		d.types.merge(itemId, amount, Integer::sum);
 		if (itemId == RuneIds.BLOOD_RUNE)
 		{
 			d.bloodRunes += amount;
@@ -102,6 +131,20 @@ public class DayLog
 		return now - lastActivity;
 	}
 
+	/** Days on which runes of this type (0 = any) were crafted. */
+	public int dayCount(int itemId)
+	{
+		int n = 0;
+		for (Day d : days.values())
+		{
+			if (d.runesOf(itemId) > 0)
+			{
+				n++;
+			}
+		}
+		return n;
+	}
+
 	/** Stop the running time (for example after logging out). */
 	public void pause()
 	{
@@ -117,13 +160,20 @@ public class DayLog
 	/** Date with the most runes crafted, or null if there is no history. */
 	public String bestDate()
 	{
+		return bestDate(0);
+	}
+
+	/** Date with the most runes of this type (0 = all runes), or null. */
+	public String bestDate(int itemId)
+	{
 		String best = null;
 		int bestRunes = 0;
 		for (Map.Entry<String, Day> e : days.entrySet())
 		{
-			if (e.getValue().runes > bestRunes)
+			int n = e.getValue().runesOf(itemId);
+			if (n > bestRunes)
 			{
-				bestRunes = e.getValue().runes;
+				bestRunes = n;
 				best = e.getKey();
 			}
 		}
@@ -139,6 +189,13 @@ public class DayLog
 			t.bloodRunes += d.bloodRunes;
 			t.xp += d.xp;
 			t.activeMillis += d.activeMillis;
+			if (d.types != null)
+			{
+				for (Map.Entry<Integer, Integer> e : d.types.entrySet())
+				{
+					t.types.merge(e.getKey(), e.getValue(), Integer::sum);
+				}
+			}
 		}
 		return t;
 	}
@@ -180,7 +237,21 @@ public class DayLog
 			{
 				if (e.getKey() != null && e.getValue() != null)
 				{
-					days.put(e.getKey(), e.getValue());
+					Day d = e.getValue();
+					if (d.types == null)
+					{
+						// older save: only the blood runes are known, the rest is "other"
+						d.types = new LinkedHashMap<>();
+						if (d.bloodRunes > 0)
+						{
+							d.types.put(RuneIds.BLOOD_RUNE, d.bloodRunes);
+						}
+						if (d.runes - d.bloodRunes > 0)
+						{
+							d.types.put(OTHER, d.runes - d.bloodRunes);
+						}
+					}
+					days.put(e.getKey(), d);
 				}
 			}
 		}
