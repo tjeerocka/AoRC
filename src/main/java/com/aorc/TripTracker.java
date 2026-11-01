@@ -5,10 +5,10 @@ package com.aorc;
  * A trip ends when the inventory has no essence left (no dense/dark blocks, fragments,
  * rune, pure, daeyalt or guardian essence) - right after the last craft at the altar.
  * Essence pouches: emptying a pouch and crafting again at the altar within 60 seconds is
- * still the same trip, so the trip only really ends after the LAST craft. That is why a
- * finished trip is counted 60 seconds after its last craft (see tick), and the new trip's
- * timer starts at that last craft.
- * Trip time = from the end of one trip to the end of the next.
+ * still the same trip. The trip ends when you LEAVE the altar (the plugin sees you move to
+ * another map area), or 60 seconds after the last craft if you stay. Until then the
+ * current trip timer keeps running; the new trip's timer starts when you leave.
+ * Trip time = from leaving the altar to leaving the altar on the next trip.
  * A half trip (its start was not seen) still counts as a trip with its runes,
  * but without a time (it is left out of the average and fastest time).
  * After a restart in the middle of a trip, the same trip continues (closed time not counted).
@@ -124,6 +124,21 @@ public class TripTracker
 		}
 	}
 
+	/** You left the altar: the trip that waited for pouch crafts ends now. */
+	public void leaveAltar(long now)
+	{
+		if (pendingEnd >= 0 && pausedAt < 0)
+		{
+			finish(Math.max(pendingEnd, now));
+		}
+	}
+
+	/** True while a trip has ended at the altar but you have not left yet. */
+	public boolean isAtAltar()
+	{
+		return pendingEnd >= 0;
+	}
+
 	/** Count the trip that ended at 'end'; the next trip starts there. */
 	private void finish(long end)
 	{
@@ -156,15 +171,14 @@ public class TripTracker
 	public long getCurrentMillis(long now)
 	{
 		long end = pausedAt >= 0 ? pausedAt : now;
-		// a trip just ended: the new trip's timer runs from its last craft
-		long start = pendingEnd >= 0 ? pendingEnd : s.tripStart;
-		return start < 0 ? -1 : Math.max(0, end - start);
+		// still at the altar after the last craft: the trip's timer keeps running until you leave
+		return s.tripStart < 0 ? -1 : Math.max(0, end - s.tripStart);
 	}
 
 	/** Runes crafted in the trip in progress. */
 	public int getCurrentRunes()
 	{
-		return pendingEnd >= 0 ? 0 : s.currentRunes;
+		return s.currentRunes;
 	}
 
 	/** Finished trips. */
@@ -226,8 +240,10 @@ public class TripTracker
 		c.currentRunes = s.currentRunes;
 		if (pendingEnd >= 0)
 		{
+			// trip ended at the altar: save its time, and the time since its last craft
 			c.pending = true;
 			c.pendingTripMillis = s.tripStart < 0 ? -1 : pendingEnd - s.tripStart;
+			c.currentMillis = Math.max(0, (pausedAt >= 0 ? pausedAt : now) - pendingEnd);
 		}
 		return c;
 	}

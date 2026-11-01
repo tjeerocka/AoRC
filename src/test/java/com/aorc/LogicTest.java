@@ -367,13 +367,28 @@ public class LogicTest
 		f.onStartEmpty(0);
 		f.onCraft(204);
 		f.onEssenceEmpty(480_000);
-		// the new trip's timer starts at the last craft right away
-		assertEquals(30_000, f.getCurrentMillis(510_000));
-		assertEquals(0, f.getCurrentRunes());
-		f.tick(540_000);
+		// still at the altar: the trip timer keeps running
+		assertEquals(510_000, f.getCurrentMillis(510_000));
+		assertEquals(204, f.getCurrentRunes());
+		f.tick(540_000);                       // stayed 60 s: ends at the last craft
 		assertEquals(1, f.getTrips());
 		assertEquals(480_000, f.getLastTripMillis());
 		assertEquals(90_000, f.getCurrentMillis(570_000));
+		assertEquals(0, f.getCurrentRunes());
+
+		// pouches, then leaving the altar (teleport): the trip ends when you leave
+		TripTracker l = new TripTracker();
+		l.onStartEmpty(0);
+		l.onCraft(100);
+		l.onEssenceEmpty(400_000);             // inventory crafted
+		l.onCraft(30);
+		l.onEssenceEmpty(410_000);             // pouch crafted
+		assertEquals(415_000, l.getCurrentMillis(415_000));
+		l.leaveAltar(420_000);                 // teleported out
+		assertEquals(1, l.getTrips());
+		assertEquals(420_000, l.getLastTripMillis());
+		assertEquals(130, l.getAvgRunes());
+		assertEquals(5_000, l.getCurrentMillis(425_000));   // new trip from leaving
 		assertEquals(-1, new TripTracker().getCurrentMillis(570_000));
 	}
 

@@ -121,6 +121,8 @@ public class AorcPlugin extends Plugin
 	private boolean guardianUsed;
 	// blocks imbued at the Dark Altar since your last craft
 	private boolean imbuedSinceCraft;
+	// map area of your last craft: moving to another area = you left the altar
+	private int craftRegion = -1;
 	// Inactive blood essence in the inventory
 	private int inactiveEssence;
 	// Most Raiments pieces seen worn (for the "piece missing" warning)
@@ -1015,10 +1017,16 @@ public class AorcPlugin extends Plugin
 			save();
 		}
 
-		// a trip that ended over 60 s ago (no more pouch crafts) is counted now
+		// A trip that ended at the altar is counted when you leave the altar (other map area),
+		// or 60 s after the last craft if you stay.
 		if (!paused)
 		{
-			tripEvent(() -> trips.tick(System.currentTimeMillis()));
+			long t = System.currentTimeMillis();
+			if (trips.isAtAltar() && craftRegion != -1 && regionId() != -1 && regionId() != craftRegion)
+			{
+				tripEvent(() -> trips.leaveAltar(t));
+			}
+			tripEvent(() -> trips.tick(t));
 		}
 
 		if (paused)
@@ -1121,6 +1129,7 @@ public class AorcPlugin extends Plugin
 				boolean soulAtZeah = fragmentsUsed && pendingGains.containsKey(RuneIds.SOUL_RUNE);
 				places.onCraft(TripLocations.placeOf(mainRune, runeTypes, arceuusCraft || soulAtZeah, guardianUsed, regionId()));
 				imbuedSinceCraft = false;
+				craftRegion = regionId();
 			}
 			if (imbued)
 			{
