@@ -57,9 +57,10 @@ public final class PanelData
 	public int currentLevel;
 	public int xpLeft;
 	public long goalLevelMillis = -1;
-	public int goalBlood;
-	public int bloodLeft;
-	public long goalBloodMillis = -1;
+	public int goalRunes;              // rune goal, 0 = off
+	public String goalRuneName = "blood";
+	public int runesLeft;
+	public long goalRunesMillis = -1;
 
 	// Hype buddy
 	public boolean showBuddy = true;

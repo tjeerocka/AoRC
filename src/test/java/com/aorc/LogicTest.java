@@ -484,11 +484,18 @@ public class LogicTest
 	}
 
 	@Test
-	public void goalStartsFromSavedBloodRunes()
+	public void goalRuneNames()
 	{
-		RuneTotals t = new RuneTotals();
-		t.addCraft(RuneIds.BLOOD_RUNE, 274, 0);
-		assertEquals(274, RuneTotals.bloodIn(t.save()));
-		assertEquals(0, RuneTotals.bloodIn(null));
+		assertEquals("blood", GoalRune.BLOOD.shortName());
+		assertEquals("runes", GoalRune.ANY.shortName());
+		assertEquals(555, GoalRune.WATER.getItemId());
+		// every goal rune is a rune the plugin counts
+		for (GoalRune g : GoalRune.values())
+		{
+			if (g != GoalRune.ANY)
+			{
+				assertTrue(g.name(), RuneIds.isRune(g.getItemId()));
+			}
+		}
 	}
 }

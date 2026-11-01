@@ -154,8 +154,8 @@ public class AorcPlugin extends Plugin
 
 	private int lastRcXp = -1;
 	private int tick;
-	// blood runes crafted towards the blood rune goal; only "Clear goal progress" resets it
-	private int goalBloodDone;
+	// runes crafted towards the rune goal, per type; only "Clear goal progress" resets it
+	private final Map<Integer, Integer> goalRunes = new java.util.LinkedHashMap<>();
 
 	/** Game tick counter (the overlay uses it to work out its lines once per tick). */
 	int getTick()
@@ -278,7 +278,7 @@ public class AorcPlugin extends Plugin
 	/** Start counting the blood rune goal from 0 again (the resets do not touch it). */
 	public void clearGoalProgress()
 	{
-		goalBloodDone = 0;
+		goalRunes.clear();
 		save();
 	}
 
@@ -309,7 +309,7 @@ public class AorcPlugin extends Plugin
 		d.history = history.save();
 		d.trips = trips.save();
 		d.essence = essence.save();
-		d.goalBlood = goalBloodDone;
+		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
 		try
 		{
 			storage.write(loadedAccount, gson.toJson(d));
@@ -373,9 +373,20 @@ public class AorcPlugin extends Plugin
 		// History, essence charges and goal progress are always kept
 		history.load(d.history);
 		essence.load(d.essence);
-		// older files have no goal counter yet: start from the blood rune count
-		goalBloodDone = d.goalBlood != null ? d.goalBlood
-			: d.totals != null ? RuneTotals.bloodIn(d.totals) : 0;
+		// older files have no goal counter yet: start from the rune counts
+		goalRunes.clear();
+		if (d.goalRunes != null)
+		{
+			goalRunes.putAll(d.goalRunes);
+		}
+		else if (d.goalBlood != null)
+		{
+			goalRunes.put(RuneIds.BLOOD_RUNE, d.goalBlood);
+		}
+		else if (d.totals != null && d.totals.runes != null)
+		{
+			goalRunes.putAll(d.totals.runes);
+		}
 
 		boolean fresh = profilesThisRun.add(String.valueOf(hash)) && !config.rememberSession();
 		if (fresh)
@@ -590,10 +601,20 @@ public class AorcPlugin extends Plugin
 		d.currentLevel = client.getRealSkillLevel(Skill.RUNECRAFT);
 		d.xpLeft = Math.max(0, Goals.xpForLevel(d.goalLevel) - xp);
 		d.goalLevelMillis = Goals.millisToGoal(d.xpLeft, d.xpPerHour);
-		d.goalBlood = config.goalBloodRunes();
-		d.bloodLeft = Math.max(0, d.goalBlood - goalBloodDone);
-		d.goalBloodMillis = Goals.millisToGoal(d.bloodLeft,
-			RuneSession.perHour(session.getRunes(RuneIds.BLOOD_RUNE), elapsed));
+		GoalRune goalType = config.goalRuneType() == null ? GoalRune.BLOOD : config.goalRuneType();
+		d.goalRunes = config.goalBloodRunes();
+		d.goalRuneName = goalType.shortName();
+		int goalDone = 0;
+		for (Map.Entry<Integer, Integer> e : goalRunes.entrySet())
+		{
+			if (goalType == GoalRune.ANY || e.getKey() == goalType.getItemId())
+			{
+				goalDone += e.getValue();
+			}
+		}
+		d.runesLeft = Math.max(0, d.goalRunes - goalDone);
+		long goalRate = goalType == GoalRune.ANY ? session.getTotalRunes() : session.getRunes(goalType.getItemId());
+		d.goalRunesMillis = Goals.millisToGoal(d.runesLeft, RuneSession.perHour(goalRate, elapsed));
 
 		java.util.Set<Integer> types = new java.util.LinkedHashSet<>(totals.getRunes().keySet());
 		types.addAll(session.getRunesCrafted().keySet());
@@ -895,10 +916,7 @@ public class AorcPlugin extends Plugin
 					int pct = BonusCalculator.totalPercent(BonusCalculator.activeBonuses(
 						bloodAltar, raimentsPieces, lantern, bloodEssenceActive, eliteDiaryDone && arceuusCraft));
 					totals.addCraft(id, amount, pct);
-					if (id == RuneIds.BLOOD_RUNE)
-					{
-						goalBloodDone += amount;
-					}
+					goalRunes.merge(id, amount, Integer::sum);
 					craftRunes += amount;
 					if (bloodAltar)
 					{

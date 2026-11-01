@@ -158,10 +158,11 @@ public class HypeBuddy
 		{
 			t.add("Level " + d.goalLevel + " reached! You did it!");
 		}
-		if (d.goalBlood > 0 && d.bloodLeft > 0)
+		if (d.goalRunes > 0 && d.runesLeft > 0)
 		{
-			String eta = d.goalBloodMillis > 0 ? " About " + PanelData.formatTime(d.goalBloodMillis) + "." : "";
-			t.add(nf.format(d.bloodLeft) + " blood runes to go!" + eta);
+			String eta = d.goalRunesMillis > 0 ? " About " + PanelData.formatTime(d.goalRunesMillis) + "." : "";
+			String what = "runes".equals(d.goalRuneName) ? "runes" : d.goalRuneName + " runes";
+			t.add(nf.format(d.runesLeft) + " " + what + " to go!" + eta);
 		}
 		if (d.todayRunes > 0)
 		{

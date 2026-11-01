@@ -140,11 +140,23 @@ public interface AorcConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "goalBloodRunes",
-		name = "Blood rune goal",
-		description = "Shows the time left to reach this many blood runes. Has its own counter: the reset buttons do not clear it, only \"Clear goal progress\" in the side panel. 0 = off",
+		keyName = "goalRuneType",
+		name = "Rune goal type",
+		description = "Which runes count for the rune goal. Any rune = all rune types together.",
 		section = goalSection,
 		position = 22
+	)
+	default GoalRune goalRuneType()
+	{
+		return GoalRune.BLOOD;
+	}
+
+	@ConfigItem(
+		keyName = "goalBloodRunes",
+		name = "Rune goal",
+		description = "Shows the time left to craft this many runes (of the type above). Has its own counter: the reset buttons do not clear it, only \"Clear goal progress\" in the side panel. 0 = off",
+		section = goalSection,
+		position = 23
 	)
 	default int goalBloodRunes()
 	{
@@ -156,7 +168,7 @@ public interface AorcConfig extends Config
 		name = "Level goal in overlay",
 		description = "Show the time to your level goal in the overlay",
 		section = goalSection,
-		position = 23
+		position = 24
 	)
 	default boolean goalInOverlay()
 	{

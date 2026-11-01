@@ -54,17 +54,6 @@ public class RuneTotals
 		return (int) Math.round(bonusRunes);
 	}
 
-	/** Blood runes in saved totals (0 when none). */
-	static int bloodIn(Saved s)
-	{
-		if (s == null || s.runes == null)
-		{
-			return 0;
-		}
-		Integer v = s.runes.get(RuneIds.BLOOD_RUNE);
-		return v == null ? 0 : v;
-	}
-
 	public void resetRunes()
 	{
 		runes.clear();

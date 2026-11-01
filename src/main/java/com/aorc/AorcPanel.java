@@ -98,7 +98,7 @@ class AorcPanel extends PluginPanel
 		content.add(box("Goals", goalsPanel));
 		content.add(spacer(4));
 		JButton clearGoal = button("Clear goal progress", () -> clientThread.invokeLater(plugin::clearGoalProgress));
-		clearGoal.setToolTipText("Count the blood rune goal from 0 again. The reset buttons never touch your goals.");
+		clearGoal.setToolTipText("Count the rune goal from 0 again. The reset buttons never touch your goals.");
 		clearGoal.setAlignmentX(LEFT_ALIGNMENT);
 		clearGoal.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 		content.add(clearGoal);
@@ -254,16 +254,16 @@ class AorcPanel extends PluginPanel
 			goalsGrid.cell("Level " + d.goalLevel + " in", time(d.goalLevelMillis), Color.CYAN);
 			goalsGrid.cell("XP left", GpFormat.shortGp(d.xpLeft), Color.LIGHT_GRAY);
 		}
-		if (d.goalBlood > 0)
+		if (d.goalRunes > 0)
 		{
-			if (d.bloodLeft <= 0)
+			if (d.runesLeft <= 0)
 			{
-				goalsGrid.cell(fmt(d.goalBlood) + " blood", "Reached!", BONUS);
+				goalsGrid.cell(fmt(d.goalRunes) + " " + d.goalRuneName, "Reached!", BONUS);
 			}
 			else
 			{
-				goalsGrid.cell(fmt(d.goalBlood) + " blood in", time(d.goalBloodMillis), Color.CYAN);
-				goalsGrid.cell("Runes left", fmt(d.bloodLeft), Color.LIGHT_GRAY);
+				goalsGrid.cell(fmt(d.goalRunes) + " " + d.goalRuneName + " in", time(d.goalRunesMillis), Color.CYAN);
+				goalsGrid.cell("Runes left", fmt(d.runesLeft), Color.LIGHT_GRAY);
 			}
 		}
 		goalsGrid.end();
