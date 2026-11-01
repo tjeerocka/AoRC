@@ -67,6 +67,9 @@ public class AorcPlugin extends Plugin
 	private RepairSpellOverlay repairSpellOverlay;
 
 	@Inject
+	private RepairDialogOverlay repairDialogOverlay;
+
+	@Inject
 	private ConfigManager configManager;
 
 	@Inject
@@ -138,7 +141,9 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
 	private PouchTracker.Pouch fillPouch;   // pouch you just clicked "Fill" on
 	private int fillTick;
-	private boolean noPouchWear;            // Runecraft / max cape or redwood lantern: pouches do not decay
+	private boolean noPouchWear;
+	// talking to the Dark Mage while a pouch needs a repair: highlight what to click
+	private volatile boolean repairGuide;            // Runecraft / max cape or redwood lantern: pouches do not decay
 	// Inactive blood essence in the inventory
 	private int inactiveEssence;
 	// Most Raiments pieces seen worn (for the "piece missing" warning)
@@ -218,6 +223,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(spitOverlay);
 		overlayManager.add(pouchOverlay);
 		overlayManager.add(repairSpellOverlay);
+		overlayManager.add(repairDialogOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = buildNav(ImageUtil.loadImageResource(getClass(), "icon.png"));
@@ -243,6 +249,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.remove(spitOverlay);
 		overlayManager.remove(pouchOverlay);
 		overlayManager.remove(repairSpellOverlay);
+		overlayManager.remove(repairDialogOverlay);
 		if (panel != null)
 		{
 			panel.stop();
@@ -1060,6 +1067,7 @@ public class AorcPlugin extends Plugin
 		}
 
 		checkRepairDialogue();
+		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
 		// or 60 s after the last craft if you stay.
@@ -1384,6 +1392,37 @@ public class AorcPlugin extends Plugin
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
 			"<col=ff3030>AoRC:</col> " + name + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage). (test)", null);
 		refreshPanel();
+	}
+
+	/**
+	 * The repair guide runs from the moment you talk to the Dark Mage with a worn pouch
+	 * until the conversation is over (also the lines after the repair).
+	 */
+	private void updateRepairGuide()
+	{
+		net.runelite.api.widgets.Widget name = client.getWidget(DIALOG_NPC, 4);
+		net.runelite.api.widgets.Widget line = client.getWidget(DIALOG_NPC, DIALOG_NPC_TEXT);
+		boolean mageTalks = (name != null && !name.isHidden() && name.getText() != null
+			&& Text.removeTags(name.getText()).contains("Dark Mage"))
+			// his first line, in case the name is somewhere else in the chat box
+			|| (line != null && !line.isHidden() && line.getText() != null
+			&& Text.removeTags(line.getText()).toLowerCase().contains("can't you see i'm busy"));
+		boolean repairOption = RepairDialogOverlay.findOption(client, RepairDialogOverlay.REPAIR_OPTION) != null;
+		boolean anyDialogue = RepairDialogOverlay.findContinue(client) != null || repairOption;
+
+		if (!anyDialogue && !mageTalks)
+		{
+			repairGuide = false;     // conversation over
+		}
+		else if ((mageTalks || repairOption) && config.warnPouch() && pouches.anyNeedsRepair(java.util.EnumSet.allOf(PouchTracker.Pouch.class)))
+		{
+			repairGuide = true;      // started: keep going until the end of the conversation
+		}
+	}
+
+	boolean isRepairGuide()
+	{
+		return repairGuide;
 	}
 
 	/** An essence pouch with this item ID needs a repair (for the inventory highlight). */
