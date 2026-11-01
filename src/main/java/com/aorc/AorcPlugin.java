@@ -1427,8 +1427,15 @@ public class AorcPlugin extends Plugin
 	{
 		if (repairGuide)
 		{
-			RepairDialogOverlay.colourTarget(client);
+			RepairDialogOverlay.colourTarget(client, repairColor().getRgb());
 		}
+	}
+
+	/** Colour of the repair highlights (setting). */
+	HighlightColor repairColor()
+	{
+		HighlightColor c = config.repairColor();
+		return c == null ? HighlightColor.DARK_GREEN : c;
 	}
 
 	boolean isRepairGuide()

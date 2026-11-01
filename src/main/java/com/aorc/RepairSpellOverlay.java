@@ -55,7 +55,7 @@ class RepairSpellOverlay extends Overlay
 		}
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		int a = 120 + (int) (80 * Math.abs(Math.sin(System.currentTimeMillis() / 400.0)));
-		Color c = PouchOverlay.REPAIR;
+		Color c = plugin.repairColor().boxColor();
 		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 60));
 		g.fillRoundRect(b.x - 2, b.y - 2, b.width + 4, b.height + 4, 6, 6);
 		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), a));

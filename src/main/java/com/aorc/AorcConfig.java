@@ -244,4 +244,17 @@ public interface AorcConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "repairColor",
+		name = "Repair highlight colour",
+		description = "Colour of the repair highlights: the text to click when talking to the Dark Mage, "
+			+ "and the boxes around the pouch and Astral Contact",
+		section = warnSection,
+		position = 36
+	)
+	default HighlightColor repairColor()
+	{
+		return HighlightColor.DARK_GREEN;
+	}
 }

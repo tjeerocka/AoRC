@@ -12,7 +12,7 @@ import net.runelite.client.util.Text;
 
 /**
  * Talking to the Dark Mage to repair pouches: what to click in the chat box
- * ("Click here to continue" and "Can you repair my pouches?") is coloured orange.
+ * ("Click here to continue" and "Can you repair my pouches?") gets the colour from the settings.
  */
 class RepairDialogOverlay extends Overlay
 {
@@ -21,8 +21,6 @@ class RepairDialogOverlay extends Overlay
 	static final int DIALOG_PLAYER = 217;
 	static final int DIALOG_OPTIONS = 219;
 	static final String REPAIR_OPTION = "Can you repair my pouches?";
-	/** Orange that reads well on the chat box background. */
-	static final int ORANGE = 0xE06A00;
 
 	private final Client client;
 	private final AorcPlugin plugin;
@@ -43,17 +41,17 @@ class RepairDialogOverlay extends Overlay
 		return null;
 	}
 
-	/** Colour what to click orange: "Can you repair my pouches?", else "Click here to continue". */
-	static void colourTarget(Client client)
+	/** Colour what to click: "Can you repair my pouches?", else "Click here to continue". */
+	static void colourTarget(Client client, int rgb)
 	{
 		Widget target = findOption(client, REPAIR_OPTION);
 		if (target == null)
 		{
 			target = findContinue(client);
 		}
-		if (target != null && !target.isHidden() && target.getTextColor() != ORANGE)
+		if (target != null && !target.isHidden() && target.getTextColor() != rgb)
 		{
-			target.setTextColor(ORANGE);
+			target.setTextColor(rgb);
 		}
 	}
 
