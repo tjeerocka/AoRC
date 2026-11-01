@@ -809,9 +809,11 @@ public class AorcPlugin extends Plugin
 		eliteDiaryDone = client.getVarbitValue(RuneIds.VARBIT_DIARY_KOUREND_ELITE) == 1;
 		maybeSpitOnPlayer();
 
-		// Fresh numbers every tick (overlay), side panel about once a second
+		// Fresh numbers every tick (0.6 s) for the overlay and the side panel.
+		// Every tick (not every 2nd = 1.2 s), so the timers never skip a second.
+		// The panel skips the work while it is closed and only changes label text.
 		lastData = buildPanelData();
-		if (panel != null && tick % 2 == 0)
+		if (panel != null)
 		{
 			panel.post(lastData);
 		}
