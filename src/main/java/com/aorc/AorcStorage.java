@@ -24,6 +24,7 @@ public class AorcStorage
 		// runes counted for the rune goal, per rune type (own counter, not cleared by the resets)
 		java.util.Map<Integer, Integer> goalRunes;
 		TripLocations.Saved tripPlaces;
+		Integer craftRegion;   // map area of your last craft (the altar)
 		// level goal bar: the goal level and the XP the bar starts from
 		Integer goalStartLevel;
 		Integer goalStartXp;

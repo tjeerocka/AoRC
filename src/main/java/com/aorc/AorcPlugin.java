@@ -376,6 +376,7 @@ public class AorcPlugin extends Plugin
 		d.history = history.save();
 		d.trips = trips.save();
 		d.tripPlaces = places.save();
+		d.craftRegion = craftRegion;
 		d.essence = essence.save();
 		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
 		d.goalStartLevel = goalStartLevel;
@@ -444,6 +445,7 @@ public class AorcPlugin extends Plugin
 		history.load(d.history);
 		essence.load(d.essence);
 		places.load(d.tripPlaces);
+		craftRegion = d.craftRegion != null ? d.craftRegion : -1;
 		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;
 		goalStartXp = d.goalStartXp != null ? d.goalStartXp : -1;
 		// older files have no goal counter yet: start from the rune counts
@@ -1311,7 +1313,7 @@ public class AorcPlugin extends Plugin
 	private void updateTeleport()
 	{
 		Teleport next = null;
-		if (config.highlightTeleports() && lastInventory != null && craftRegion != -1)
+		if (config.highlightTeleports() && lastInventory != null)
 		{
 			int region = regionId();
 			int essence = essenceCount(lastInventory);
@@ -1330,7 +1332,8 @@ public class AorcPlugin extends Plugin
 				pouchesEmpty &= amount == 0;
 				pouchesFull &= amount >= 3;
 			}
-			if (region == craftRegion && essence == 0 && pouchesEmpty)
+			// bank: only where you crafted last (known after one craft, also saved for restarts)
+			if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty)
 			{
 				next = Teleport.BANK;
 			}
