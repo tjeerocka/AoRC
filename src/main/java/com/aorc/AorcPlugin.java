@@ -1686,9 +1686,10 @@ public class AorcPlugin extends Plugin
 	@Subscribe
 	public void onPostMenuSort(net.runelite.api.events.PostMenuSort event)
 	{
-		// near an altar: "Empty" is the left-click; in the bank: "Fill"
-		String wanted = pouchOnlyEmpty() ? "empty" : bankOpen() ? "fill" : null;
-		if (client.isMenuOpen() || wanted == null)
+		// near an altar: "Empty" is the left-click; in the bank: "Fill", or "Examine" when it is full
+		boolean altar = pouchOnlyEmpty();
+		boolean bank = !altar && bankOpen();
+		if (client.isMenuOpen() || (!altar && !bank))
 		{
 			return;
 		}
@@ -1696,7 +1697,12 @@ public class AorcPlugin extends Plugin
 		for (int i = 0; i < all.length - 1; i++)
 		{
 			net.runelite.api.MenuEntry e = all[i];
-			if (wanted.equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId()))
+			if (!isPouch(e.getItemId()))
+			{
+				continue;
+			}
+			String wanted = altar ? "empty" : pouchFull(e.getItemId()) ? "examine" : "fill";
+			if (wanted.equalsIgnoreCase(Text.removeTags(e.getOption())))
 			{
 				// it can be a low-priority option (listed under "Use"); as the left-click the game
 				// would open the menu instead, so make it a normal option (like Menu Entry Swapper)
@@ -1782,8 +1788,10 @@ public class AorcPlugin extends Plugin
 			removeMenuEntry(e);
 			return;
 		}
-		// in the bank: a full pouch has no "Empty", so a misclick never empties it again
-		if ("empty".equalsIgnoreCase(opt) && isPouch(e.getItemId()) && bankOpen() && pouchFull(e.getItemId()))
+		// in the bank: a full pouch has no "Empty" and no "Deposit", so a misclick never empties
+		// or banks it (the left-click is "Examine" then)
+		if (("empty".equalsIgnoreCase(opt) || opt.toLowerCase().startsWith("deposit"))
+			&& isPouch(e.getItemId()) && bankOpen() && pouchFull(e.getItemId()))
 		{
 			removeMenuEntry(e);
 			return;
