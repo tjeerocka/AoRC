@@ -1512,6 +1512,7 @@ public class AorcPlugin extends Plugin
 		{
 			clickedObject = net.runelite.api.coords.WorldPoint.fromScene(
 				client, event.getParam0(), event.getParam1(), client.getPlane());
+			lastClickedObject = clickedObject;
 		}
 		if (option.equals("use") && target.contains("chisel") && target.contains("dark essence block") && lastInventory != null)
 		{
@@ -1592,6 +1593,13 @@ public class AorcPlugin extends Plugin
 			out.add("fragments full " + zeahCapped + "  bound here " + zeahBound);
 			out.add("near: runestone " + near(ZEAH_RUNESTONE, ZEAH_AT_RUNESTONE) + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
 				+ "  blood altar " + near(ZEAH_BLOOD_ALTAR, 12));
+			for (net.runelite.api.GameObject rs : runestones)
+			{
+				WorldPoint w = rs.getWorldLocation();
+				boolean chip = objectsInView(ZEAH_RUNESTONE).contains(rs);
+				out.add("runestone " + rs.getId() + " (" + (w == null ? "?" : w.getX() + ", " + w.getY()) + ") "
+					+ (chip ? "can chip" : "depleted") + ", " + distanceTo(rs) + " tiles");
+			}
 			out.add("from blood altar " + zeahFromBlood + "  used " + zeahUsed + "  runestones " + runestones.size()
 				+ "  agility " + client.getBoostedSkillLevel(Skill.AGILITY));
 			return out;
@@ -1818,7 +1826,8 @@ public class AorcPlugin extends Plugin
 	// ---------- the way to the next step: hint arrow, line, edge arrow; path recorder ----------
 
 	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing, or you use it now)
-	private WorldPoint clickedObject;            // the object you clicked last (its tile)
+	private WorldPoint clickedObject;            // the object you clicked last (its tile), for the line
+	private WorldPoint lastClickedObject;        // same, kept when the next step changes (the rock you chip)
 	private WorldPoint ourHintArrow;             // the hint arrow we set (we only clear our own)
 	private final java.util.List<int[]> recording = new java.util.ArrayList<>();
 
@@ -2144,7 +2153,12 @@ public class AorcPlugin extends Plugin
 			if (zeah > 0)
 			{
 				// only the closest one (two runestones: the one next to you)
-				net.runelite.api.TileObject o = closest(objectsInView(zeah));
+				java.util.List<net.runelite.api.TileObject> all = objectsInView(zeah);
+				net.runelite.api.TileObject o = clickedOne(all);
+				if (o == null)
+				{
+					o = closest(all);
+				}
 				if (o != null)
 				{
 					out.add(o);
@@ -2586,25 +2600,75 @@ public class AorcPlugin extends Plugin
 	/** The object closest to you, or null. */
 	private net.runelite.api.TileObject closest(java.util.List<net.runelite.api.TileObject> list)
 	{
-		net.runelite.api.Player p = client.getLocalPlayer();
-		if (p == null || p.getWorldLocation() == null)
-		{
-			return list.isEmpty() ? null : list.get(0);
-		}
-		net.runelite.api.coords.WorldPoint me = p.getWorldLocation();
 		net.runelite.api.TileObject best = null;
 		int bestD = Integer.MAX_VALUE;
 		for (net.runelite.api.TileObject o : list)
 		{
-			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
-			int d = w == null ? Integer.MAX_VALUE - 1 : Math.max(Math.abs(w.getX() - me.getX()), Math.abs(w.getY() - me.getY()));
-			if (d < bestD)
+			int d = distanceTo(o);
+			if (best == null || d < bestD)
 			{
 				bestD = d;
 				best = o;
 			}
 		}
 		return best;
+	}
+
+	/** The one of these you clicked last (you are using it: it stays lit), or null. */
+	private net.runelite.api.TileObject clickedOne(java.util.List<net.runelite.api.TileObject> list)
+	{
+		if (lastClickedObject == null)
+		{
+			return null;
+		}
+		for (net.runelite.api.TileObject o : list)
+		{
+			WorldPoint w = o.getWorldLocation();
+			if (w != null && w.getPlane() == lastClickedObject.getPlane()
+				&& Math.abs(w.getX() - lastClickedObject.getX()) <= 3 && Math.abs(w.getY() - lastClickedObject.getY()) <= 3)
+			{
+				return o;
+			}
+		}
+		return null;
+	}
+
+	/** Tiles from you to the nearest edge of this object (big rocks: not to one point of it). */
+	private int distanceTo(net.runelite.api.TileObject o)
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null)
+		{
+			return Integer.MAX_VALUE - 1;
+		}
+		WorldPoint me = p.getWorldLocation();
+		int minX;
+		int minY;
+		int maxX;
+		int maxY;
+		if (o instanceof net.runelite.api.GameObject)
+		{
+			net.runelite.api.GameObject g = (net.runelite.api.GameObject) o;
+			WorldPoint a = WorldPoint.fromScene(client, g.getSceneMinLocation().getX(), g.getSceneMinLocation().getY(), g.getPlane());
+			WorldPoint b = WorldPoint.fromScene(client, g.getSceneMaxLocation().getX(), g.getSceneMaxLocation().getY(), g.getPlane());
+			minX = Math.min(a.getX(), b.getX());
+			maxX = Math.max(a.getX(), b.getX());
+			minY = Math.min(a.getY(), b.getY());
+			maxY = Math.max(a.getY(), b.getY());
+		}
+		else
+		{
+			WorldPoint w = o.getWorldLocation();
+			if (w == null)
+			{
+				return Integer.MAX_VALUE - 1;
+			}
+			minX = maxX = w.getX();
+			minY = maxY = w.getY();
+		}
+		int dx = me.getX() < minX ? minX - me.getX() : me.getX() > maxX ? me.getX() - maxX : 0;
+		int dy = me.getY() < minY ? minY - me.getY() : me.getY() > maxY ? me.getY() - maxY : 0;
+		return Math.max(dx, dy);
 	}
 
 	/** You stand within 'range' tiles of an object with this ID. */
