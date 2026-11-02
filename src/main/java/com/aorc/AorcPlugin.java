@@ -1044,6 +1044,13 @@ public class AorcPlugin extends Plugin
 			return;
 		}
 		String plain = Text.removeTags(event.getMessage());
+		String low = plain.toLowerCase();
+		if (low.contains("fragment") && (low.contains("can't") || low.contains("cannot") || low.contains("no more")
+			|| low.contains("any more") || low.contains("anymore") || low.contains("too many")))
+		{
+			// Zeah: the fragment stack is full, no more chiselling: mine more dense blocks first
+			zeahCapped = true;
+		}
 		if (plain.startsWith("Your pouch has decayed through use"))
 		{
 			if (config.warnPouch())
@@ -1487,6 +1494,11 @@ public class AorcPlugin extends Plugin
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
+		if (option.equals("use") && target.contains("chisel") && target.contains("dark essence block") && lastInventory != null)
+		{
+			zeahChiselTick = client.getTickCount();
+			zeahChiselDark = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0);
+		}
 		if (id <= 0 || !isObjectAction(event.getMenuAction()))
 		{
 			return;
@@ -1558,6 +1570,7 @@ public class AorcPlugin extends Plugin
 				+ "  dark " + lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0)
 				+ "  frags " + lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
 				+ "  full " + inventoryFull + "  go " + zeahGo);
+			out.add("fragments full " + zeahCapped + "  bound here " + zeahBound);
 			out.add("near: runestone " + near(ZEAH_RUNESTONE, 15) + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
 				+ "  blood altar " + near(ZEAH_BLOOD_ALTAR, 12));
 			out.add("from blood altar " + zeahFromBlood + "  used " + zeahUsed + "  runestones " + runestones.size()
@@ -2161,10 +2174,13 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<Integer> zeahTouched = new java.util.HashSet<>();   // stood next to it
 	private final java.util.Set<Integer> zeahUsed = new java.util.HashSet<>();      // went over it
 	static final int CHISEL = 1755;
-	/** At this many fragments (when you get your dark blocks) you go to the blood altar. */
-	static final int ZEAH_FRAGMENTS = 100;
 	private boolean zeahGo;                      // these dark blocks go to the blood altar (not chiselled first)
 	private int zeahLastDark = -1;
+	private int zeahLastFrags = -1;
+	private boolean zeahCapped;                  // the fragment stack is full (no more chiselling)
+	private boolean zeahBound;                   // bound at the blood altar this visit
+	private int zeahChiselTick = -1;             // you used the chisel on a dark block (tick)
+	private int zeahChiselDark;                  // dark blocks at that moment
 
 	/** You are at Zeah: one of its runestones, altars or shortcuts is in view. */
 	private boolean zeahActive()
@@ -2193,9 +2209,34 @@ public class AorcPlugin extends Plugin
 		int dense = lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0);
 		int dark = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0);
 		int frags = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0);
-		if (dark > 0 && zeahLastDark <= 0)
+		// (the fragments are one item: the game does not tell how many, so we go by what happens)
+		if (dark > Math.max(0, zeahLastDark))
 		{
-			zeahGo = frags >= ZEAH_FRAGMENTS;
+			// new dark blocks (venerated): with fragments on you they go to the blood altar
+			zeahGo = frags > 0;
+		}
+		boolean nearBlood = near(ZEAH_BLOOD_ALTAR, 12);
+		if (zeahLastFrags > 0 && frags == 0)
+		{
+			zeahCapped = false;   // fragments used at the blood altar: room again
+			if (nearBlood)
+			{
+				zeahBound = true; // bound: now chisel all blocks, then bind again
+			}
+		}
+		if (!nearBlood || dense > 0)
+		{
+			zeahBound = false;
+		}
+		zeahLastFrags = frags;
+		// chisel used but no block was chiselled: the fragment stack is full
+		if (zeahChiselTick >= 0 && client.getTickCount() - zeahChiselTick >= 3)
+		{
+			if (dark >= zeahChiselDark && dark > 0 && frags > 0)
+			{
+				zeahCapped = true;
+			}
+			zeahChiselTick = -1;
 		}
 		if (dark == 0 && zeahLastDark > 0)
 		{
@@ -2208,7 +2249,7 @@ public class AorcPlugin extends Plugin
 			zeahGo = false;
 		}
 		zeahLastDark = dark;
-		if (near(ZEAH_BLOOD_ALTAR, 12))
+		if (nearBlood)
 		{
 			zeahFromBlood = true;
 		}
@@ -2248,7 +2289,7 @@ public class AorcPlugin extends Plugin
 		int step = zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
-			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 15),
+			inventoryFull, zeahGo || zeahCapped, zeahCapped, zeahBound, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 15),
 			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
 			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE) || zeahUsed.contains(ZEAH_SHORTCUT),
 			client.getBoostedSkillLevel(Skill.AGILITY));
@@ -2267,17 +2308,25 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** The Zeah cycle: what to click next (object ID, 0 = chisel the dark blocks, -1 = nothing). */
-	static int zeahStep(int dense, int dark, int frags, boolean full, boolean go, boolean nearDarkAltar,
-		boolean nearBloodAltar, boolean nearRunestone, boolean fromBlood, boolean usedToAltar, boolean usedToStone,
-		int agility)
+	static int zeahStep(int dense, int dark, int frags, boolean full, boolean go, boolean capped, boolean bound,
+		boolean nearDarkAltar, boolean nearBloodAltar, boolean nearRunestone, boolean fromBlood, boolean usedToAltar,
+		boolean usedToStone, int agility)
 	{
-		if (dark > 0)
+		if (dark > 0 && nearBloodAltar)
 		{
-			if (nearBloodAltar)
+			// bind first; after that chisel ALL blocks, and only then bind again
+			return frags > 0 && !bound ? ZEAH_BLOOD_ALTAR : 0;
+		}
+		if (dark > 0 && !(capped && dense > 0 && full))
+		{
+			if (capped && !full)
 			{
-				return frags > 0 ? ZEAH_BLOOD_ALTAR : 0;   // bind, then chisel the rest
+				return ZEAH_RUNESTONE;                     // fragments full: fill up with dense blocks first
 			}
-			return go ? ZEAH_BLOOD_ALTAR : 0;              // to the altar, or chisel them all first
+			if (!capped || dense == 0)
+			{
+				return go ? ZEAH_BLOOD_ALTAR : 0;          // to the altar, or chisel them all first
+			}
 		}
 		if (nearBloodAltar && frags > 0)
 		{

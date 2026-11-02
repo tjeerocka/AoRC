@@ -758,7 +758,7 @@ public class LogicTest
 	/** dense, dark, fragments, full, go, near dark altar, near blood altar, agility (not from blood, nothing used) */
 	private static int zeah(int dense, int dark, int frags, boolean full, boolean go, boolean nearDark, boolean nearBlood, int agility)
 	{
-		return AorcPlugin.zeahStep(dense, dark, frags, full, go, nearDark, nearBlood, false, nearBlood, false, false, agility);
+		return AorcPlugin.zeahStep(dense, dark, frags, full, go, false, false, nearDark, nearBlood, false, nearBlood, false, false, agility);
 	}
 
 	@Test
@@ -773,7 +773,7 @@ public class LogicTest
 		// all chiselled, back to the runestone over the 69 climb (or already next to the runestone)
 		assertEquals(AorcPlugin.ZEAH_SHORTCUT, zeah(0, 0, 200, false, false, false, false, 99));
 		assertEquals(AorcPlugin.ZEAH_RUNESTONE,
-			AorcPlugin.zeahStep(0, 0, 200, false, false, false, false, true, false, false, false, 99));
+			AorcPlugin.zeahStep(0, 0, 200, false, false, false, false, false, false, true, false, false, false, 99));
 		// second trip: dark blocks + 100 fragments: to the blood altar, bind
 		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, zeah(0, 26, 200, true, true, true, false, 99));
 		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, zeah(0, 26, 200, true, true, false, true, 99));
@@ -781,6 +781,30 @@ public class LogicTest
 		assertEquals(0, zeah(0, 26, 0, false, true, false, true, 99));
 		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, zeah(0, 0, 180, false, false, false, true, 99));
 		assertEquals(AorcPlugin.ZEAH_CLIMB_ROCKS, zeah(0, 0, 0, false, false, false, true, 99));
+	}
+
+	@Test
+	public void zeahFragmentsFull()
+	{
+		// dense, dark, frags, full, go, capped, bound, near dark, near blood, near stone, from blood, used x2, agility
+		// fragments full with dark blocks left: mine more dense blocks first
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, AorcPlugin.zeahStep(0, 5, 108, false, true, true, false, true, false, false, false, false, false, 99));
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, AorcPlugin.zeahStep(10, 5, 108, false, true, true, false, false, false, true, false, false, false, 99));
+		// full of dense blocks: to the dark altar
+		assertEquals(AorcPlugin.ZEAH_SHORTCUT, AorcPlugin.zeahStep(21, 5, 108, true, true, true, false, false, false, true, false, false, false, 99));
+		// venerated: dark blocks + fragments to the blood altar
+		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, AorcPlugin.zeahStep(0, 26, 108, true, true, true, false, true, false, false, false, false, false, 99));
+	}
+
+	@Test
+	public void zeahBindThenChiselAllThenBind()
+	{
+		// at the blood altar: bind first
+		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, AorcPlugin.zeahStep(0, 26, 1, true, true, false, false, false, true, false, true, false, false, 99));
+		// bound: chisel, also with a few fragments made already (not the altar yet)
+		assertEquals(0, AorcPlugin.zeahStep(0, 25, 1, false, true, false, true, false, true, false, true, false, false, 99));
+		// all chiselled: bind again
+		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, AorcPlugin.zeahStep(0, 0, 1, false, false, false, true, false, true, false, true, false, false, 99));
 	}
 
 	@Test
@@ -799,12 +823,12 @@ public class LogicTest
 		assertEquals(AorcPlugin.ZEAH_RUNESTONE, zeah(0, 0, 150, false, false, false, false, 51));
 		// shortcut used: on to the dark altar / the runestone
 		assertEquals(AorcPlugin.ZEAH_DARK_ALTAR,
-			AorcPlugin.zeahStep(26, 0, 0, true, false, false, false, false, false, true, false, 99));
+			AorcPlugin.zeahStep(26, 0, 0, true, false, false, false, false, false, false, false, true, false, 99));
 		assertEquals(AorcPlugin.ZEAH_RUNESTONE,
-			AorcPlugin.zeahStep(0, 0, 0, false, false, false, false, false, true, false, true, 99));
+			AorcPlugin.zeahStep(0, 0, 0, false, false, false, false, false, false, false, true, false, true, 99));
 		// on the way back, away from the altar, not used yet: still the shortcut
 		assertEquals(AorcPlugin.ZEAH_CLIMB_ROCKS,
-			AorcPlugin.zeahStep(0, 0, 0, false, false, false, false, false, true, false, false, 99));
+			AorcPlugin.zeahStep(0, 0, 0, false, false, false, false, false, false, false, true, false, false, 99));
 	}
 
 	@Test
