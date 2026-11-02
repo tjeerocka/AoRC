@@ -637,18 +637,25 @@ public class LogicTest
 		assertTrue(PouchTracker.isDegraded(26786));
 		assertEquals(null, PouchTracker.of(5509));   // small pouch never decays
 
-		// colossal: about 320 essence before it decays, warn at 240 (25% left)
-		for (int i = 0; i < 5; i++)
+		// colossal holding 27: 320 / 27 = 12 uses, warning at 3/12 left
+		for (int i = 0; i < 8; i++)
 		{
-			assertFalse(t.addFilled(c, 40));     // 200
+			assertFalse(t.addUse(c, 27));
 		}
+		assertEquals(12, t.totalUses(c));
+		assertEquals(4, t.usesLeft(c));
 		assertFalse(t.needsRepair(c));
-		assertTrue(t.addFilled(c, 40));          // 240: warn once
-		assertFalse(t.addFilled(c, 40));         // no second warning
+		assertTrue(t.addUse(c, 22));             // a half full use counts as a use too: 3/12, warn once
+		assertEquals(3, t.usesLeft(c));
+		assertFalse(t.addUse(c, 27));            // no second warning
 		assertTrue(t.needsRepair(c));
 		t.repaired();
+		assertEquals(12, t.usesLeft(c));         // what it holds is remembered
 		assertFalse(t.needsRepair(c));
-		assertEquals(0.0, t.used(c), 0.0);
+
+		// test button: straight to 3 uses left
+		t.markNeedsRepair(c);
+		assertEquals(3, t.usesLeft(c));
 
 		// a decayed pouch needs a repair right away
 		t.markDecayed(PouchTracker.Pouch.GIANT);

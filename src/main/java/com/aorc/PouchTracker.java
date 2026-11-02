@@ -4,17 +4,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Essence pouch wear. The game hides how close a pouch is to decaying, so we count the
- * essence that went through each pouch since its last repair (counted when you empty it,
- * so filling straight from the bank works too). Limits from the OSRS Wiki, "Essence pouch":
- * medium about 270 essence, large 261, giant 120, colossal 320, then it decays.
- * At 75% used (25% left) the pouch needs a repair (Dark Mage via Astral Contact).
+ * Essence pouch wear, in uses (like "3/12 uses left"). The game hides how close a pouch is
+ * to decaying, so we count each use (every time essence comes out of the pouch) since its
+ * last repair. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
+ * medium 270, large 261, giant 120, colossal 320. Uses in total = that / what the pouch holds
+ * (colossal at 27 essence: 320 / 27 = 12 uses). Warning at 3 uses left (25% left).
  * The small pouch never decays.
  */
 public class PouchTracker
 {
-	/** Warn at this part used (25% left). */
-	static final double WARN_AT = 0.75;
+	/** Warn at this many uses left (3/12 = 25% left). */
+	static final int WARN_USES_LEFT = 3;
 
 	public enum Pouch
 	{
@@ -45,10 +45,14 @@ public class PouchTracker
 	/** Data written to disk between RuneLite sessions. */
 	public static class Saved
 	{
-		Map<String, Integer> stored = new LinkedHashMap<>();
+		Map<String, Integer> uses = new LinkedHashMap<>();       // uses since the last repair
+		Map<String, Integer> capacity = new LinkedHashMap<>();   // most essence seen in one use
+		Map<String, Boolean> decayed = new LinkedHashMap<>();
 	}
 
-	private final Map<String, Integer> stored = new LinkedHashMap<>();
+	private final Map<String, Integer> uses = new LinkedHashMap<>();
+	private final Map<String, Integer> capacity = new LinkedHashMap<>();
+	private final Map<String, Boolean> decayed = new LinkedHashMap<>();
 
 	/** The pouch for an item ID (normal or decayed), or null. */
 	public static Pouch of(int itemId)
@@ -70,48 +74,68 @@ public class PouchTracker
 	}
 
 	/**
-	 * Essence put into a pouch.
-	 * @return true when this fill crossed 75% used (time to warn)
+	 * One use: this much essence came out of the pouch.
+	 * @return true when this use reached 3 uses left (time to warn, once)
 	 */
-	public boolean addFilled(Pouch p, int essence)
+	public boolean addUse(Pouch p, int essence)
 	{
 		if (p == null || essence <= 0)
 		{
 			return false;
 		}
 		boolean before = needsRepair(p);
-		stored.merge(p.name(), essence, Integer::sum);
+		capacity.merge(p.name(), essence, Math::max);
+		uses.merge(p.name(), 1, Integer::sum);
 		return !before && needsRepair(p);
 	}
 
-	/** The pouch has decayed (game message or decayed item seen): fully used. */
-	public void markDecayed(Pouch p)
+	/** Uses in total between repairs (12 for a colossal pouch holding 27). */
+	public int totalUses(Pouch p)
 	{
-		if (p != null)
+		int cap = capacity.getOrDefault(p.name(), 0);
+		if (cap <= 0)
 		{
-			stored.put(p.name(), Math.max(p.limit, stored.getOrDefault(p.name(), 0)));
+			cap = p == Pouch.COLOSSAL ? 40 : p == Pouch.GIANT ? 12 : p == Pouch.LARGE ? 9 : 6;
 		}
+		return Math.max(1, (int) Math.ceil(p.limit / (double) cap));
 	}
 
-	/** For the test button: this pouch counts as needing a repair (until the next repair). */
-	public void markNeedsRepair(Pouch p)
+	public int usesLeft(Pouch p)
 	{
-		if (p != null)
+		if (Boolean.TRUE.equals(decayed.get(p.name())))
 		{
-			int warnAt = (int) Math.ceil(p.limit * WARN_AT);
-			stored.put(p.name(), Math.max(warnAt, stored.getOrDefault(p.name(), 0)));
+			return 0;
 		}
+		return Math.max(0, totalUses(p) - uses.getOrDefault(p.name(), 0));
 	}
 
 	/** Part used since the last repair, 0..1. */
 	public double used(Pouch p)
 	{
-		return p == null ? 0 : Math.min(1.0, stored.getOrDefault(p.name(), 0) / (double) p.limit);
+		return p == null ? 0 : 1.0 - usesLeft(p) / (double) totalUses(p);
 	}
 
 	public boolean needsRepair(Pouch p)
 	{
-		return used(p) >= WARN_AT;
+		return p != null && usesLeft(p) <= WARN_USES_LEFT;
+	}
+
+	/** The pouch has decayed (game message or decayed item seen). */
+	public void markDecayed(Pouch p)
+	{
+		if (p != null)
+		{
+			decayed.put(p.name(), true);
+		}
+	}
+
+	/** For the test button: this pouch is at 3 uses left (until the next repair). */
+	public void markNeedsRepair(Pouch p)
+	{
+		if (p != null)
+		{
+			uses.put(p.name(), Math.max(uses.getOrDefault(p.name(), 0), totalUses(p) - WARN_USES_LEFT));
+		}
 	}
 
 	/** Any of these pouches needs a repair. */
@@ -127,31 +151,47 @@ public class PouchTracker
 		return false;
 	}
 
-	/** Any essence counted since the last repair. */
+	/** Any use counted since the last repair. */
 	public boolean hasAny()
 	{
-		return !stored.isEmpty();
+		return !uses.isEmpty() || !decayed.isEmpty();
 	}
 
-	/** All pouches repaired (the Dark Mage repairs them all at once). */
+	/** All pouches repaired (the Dark Mage repairs them all at once). What they hold stays. */
 	public void repaired()
 	{
-		stored.clear();
+		uses.clear();
+		decayed.clear();
 	}
 
 	public Saved save()
 	{
 		Saved s = new Saved();
-		s.stored = new LinkedHashMap<>(stored);
+		s.uses = new LinkedHashMap<>(uses);
+		s.capacity = new LinkedHashMap<>(capacity);
+		s.decayed = new LinkedHashMap<>(decayed);
 		return s;
 	}
 
 	public void load(Saved s)
 	{
-		stored.clear();
-		if (s != null && s.stored != null)
+		uses.clear();
+		capacity.clear();
+		decayed.clear();
+		if (s != null)
 		{
-			stored.putAll(s.stored);
+			if (s.uses != null)
+			{
+				uses.putAll(s.uses);
+			}
+			if (s.capacity != null)
+			{
+				capacity.putAll(s.capacity);
+			}
+			if (s.decayed != null)
+			{
+				decayed.putAll(s.decayed);
+			}
 		}
 	}
 }

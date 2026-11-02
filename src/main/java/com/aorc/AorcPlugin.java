@@ -649,7 +649,7 @@ public class AorcPlugin extends Plugin
 		for (PouchTracker.Pouch p : pouchesCarried)
 		{
 			d.pouchNames.add(p.getName());
-			d.pouchUsed.add(pouches.used(p));
+			d.pouchUses.add(pouches.usesLeft(p) + "/" + pouches.totalUses(p));
 		}
 		d.currentTripMillis = trips.getCurrentMillis(now);
 		d.currentTripRunes = trips.getCurrentRunes();
@@ -1283,9 +1283,9 @@ public class AorcPlugin extends Plugin
 			int after = pouchEssence(now);
 			if (after > before && (!guessed || after - before >= 2))
 			{
-				if (!noPouchWear && pouches.addFilled(from, after - before) && config.warnPouch())
+				if (!noPouchWear && pouches.addUse(from, after - before) && config.warnPouch())
 				{
-					warn("pouch", from.getName() + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage).");
+					warn("pouch", from.getName() + " is about to decay (" + pouches.usesLeft(from) + "/" + pouches.totalUses(from) + " uses left). Repair it with Astral Contact (Dark Mage).");
 				}
 				emptyPouch = null;
 				changed = true;

@@ -87,7 +87,7 @@ public final class PanelData
 	public String tripPlace;          // place shown in Trips, null = all trips
 	public boolean showBlocks;
 	public List<String> pouchNames = new ArrayList<>();   // essence pouches you carry
-	public List<Double> pouchUsed = new ArrayList<>();    // part used since the last repair (0..1)        // at Zeah: show "Blocks imbued"
+	public List<String> pouchUses = new ArrayList<>();    // "3/12": uses left / uses in total        // at Zeah: show "Blocks imbued"
 
 	// Goals
 	public int goalLevel;

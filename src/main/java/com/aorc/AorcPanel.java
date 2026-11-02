@@ -516,9 +516,11 @@ class AorcPanel extends PluginPanel
 		// essence pouches: part used since the last repair (orange = repair soon)
 		for (int i = 0; i < d.pouchNames.size(); i++)
 		{
-			double used = d.pouchUsed.get(i);
-			session.cell(d.pouchNames.get(i), used >= 0.75 ? "Repair! " + Math.round(used * 100) + "%" : Math.round(used * 100) + "% used",
-				used >= 0.75 ? Color.ORANGE : Color.LIGHT_GRAY);
+			// "9/12 uses left", orange "Repair! 3/12" at 3 uses left
+			String uses = d.pouchUses.get(i);
+			boolean repair = uses.startsWith("0/") || uses.startsWith("1/") || uses.startsWith("2/") || uses.startsWith("3/");
+			session.cell(d.pouchNames.get(i), repair ? "Repair! " + uses : uses + " uses left",
+				repair ? Color.ORANGE : Color.LIGHT_GRAY);
 		}
 		session.end();
 		testPouch.setVisible(!d.pouchNames.isEmpty());
