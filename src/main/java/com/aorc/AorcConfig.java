@@ -320,7 +320,7 @@ public interface AorcConfig extends Config
 	@ConfigItem(
 		keyName = "routeDebug",
 		name = "Route debug",
-		hidden = true,   // developer only: type ::aorcdebug in a client started from IntelliJ
+		hidden = true,   // developer only: button in the side panel of a client started from IntelliJ
 		description = "Show the route: a box with every step (object ID and spot), the object ID in the right-click menu "
 			+ "and a label above each route object (step number, passed / next)",
 		section = teleportSection,

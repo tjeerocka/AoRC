@@ -1688,29 +1688,25 @@ public class AorcPlugin extends Plugin
 
 	/**
 	 * Developer only: route debug works only in a client started from IntelliJ (not by the
-	 * Jagex / RuneLite launcher, so never for Plugin Hub users). Toggle it with ::aorcdebug.
+	 * Jagex / RuneLite launcher, so never for Plugin Hub users). The button for it is in the
+	 * side panel, and only there in such a client.
 	 */
 	boolean routeDebug()
 	{
 		return devClient() && config.routeDebug();
 	}
 
-	private static boolean devClient()
+	static boolean devClient()
 	{
 		return net.runelite.client.RuneLiteProperties.getLauncherVersion() == null;
 	}
 
-	@Subscribe
-	public void onCommandExecuted(net.runelite.api.events.CommandExecuted event)
+	/** Developer only: the "Route debug" button in the side panel turns it on and off. */
+	boolean toggleRouteDebug()
 	{
-		if (!"aorcdebug".equalsIgnoreCase(event.getCommand()) || !devClient())
-		{
-			return;
-		}
-		boolean on = !config.routeDebug();
+		boolean on = devClient() && !config.routeDebug();
 		configManager.setConfiguration(AorcConfig.GROUP, "routeDebug", on);
-		client.addChatMessage(net.runelite.api.ChatMessageType.GAMEMESSAGE, "",
-			"AoRC route debug " + (on ? "on" : "off"), null);
+		return on;
 	}
 
 	/** Route debug: the object ID in the right-click menu ("Examine Cave (ID 43762)"). */
