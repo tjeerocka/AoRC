@@ -1507,9 +1507,11 @@ public class AorcPlugin extends Plugin
 		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
 		{
 			clickedObject = null;   // walked somewhere else: show the way again
+			usingTarget = false;
 		}
 		else if (isObjectAction(event.getMenuAction()))
 		{
+			usingTarget = false;
 			clickedObject = net.runelite.api.coords.WorldPoint.fromScene(
 				client, event.getParam0(), event.getParam1(), client.getPlane());
 			lastClickedObject = clickedObject;
@@ -1825,6 +1827,7 @@ public class AorcPlugin extends Plugin
 
 	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing, or you use it now)
 	private WorldPoint clickedObject;            // the object you clicked last (its tile), for the line
+	private boolean usingTarget;                 // you reached the object you clicked (line and arrow off)
 	private WorldPoint lastClickedObject;        // same, kept when the next step changes (the rock you chip)
 	private WorldPoint ourHintArrow;             // the hint arrow we set (we only clear our own)
 	private final java.util.List<int[]> recording = new java.util.ArrayList<>();
@@ -1889,14 +1892,16 @@ public class AorcPlugin extends Plugin
 		if (t != null && clickedObject != null && t.getPlane() == clickedObject.getPlane()
 			&& Math.abs(t.getX() - clickedObject.getX()) <= 3 && Math.abs(t.getY() - clickedObject.getY()) <= 3)
 		{
-			if (distanceTo(o) <= 2)
+			if (usingTarget || distanceTo(o) <= 2)
 			{
+				usingTarget = true;   // reached it: stays hidden (no flicker while you mine)
 				t = null;
 			}
 		}
 		else if (t != null)
 		{
 			clickedObject = null;   // a new next step: show the way again
+			usingTarget = false;
 		}
 		nextTarget = t;
 		if (config.routeHintArrow() && nextTarget != null)
