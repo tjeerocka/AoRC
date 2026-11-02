@@ -847,6 +847,46 @@ public class LogicTest
 	}
 
 	@Test
+	public void recordedWalkBecomesCornersSplitAtJumps()
+	{
+		java.util.List<int[]> walk = new java.util.ArrayList<>();
+		for (int x = 0; x <= 5; x++)
+		{
+			walk.add(new int[]{100 + x, 200, 0});        // east
+		}
+		for (int y = 1; y <= 4; y++)
+		{
+			walk.add(new int[]{105, 200 + y, 0});        // then north
+		}
+		walk.add(new int[]{140, 240, 0});                // through a cave: a jump
+		walk.add(new int[]{141, 240, 0});
+		java.util.List<java.util.List<int[]>> pieces = AorcPaths.pieces(walk);
+		assertEquals(2, pieces.size());
+		assertEquals(3, pieces.get(0).size());          // start, the corner, the end
+		assertEquals(105, pieces.get(0).get(1)[0]);
+		assertEquals(200, pieces.get(0).get(1)[1]);
+	}
+
+	@Test
+	public void lineFollowsAKnownPathAroundTheWall()
+	{
+		AorcPaths.PATHS.clear();
+		AorcPaths.PATHS.add(new int[][]{{100, 200, 0}, {105, 200, 0}, {105, 204, 0}});
+		// from the start to the end: past the corner, not straight
+		java.util.List<int[]> pts = AorcPaths.line(100, 200, 0, 105, 204, 0);
+		assertEquals(2, pts.size());
+		assertEquals(105, pts.get(0)[0]);
+		assertEquals(200, pts.get(0)[1]);
+		// backwards works too
+		pts = AorcPaths.line(105, 204, 0, 100, 200, 0);
+		assertEquals(105, pts.get(0)[0]);
+		assertEquals(200, pts.get(0)[1]);
+		// no path near you: a straight line (only the target)
+		assertEquals(1, AorcPaths.line(300, 300, 0, 105, 204, 0).size());
+		AorcPaths.PATHS.clear();
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

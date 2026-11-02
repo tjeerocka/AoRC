@@ -14,6 +14,7 @@ import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
@@ -76,6 +77,9 @@ public class AorcPlugin extends Plugin
 
 	@Inject
 	private RouteDebugOverlay routeDebugOverlay;
+
+	@Inject
+	private PathOverlay pathOverlay;
 
 	@Inject
 	private BankEssenceOverlay bankEssenceOverlay;
@@ -259,6 +263,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(teleportOverlay);
 		overlayManager.add(routeOverlay);
 		overlayManager.add(routeDebugOverlay);
+		overlayManager.add(pathOverlay);
 		overlayManager.add(bankEssenceOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
@@ -288,6 +293,9 @@ public class AorcPlugin extends Plugin
 		overlayManager.remove(teleportOverlay);
 		overlayManager.remove(routeOverlay);
 		overlayManager.remove(routeDebugOverlay);
+		overlayManager.remove(pathOverlay);
+		clearOurHintArrow();
+		saveRecording();
 		overlayManager.remove(bankEssenceOverlay);
 		if (panel != null)
 		{
@@ -1100,6 +1108,8 @@ public class AorcPlugin extends Plugin
 		updatePouchWear();
 		updateTeleport();
 		updateZeah();
+		updateNextTarget();
+		updateRecording();
 		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
@@ -1794,6 +1804,118 @@ public class AorcPlugin extends Plugin
 	private boolean pouchOnlyEmpty()
 	{
 		return nearAltar() && !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE;
+	}
+
+	// ---------- the way to the next step: hint arrow, line, edge arrow; path recorder ----------
+
+	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing)
+	private WorldPoint ourHintArrow;             // the hint arrow we set (we only clear our own)
+	private final java.util.List<int[]> recording = new java.util.ArrayList<>();
+
+	/** The next thing to click on your route, for the line and the arrows. */
+	WorldPoint nextTargetPoint()
+	{
+		return nextTarget;
+	}
+
+	/** Each tick: the next target (the closest highlighted route object) and the hint arrow on it. */
+	private void updateNextTarget()
+	{
+		net.runelite.api.TileObject o = closest(routeTargets());
+		nextTarget = o == null ? null : o.getWorldLocation();
+		if (config.routeHintArrow() && nextTarget != null)
+		{
+			if (!nextTarget.equals(ourHintArrow) && (!client.hasHintArrow() || ourHintArrow != null))
+			{
+				client.setHintArrow(nextTarget);
+				ourHintArrow = nextTarget;
+			}
+		}
+		else
+		{
+			clearOurHintArrow();
+		}
+	}
+
+	/** Remove the hint arrow only if it is ours (not a quest's). */
+	private void clearOurHintArrow()
+	{
+		if (ourHintArrow != null)
+		{
+			if (client.hasHintArrow() && ourHintArrow.equals(client.getHintArrowPoint()))
+			{
+				client.clearHintArrow();
+			}
+			ourHintArrow = null;
+		}
+	}
+
+	/** The tiles walked while recording (for the yellow trail). */
+	java.util.List<int[]> recordedWalk()
+	{
+		return recording;
+	}
+
+	/** Record path (Developer): every new tile you stand on; saved to a file when turned off. */
+	private void updateRecording()
+	{
+		if (!config.recordPath())
+		{
+			saveRecording();
+			return;
+		}
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null)
+		{
+			return;
+		}
+		WorldPoint w = p.getWorldLocation();
+		int[] last = recording.isEmpty() ? null : recording.get(recording.size() - 1);
+		if (last == null || last[0] != w.getX() || last[1] != w.getY() || last[2] != w.getPlane())
+		{
+			recording.add(new int[]{w.getX(), w.getY(), w.getPlane()});
+		}
+	}
+
+	/** Write the recorded walk (all tiles, and the corners per piece) to .runelite/aorc/paths. */
+	private void saveRecording()
+	{
+		if (recording.isEmpty())
+		{
+			return;
+		}
+		java.io.File dir = new java.io.File(new java.io.File(RuneLite.RUNELITE_DIR, "aorc"), "paths");
+		String name = "path-" + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date()) + ".txt";
+		StringBuilder sb = new StringBuilder("# AoRC recorded path: x, y, plane\n# corners per piece (a cave / climb starts a new piece)\n");
+		for (java.util.List<int[]> piece : AorcPaths.pieces(recording))
+		{
+			sb.append("piece\n");
+			for (int[] pt : piece)
+			{
+				sb.append(pt[0]).append(", ").append(pt[1]).append(", ").append(pt[2]).append('\n');
+			}
+		}
+		sb.append("# every tile\n");
+		for (int[] pt : recording)
+		{
+			sb.append(pt[0]).append(", ").append(pt[1]).append(", ").append(pt[2]).append('\n');
+		}
+		recording.clear();
+		try
+		{
+			java.nio.file.Files.createDirectories(dir.toPath());
+			java.nio.file.Files.write(new java.io.File(dir, name).toPath(),
+				sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			if (client.getGameState() == GameState.LOGGED_IN)
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+					"<col=00dcff>AoRC:</col> path saved: .runelite/aorc/paths/" + name, null);
+			}
+		}
+		catch (java.io.IOException e)
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> could not save the path", null);
+		}
 	}
 
 	/** Remove the menu entry that was just added (it is the last one). */

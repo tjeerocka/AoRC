@@ -318,6 +318,42 @@ public interface AorcConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "routeHintArrow",
+		name = "Arrow above the next step",
+		description = "The game's yellow arrow above the next thing to click on your route (also on the minimap)",
+		section = teleportSection,
+		position = 47
+	)
+	default boolean routeHintArrow()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "routeLine",
+		name = "Line to the next step",
+		description = "A line on the ground from you to the next thing to click (along recorded paths, not through walls)",
+		section = teleportSection,
+		position = 48
+	)
+	default boolean routeLine()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "routeEdgeArrow",
+		name = "Arrow at the screen edge",
+		description = "When the next thing to click is off screen, an arrow at the edge of the screen points to it",
+		section = teleportSection,
+		position = 49
+	)
+	default boolean routeEdgeArrow()
+	{
+		return true;
+	}
+
 	// ---- Developer ----
 
 	@ConfigSection(
@@ -337,6 +373,19 @@ public interface AorcConfig extends Config
 		position = 45
 	)
 	default boolean routeDebug()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "recordPath",
+		name = "Record path",
+		description = "Turn on, walk the way, turn off: the tiles you walked are saved to a file in "
+			+ ".runelite/aorc/paths (the file name is shown in the chat)",
+		section = devSection,
+		position = 46
+	)
+	default boolean recordPath()
 	{
 		return false;
 	}
