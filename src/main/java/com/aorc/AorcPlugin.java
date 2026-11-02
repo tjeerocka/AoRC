@@ -1696,6 +1696,12 @@ public class AorcPlugin extends Plugin
 			net.runelite.api.MenuEntry e = all[i];
 			if ("empty".equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId()))
 			{
+				// "Empty" is a low-priority option (listed under "Use"); as the left-click the game
+				// would open the menu instead, so make it a normal option (like Menu Entry Swapper)
+				if (e.getType() == net.runelite.api.MenuAction.CC_OP_LOW_PRIORITY)
+				{
+					e.setType(net.runelite.api.MenuAction.CC_OP);
+				}
 				// the last entry is the left-click
 				all[i] = all[all.length - 1];
 				all[all.length - 1] = e;
