@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The way to one altar, set by hand (no learning): whether you use a fairy ring, every object
+ * The way to one altar, set by hand: whether you use a fairy ring, every object
  * you go through on the way ({object ID, x, y, plane}, in order) and the altar itself.
  * The spot makes sure only that exact object is highlighted (the cave on the other side has
  * the same ID). A spot of -1 means "not known yet": the closest object with that ID is used.
@@ -131,20 +131,6 @@ public class AltarRoute
 		r.hidden.addAll(hidden);
 		r.hiddenAt.putAll(hiddenAt);
 		return r;
-	}
-
-	/** Index of the step at this spot (within 2 tiles, same floor; any object ID there), or -1. */
-	int findSpot(int x, int y, int plane)
-	{
-		for (int i = 0; i < steps.size(); i++)
-		{
-			int[] r = steps.get(i);
-			if (r[1] >= 0 && r[3] == plane && Math.abs(r[1] - x) <= 2 && Math.abs(r[2] - y) <= 2)
-			{
-				return i;
-			}
-		}
-		return -1;
 	}
 
 	/** Next to a step: this close (tiles) counts as standing at it. */

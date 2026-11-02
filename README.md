@@ -30,8 +30,31 @@ Sections can be folded; the plugin remembers which.
 
 - Blisterwood lantern not lit, blood essence not active, Raiments piece missing (checked at the Dark Altar)
 - Blood essence almost empty
-- Essence pouch about to decay (25% left): the pouch and Astral Contact are highlighted,
+- Essence pouch at durability 3 (read from the game): the pouch and NPC Contact are highlighted,
   and while you talk to the Dark Mage the text to click is coloured (colour in the settings)
+
+## Highlights (setting group "Teleport highlights")
+
+- **Teleports**: the bank teleport (when you are done at the altar) and the altar teleport (when you are
+  full) light up in your inventory / equipment. A teleport counts as used when you land where it takes you,
+  so a misclicked other teleport keeps the highlight.
+- **Routes**, built in, the next thing to click lights up (outline, the game's yellow arrow and a line
+  along recorded paths):
+  - **Blood - Mory**: fairy ring, the caves (the 93 or 74 Agility shortcuts, or the long way) and the ruins.
+    The cave back the wrong way loses its Enter option while its step is next.
+  - **Blood - Zeah**: runestone, the 69 / 52 shortcut, dark altar, chisel + dark block, blood altar
+    (bind, chisel all, bind again), the 73 climb back. Boosted Agility counts for the shortcuts.
+- **Bank**: the bank chests / bankers and the essence you used last, until inventory and pouches are full.
+  A full pouch has no Empty / Deposit in the bank; Fill is the left-click.
+- **Altar**: the pouch to empty next; near an altar the pouches have no Fill / Check and Empty is the
+  left-click (not at ZMI / Guardians of the Rift).
+
+## Developer (folded settings group)
+
+- **Route debug**: a box with your position, the route or Zeah state and what happened last, labels above
+  the route objects and the object ID + spot in the right-click menu.
+- **Record path**: record a walk (pick what you record in "Recording"); the file goes to
+  `.runelite/aorc/paths`, its corners can be built in so the line follows the real way.
 
 ## How counting works
 

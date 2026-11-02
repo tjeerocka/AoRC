@@ -11,8 +11,8 @@ import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
 /**
- * Route debug (setting "Route debug"): a box with the learned route of this altar and what
- * happened to your last click. The labels above the objects are drawn by RouteOverlay.
+ * Route debug (Developer setting): a box with the route of this altar (or the Zeah cycle), your
+ * position and what happened last. The labels above the objects are drawn by RouteOverlay.
  */
 class RouteDebugOverlay extends OverlayPanel
 {

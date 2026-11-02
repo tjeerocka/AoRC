@@ -667,13 +667,11 @@ public class LogicTest
 		AltarRoute r = AltarRoute.of(12875, 99);
 		assertEquals("Blood - Mory (93 Agility)", r.name);
 		assertEquals(5, r.steps.size());
-		// step 2: cave entrance 5046 at (3467, 9820)
-		assertEquals(1, r.findSpot(3468, 9819, 0));
-		// the ruins: found by the spot, also when you click the other ruins object (43477)
-		assertEquals(4, r.findSpot(3560, 9780, 0));
-		// the cave on the other side (far away) or another floor is not a step
-		assertEquals(-1, r.findSpot(3480, 9820, 0));
-		assertEquals(-1, r.findSpot(3467, 9820, 1));
+		// step 2: cave entrance 5046 at (3467, 9820); the same cave a few tiles off still counts
+		assertTrue(AltarRoute.same(r.steps.get(1), new int[]{5046, 3468, 9819, 0}));
+		// the cave with the same ID on the other side (far away) or on another floor does not
+		assertFalse(AltarRoute.same(r.steps.get(1), new int[]{5046, 3480, 9820, 0}));
+		assertFalse(AltarRoute.same(r.steps.get(1), new int[]{5046, 3467, 9820, 1}));
 		// the way back through step 4 is never highlighted
 		assertTrue(r.hidden.contains(43763));
 		assertTrue(r.hiddenAt.get(43763).contains(3));   // only while step 4 is next
@@ -746,13 +744,14 @@ public class LogicTest
 		assertEquals(5, AltarRoute.of(12875, 50).steps.size());
 		// 74 route: cave 43755 is step 5; 43756 / 43757 (the way back) blocked at steps 5 and 6
 		AltarRoute r = AltarRoute.of(12875, 80);
-		assertEquals(4, r.findSpot(3560, 9813, 0));
+		assertEquals(43755, r.steps.get(4)[0]);
+		assertEquals(3560, r.steps.get(4)[1]);
 		assertTrue(r.hiddenAt.get(43756).contains(4) && r.hiddenAt.get(43756).contains(5));
 		assertTrue(r.hidden.contains(43757));
 		// a spot not known yet (-1) is filled in from the closest object with that ID
 		AltarRoute u = new AltarRoute("test", 0, false, 1, new int[]{9, -1, -1, 0});
-		assertEquals(0, u.withSpots(id -> new int[]{3480, 9830, 0}).findSpot(3480, 9830, 0));
-		assertEquals(-1, u.findSpot(-1, -1, 0));
+		assertEquals(3480, u.withSpots(id -> new int[]{3480, 9830, 0}).steps.get(0)[1]);
+		assertEquals(-1, u.steps.get(0)[1]);
 	}
 
 	/** dense, dark, fragments, full, go, near dark altar, near blood altar, agility (not from blood, nothing used) */

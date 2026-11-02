@@ -154,7 +154,7 @@ public class AorcPlugin extends Plugin
 	private final Map<Integer, java.util.List<net.runelite.api.TileObject>> routeObjects = new HashMap<>();
 	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
 	// route debug: what happened to your last click, and how far you moved last tick
-	private String debugLastClick = "-";
+	private String debugLast = "-";
 	private int debugMoved;
 	private int nextStep = -1;          // the route step highlighted now (-1 = none)
 	// fairy rings in the scene (matched by name: rings can have different object IDs)
@@ -1475,7 +1475,7 @@ public class AorcPlugin extends Plugin
 					stepsPassed.add(k);
 				}
 				int[] st = r.steps.get(i);
-				debugLastClick = "step " + (i + 1) + " PASSED (" + objectName(st[0]) + " " + st[0] + ", moved " + moved + ")";
+				debugLast = "step " + (i + 1) + " PASSED (" + objectName(st[0]) + " " + st[0] + ", moved " + moved + ")";
 			}
 		}
 		if (teleported && fairyRingClicked)
@@ -1485,11 +1485,11 @@ public class AorcPlugin extends Plugin
 				&& Math.abs(fromX - fairyRingAt[0]) <= 3 && Math.abs(fromY - fairyRingAt[1]) <= 3)
 			{
 				fairyRingUsed = true;      // the fairy ring took you away: its outline is done
-				debugLastClick = "Fairy ring -> USED (moved " + moved + " tiles)";
+				debugLast = "Fairy ring -> USED (moved " + moved + " tiles)";
 			}
 			else
 			{
-				debugLastClick = "Fairy ring -> not used (you teleported from somewhere else)";
+				debugLast = "Fairy ring -> not used (you teleported from somewhere else)";
 			}
 			fairyRingClicked = false;
 		}
@@ -1559,7 +1559,7 @@ public class AorcPlugin extends Plugin
 			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
 				client, event.getParam0(), event.getParam1(), client.getPlane());
 			fairyRingAt = new int[]{w.getX(), w.getY(), w.getPlane()};
-			debugLastClick = "Fairy ring " + id + " (" + w.getX() + ", " + w.getY() + ") -> waiting for the teleport";
+			debugLast = "Fairy ring " + id + " (" + w.getX() + ", " + w.getY() + ") -> waiting for the teleport";
 		}
 	}
 
@@ -1646,7 +1646,7 @@ public class AorcPlugin extends Plugin
 			out.add("  " + (i + 1) + ". " + objectName(st[0]) + " " + st[0] + " (" + st[1] + ", " + st[2] + ", " + st[3] + ") "
 				+ (stepsPassed.contains(i) ? "passed" : i == nextStep ? "NEXT" : ""));
 		}
-		out.add("Last: " + debugLastClick);
+		out.add("Last: " + debugLast);
 		return out;
 	}
 
@@ -1851,7 +1851,7 @@ public class AorcPlugin extends Plugin
 		return nearAltar() && !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE;
 	}
 
-	// ---------- the way to the next step: hint arrow, line, edge arrow; path recorder ----------
+	// ---------- the way to the next step: hint arrow, line; path recorder ----------
 
 	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing, or you use it now)
 	private WorldPoint clickedObject;            // the object you clicked last (its tile), for the line

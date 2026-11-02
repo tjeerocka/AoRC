@@ -13,9 +13,9 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
 /**
- * In the game world: the next thing to click: on your way to the altar the fairy ring, the
- * altar entrance and the altar (learned from your own clicks); back at the bank the bank
- * chests, booths and bankers.
+ * In the game world, the next thing to click: on your way to the altar the fairy ring, the next
+ * cave and the altar (built-in routes), at Zeah the next object of the cycle; back at the bank
+ * the bank chests, booths and bankers. With Route debug: a label above each route object.
  */
 class RouteOverlay extends Overlay
 {
