@@ -1504,6 +1504,15 @@ public class AorcPlugin extends Plugin
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
+		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
+		{
+			clickedObject = null;   // walked somewhere else: show the way again
+		}
+		else if (isObjectAction(event.getMenuAction()))
+		{
+			clickedObject = net.runelite.api.coords.WorldPoint.fromScene(
+				client, event.getParam0(), event.getParam1(), client.getPlane());
+		}
 		if (option.equals("use") && target.contains("chisel") && target.contains("dark essence block") && lastInventory != null)
 		{
 			zeahChiselTick = client.getTickCount();
@@ -1808,7 +1817,8 @@ public class AorcPlugin extends Plugin
 
 	// ---------- the way to the next step: hint arrow, line, edge arrow; path recorder ----------
 
-	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing)
+	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing, or you use it now)
+	private WorldPoint clickedObject;            // the object you clicked last (its tile)
 	private WorldPoint ourHintArrow;             // the hint arrow we set (we only clear our own)
 	private final java.util.List<int[]> recording = new java.util.ArrayList<>();
 
@@ -1822,7 +1832,18 @@ public class AorcPlugin extends Plugin
 	private void updateNextTarget()
 	{
 		net.runelite.api.TileObject o = closest(routeTargets());
-		nextTarget = o == null ? null : o.getWorldLocation();
+		WorldPoint t = o == null ? null : o.getWorldLocation();
+		// you clicked it (you use it now): no line and no arrows, only its outline
+		if (t != null && clickedObject != null && t.getPlane() == clickedObject.getPlane()
+			&& Math.abs(t.getX() - clickedObject.getX()) <= 3 && Math.abs(t.getY() - clickedObject.getY()) <= 3)
+		{
+			t = null;
+		}
+		else if (t != null)
+		{
+			clickedObject = null;   // a new next step: show the way again
+		}
+		nextTarget = t;
 		if (config.routeHintArrow() && nextTarget != null)
 		{
 			if (!nextTarget.equals(ourHintArrow) && (!client.hasHintArrow() || ourHintArrow != null))
@@ -1885,8 +1906,10 @@ public class AorcPlugin extends Plugin
 			return;
 		}
 		java.io.File dir = new java.io.File(new java.io.File(RuneLite.RUNELITE_DIR, "aorc"), "paths");
-		String name = "path-" + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date()) + ".txt";
-		StringBuilder sb = new StringBuilder("# AoRC recorded path: x, y, plane\n# corners per piece (a cave / climb starts a new piece)\n");
+		String name = config.recordPiece().file + "-"
+			+ new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date()) + ".txt";
+		StringBuilder sb = new StringBuilder("# AoRC recorded path: " + config.recordPiece() + "\n# x, y, plane\n"
+			+ "# corners per piece (a cave / climb starts a new piece)\n");
 		for (java.util.List<int[]> piece : AorcPaths.pieces(recording))
 		{
 			sb.append("piece\n");

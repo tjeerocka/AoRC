@@ -389,4 +389,16 @@ public interface AorcConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "recordPiece",
+		name = "Recording",
+		description = "What you are recording (start and stop right next to the objects); it becomes the file name",
+		section = devSection,
+		position = 47
+	)
+	default RecordPiece recordPiece()
+	{
+		return RecordPiece.OTHER;
+	}
 }
