@@ -2556,9 +2556,9 @@ public class AorcPlugin extends Plugin
 			int dx = at.getX() - side[0];
 			int dy = at.getY() - side[1];
 			int d = Math.max(Math.abs(dx), Math.abs(dy));
-			if (d >= 2)
+			if (d >= 1)
 			{
-				// on the other side of that rock now (a short climb), or far away from it: used
+				// on the other side of that rock now (right after a short climb), or far away: used
 				double cos = (side[2] * dx + side[3] * dy) / (Math.hypot(side[2], side[3]) * Math.hypot(dx, dy));
 				if (cos < -0.3 || d > 7)
 				{
