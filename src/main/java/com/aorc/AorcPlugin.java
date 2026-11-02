@@ -1842,11 +1842,15 @@ public class AorcPlugin extends Plugin
 	{
 		net.runelite.api.TileObject o = closest(routeTargets());
 		WorldPoint t = o == null ? null : o.getWorldLocation();
-		// you clicked it (you use it now): no line and no arrows, only its outline
+		// you clicked it and you stand next to it (you use it now): no line and no arrows, only
+		// its outline; while you still walk there, the line stays
 		if (t != null && clickedObject != null && t.getPlane() == clickedObject.getPlane()
 			&& Math.abs(t.getX() - clickedObject.getX()) <= 3 && Math.abs(t.getY() - clickedObject.getY()) <= 3)
 		{
-			t = null;
+			if (distanceTo(o) <= 2)
+			{
+				t = null;
+			}
 		}
 		else if (t != null)
 		{
