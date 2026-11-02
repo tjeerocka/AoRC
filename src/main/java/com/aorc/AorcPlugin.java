@@ -145,6 +145,7 @@ public class AorcPlugin extends Plugin
 	private boolean smallPouchCarried;
 	// route to the altar, learned from your clicks (object IDs, -1 = not learned yet)
 	// the way to each altar (by the altar's map area), learned from your clicks
+	private static final int ROUTE_VERSION = 2;
 	private Map<Integer, AltarRoute> routes = new HashMap<>();
 	private boolean recordingFairyRing;     // this trip you used a fairy ring
 	private int lastEssence = -1;           // essence item used in your last craft
@@ -414,6 +415,7 @@ public class AorcPlugin extends Plugin
 		d.tripPlaces = places.save();
 		d.craftRegion = craftRegion;
 		d.routes = new HashMap<>(routes);
+		d.routeVersion = ROUTE_VERSION;
 		d.lastEssence = lastEssence;
 		d.essence = essence.save();
 		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
@@ -496,6 +498,15 @@ public class AorcPlugin extends Plugin
 				r.steps.addAll(d.routeSteps);
 			}
 			routes.put(craftRegion, r);
+		}
+		if (d.routeVersion == null || d.routeVersion < ROUTE_VERSION)
+		{
+			// older steps could be any object you clicked (a tree, a furnace): learn them again
+			for (AltarRoute r : routes.values())
+			{
+				r.steps.clear();
+			}
+			dirty = true;
 		}
 		lastEssence = d.lastEssence != null ? d.lastEssence : -1;
 		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;

@@ -31,6 +31,8 @@ public class AorcStorage
 		Integer routeFairyRing;
 		java.util.List<int[]> routeSteps;
 		Integer routeAltar;
+		// 2 = route steps only learned from objects that move you (older steps had trees, furnaces)
+		Integer routeVersion;
 		Integer lastEssence;
 		// level goal bar: the goal level and the XP the bar starts from
 		Integer goalStartLevel;
