@@ -1590,7 +1590,7 @@ public class AorcPlugin extends Plugin
 				+ "  frags " + lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
 				+ "  full " + inventoryFull + "  go " + zeahGo);
 			out.add("fragments full " + zeahCapped + "  bound here " + zeahBound);
-			out.add("near: runestone " + near(ZEAH_RUNESTONE, 15) + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
+			out.add("near: runestone " + near(ZEAH_RUNESTONE, ZEAH_AT_RUNESTONE) + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
 				+ "  blood altar " + near(ZEAH_BLOOD_ALTAR, 12));
 			out.add("from blood altar " + zeahFromBlood + "  used " + zeahUsed + "  runestones " + runestones.size()
 				+ "  agility " + client.getBoostedSkillLevel(Skill.AGILITY));
@@ -2315,6 +2315,8 @@ public class AorcPlugin extends Plugin
 	static final int ZEAH_LOW_TO_STONE = 27987;   // 52 Agility: from the dark altar to the runestone
 	static final int ZEAH_LOW_TO_ALTAR = 27988;   // 52 Agility: from the runestone to the dark altar
 	static final int ZEAH_LOW_AGILITY = 52;
+	// at the runestones: this close (the dark altar side of the 69 climb is only ~14 tiles away)
+	static final int ZEAH_AT_RUNESTONE = 8;
 	private boolean zeahFromBlood;                // on the way back from the blood altar
 	private final java.util.Set<Integer> zeahTouched = new java.util.HashSet<>();   // stood next to it
 	private final java.util.Set<Integer> zeahUsed = new java.util.HashSet<>();      // went over it
@@ -2434,7 +2436,7 @@ public class AorcPlugin extends Plugin
 		int step = zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
-			inventoryFull, zeahGo || zeahCapped, zeahCapped, zeahBound, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 15),
+			inventoryFull, zeahGo || zeahCapped, zeahCapped, zeahBound, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, ZEAH_AT_RUNESTONE),
 			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
 			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE) || zeahUsed.contains(ZEAH_SHORTCUT),
 			client.getBoostedSkillLevel(Skill.AGILITY));
