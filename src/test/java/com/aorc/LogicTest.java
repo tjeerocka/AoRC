@@ -808,6 +808,13 @@ public class LogicTest
 	}
 
 	@Test
+	public void zeahEmptyInventoryMines()
+	{
+		// logged in with nothing, not next to a runestone you can chip: still the runestone
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, zeah(0, 0, 0, false, false, false, false, 99));
+	}
+
+	@Test
 	public void zeahShortcutsByAgility()
 	{
 		// to the dark altar: 69 shortcut, 52 shortcut, or walk

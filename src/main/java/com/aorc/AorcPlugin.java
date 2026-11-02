@@ -1591,7 +1591,7 @@ public class AorcPlugin extends Plugin
 				+ "  frags " + lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
 				+ "  full " + inventoryFull + "  go " + zeahGo);
 			out.add("fragments full " + zeahCapped + "  bound here " + zeahBound);
-			out.add("near: runestone " + near(ZEAH_RUNESTONE, ZEAH_AT_RUNESTONE) + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
+			out.add("near: runestone " + atRunestones() + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
 				+ "  blood altar " + near(ZEAH_BLOOD_ALTAR, 12));
 			for (net.runelite.api.GameObject rs : runestones)
 			{
@@ -2513,7 +2513,7 @@ public class AorcPlugin extends Plugin
 		int step = zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
-			inventoryFull, zeahGo || zeahCapped, zeahCapped, zeahBound, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, ZEAH_AT_RUNESTONE),
+			inventoryFull, zeahGo || zeahCapped, zeahCapped, zeahBound, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), atRunestones(),
 			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
 			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE) || zeahUsed.contains(ZEAH_SHORTCUT),
 			client.getBoostedSkillLevel(Skill.AGILITY));
@@ -2576,6 +2576,10 @@ public class AorcPlugin extends Plugin
 			{
 				// back from the blood altar: the 73 climb, or walk
 				return agility >= ZEAH_CLIMB_AGILITY ? ZEAH_CLIMB_ROCKS : ZEAH_RUNESTONE;
+			}
+			if (frags == 0)
+			{
+				return ZEAH_RUNESTONE;   // empty inventory (just started): mine
 			}
 			// back from the dark altar (first trip, after chiselling): 69 climb, 52 shortcut, or walk
 			return agility >= ZEAH_SHORTCUT_AGILITY ? ZEAH_SHORTCUT
@@ -2732,6 +2736,19 @@ public class AorcPlugin extends Plugin
 		int dx = me.getX() < minX ? minX - me.getX() : me.getX() > maxX ? me.getX() - maxX : 0;
 		int dy = me.getY() < minY ? minY - me.getY() : me.getY() > maxY ? me.getY() - maxY : 0;
 		return Math.max(dx, dy);
+	}
+
+	/** You are at the runestones: next to any of them (also a depleted one), by its nearest edge. */
+	private boolean atRunestones()
+	{
+		for (net.runelite.api.GameObject o : runestones)
+		{
+			if (o.getPlane() == client.getPlane() && distanceTo(o) <= ZEAH_AT_RUNESTONE)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** You stand within 'range' tiles of an object with this ID. */
