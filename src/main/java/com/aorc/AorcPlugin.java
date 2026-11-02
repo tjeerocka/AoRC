@@ -1682,11 +1682,13 @@ public class AorcPlugin extends Plugin
 		return config.routeDebug();
 	}
 
-	/** Near an altar: "Empty" on a pouch is the left-click (moved to the top, like Menu Entry Swapper). */
+	/** Pouch left-click: "Empty" near an altar, "Fill" in the bank (moved to the top, like Menu Entry Swapper). */
 	@Subscribe
 	public void onPostMenuSort(net.runelite.api.events.PostMenuSort event)
 	{
-		if (client.isMenuOpen() || !pouchOnlyEmpty())
+		// near an altar: "Empty" is the left-click; in the bank: "Fill"
+		String wanted = pouchOnlyEmpty() ? "empty" : bankOpen() ? "fill" : null;
+		if (client.isMenuOpen() || wanted == null)
 		{
 			return;
 		}
@@ -1694,9 +1696,9 @@ public class AorcPlugin extends Plugin
 		for (int i = 0; i < all.length - 1; i++)
 		{
 			net.runelite.api.MenuEntry e = all[i];
-			if ("empty".equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId()))
+			if (wanted.equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId()))
 			{
-				// "Empty" is a low-priority option (listed under "Use"); as the left-click the game
+				// it can be a low-priority option (listed under "Use"); as the left-click the game
 				// would open the menu instead, so make it a normal option (like Menu Entry Swapper)
 				if (e.getType() == net.runelite.api.MenuAction.CC_OP_LOW_PRIORITY)
 				{
@@ -1776,6 +1778,12 @@ public class AorcPlugin extends Plugin
 		String opt = Text.removeTags(e.getOption());
 		if (("fill".equalsIgnoreCase(opt) || "check".equalsIgnoreCase(opt)) && isPouch(e.getItemId())
 			&& pouchOnlyEmpty())
+		{
+			removeMenuEntry(e);
+			return;
+		}
+		// in the bank: a full pouch has no "Empty", so a misclick never empties it again
+		if ("empty".equalsIgnoreCase(opt) && isPouch(e.getItemId()) && bankOpen() && pouchFull(e.getItemId()))
 		{
 			removeMenuEntry(e);
 			return;
@@ -2019,6 +2027,22 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** Essence in a pouch now (the game keeps it in a varbit). */
+	/** This pouch is full of essence. */
+	private boolean pouchFull(int itemId)
+	{
+		if (itemId == SMALL_POUCH)
+		{
+			return client.getVarbitValue(VarbitID.SMALL_ESSENCE_POUCH) >= 3;
+		}
+		PouchTracker.Pouch p = PouchTracker.of(itemId);
+		if (p == null)
+		{
+			return false;
+		}
+		int cap = PouchTracker.capacity(p, pouchWear(p), client.getRealSkillLevel(Skill.RUNECRAFT));
+		return cap > 0 && pouchAmount(p) >= cap;
+	}
+
 	private int pouchAmount(PouchTracker.Pouch p)
 	{
 		switch (p)
