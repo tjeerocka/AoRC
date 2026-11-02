@@ -2122,26 +2122,43 @@ public class AorcPlugin extends Plugin
 	static final int ZEAH_BLOOD_ALTAR = 27978;
 	static final int ZEAH_CLIMB_ROCKS = 27984;  // back to the runestones (73 Agility)
 	static final int ZEAH_CLIMB_AGILITY = 73;
+	static final int ZEAH_LOW_TO_STONE = 27987;   // 52 Agility: to the runestone
+	static final int ZEAH_LOW_TO_ALTAR = 27988;   // 52 Agility: from the runestone to the dark altar
+	static final int ZEAH_LOW_AGILITY = 52;
+	private boolean zeahFromBlood;                // on the way back from the blood altar
+	private final java.util.Set<Integer> zeahTouched = new java.util.HashSet<>();   // stood next to it
+	private final java.util.Set<Integer> zeahUsed = new java.util.HashSet<>();      // went over it
 	static final int CHISEL = 1755;
 	/** At this many fragments (when you get your dark blocks) you go to the blood altar. */
 	static final int ZEAH_FRAGMENTS = 100;
 	private boolean zeahGo;                      // these dark blocks go to the blood altar (not chiselled first)
 	private int zeahLastDark = -1;
 
-	/** You are at Zeah: one of its runestones or altars is in view. */
+	/** You are at Zeah: one of its runestones, altars or shortcuts is in view. */
 	private boolean zeahActive()
 	{
-		return !objectsInView(ZEAH_RUNESTONE).isEmpty() || !objectsInView(ZEAH_DARK_ALTAR).isEmpty()
-			|| !objectsInView(ZEAH_BLOOD_ALTAR).isEmpty();
+		for (int id : new int[]{ZEAH_RUNESTONE, ZEAH_DARK_ALTAR, ZEAH_BLOOD_ALTAR,
+			ZEAH_SHORTCUT, ZEAH_LOW_TO_ALTAR, ZEAH_CLIMB_ROCKS, ZEAH_LOW_TO_STONE})
+		{
+			if (!objectsInView(id).isEmpty())
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
-	/** Each tick: decide once, when you get your dark blocks, if they go to the blood altar. */
+	/**
+	 * Each tick: decide once, when you get your dark blocks, if they go to the blood altar;
+	 * and see which shortcut you used (stood next to it, now away from it).
+	 */
 	private void updateZeah()
 	{
 		if (lastInventory == null)
 		{
 			return;
 		}
+		int dense = lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0);
 		int dark = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0);
 		int frags = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0);
 		if (dark > 0 && zeahLastDark <= 0)
@@ -2153,6 +2170,31 @@ public class AorcPlugin extends Plugin
 			zeahGo = false;
 		}
 		zeahLastDark = dark;
+		if (near(ZEAH_BLOOD_ALTAR, 12))
+		{
+			zeahFromBlood = true;
+		}
+		if (dense > 0)
+		{
+			// mining: you made it back; the shortcuts are fresh for the next trip
+			zeahFromBlood = false;
+			if (!inventoryFull)
+			{
+				zeahUsed.clear();
+				zeahTouched.clear();
+			}
+		}
+		for (int id : new int[]{ZEAH_SHORTCUT, ZEAH_LOW_TO_ALTAR, ZEAH_CLIMB_ROCKS, ZEAH_LOW_TO_STONE})
+		{
+			if (near(id, 2))
+			{
+				zeahTouched.add(id);
+			}
+			else if (zeahTouched.contains(id) && !near(id, 5))
+			{
+				zeahUsed.add(id);
+			}
+		}
 	}
 
 	/**
@@ -2165,15 +2207,28 @@ public class AorcPlugin extends Plugin
 		{
 			return -2;
 		}
-		return zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
+		int step = zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
-			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12),
+			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 10),
+			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
+			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE),
 			client.getBoostedSkillLevel(Skill.AGILITY));
+		// a shortcut you cannot see yet: show where you are going instead
+		if ((step == ZEAH_SHORTCUT || step == ZEAH_LOW_TO_ALTAR) && objectsInView(step).isEmpty())
+		{
+			return ZEAH_DARK_ALTAR;
+		}
+		if ((step == ZEAH_CLIMB_ROCKS || step == ZEAH_LOW_TO_STONE) && objectsInView(step).isEmpty())
+		{
+			return ZEAH_RUNESTONE;
+		}
+		return step;
 	}
 
 	/** The Zeah cycle: what to click next (object ID, 0 = chisel the dark blocks, -1 = nothing). */
-	static int zeahStep(int dense, int dark, int frags, boolean full, boolean go, boolean nearDarkAltar, boolean nearBloodAltar,
+	static int zeahStep(int dense, int dark, int frags, boolean full, boolean go, boolean nearDarkAltar,
+		boolean nearBloodAltar, boolean nearRunestone, boolean fromBlood, boolean usedToAltar, boolean usedToStone,
 		int agility)
 	{
 		if (dark > 0)
@@ -2184,20 +2239,31 @@ public class AorcPlugin extends Plugin
 			}
 			return go ? ZEAH_BLOOD_ALTAR : 0;              // to the altar, or chisel them all first
 		}
-		if (nearBloodAltar)
+		if (nearBloodAltar && frags > 0)
 		{
-			if (frags > 0)
-			{
-				return ZEAH_BLOOD_ALTAR;   // bind the last ones
-			}
-			return agility >= ZEAH_CLIMB_AGILITY ? ZEAH_CLIMB_ROCKS : -1;   // back (below 73: walk)
+			return ZEAH_BLOOD_ALTAR;   // bind the last ones
 		}
 		if (dense > 0 && full)
 		{
-			// below 69 Agility: no shortcut, walk around to the dark altar
-			return nearDarkAltar || agility < ZEAH_SHORTCUT_AGILITY ? ZEAH_DARK_ALTAR : ZEAH_SHORTCUT;
+			// to the dark altar: the shortcut for your Agility (69 or 52), or walk
+			if (nearDarkAltar || usedToAltar)
+			{
+				return ZEAH_DARK_ALTAR;
+			}
+			return agility >= ZEAH_SHORTCUT_AGILITY ? ZEAH_SHORTCUT
+				: agility >= ZEAH_LOW_AGILITY ? ZEAH_LOW_TO_ALTAR : ZEAH_DARK_ALTAR;
 		}
-		return full ? -1 : ZEAH_RUNESTONE;
+		if (full)
+		{
+			return -1;
+		}
+		// back from the blood altar to the runestone: the shortcut for your Agility (73 or 52), or walk
+		if ((nearBloodAltar || fromBlood) && dense == 0 && !usedToStone && !nearRunestone)
+		{
+			return agility >= ZEAH_CLIMB_AGILITY ? ZEAH_CLIMB_ROCKS
+				: agility >= ZEAH_LOW_AGILITY ? ZEAH_LOW_TO_STONE : ZEAH_RUNESTONE;
+		}
+		return ZEAH_RUNESTONE;
 	}
 
 	/** Zeah: the chisel and the dark blocks are highlighted when you should chisel. */
