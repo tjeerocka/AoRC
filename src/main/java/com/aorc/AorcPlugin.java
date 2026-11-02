@@ -1592,9 +1592,9 @@ public class AorcPlugin extends Plugin
 	/** The route to the altar you are heading to (the one you crafted at last). */
 	private AltarRoute route()
 	{
-		// your real Agility level (boosts do not count) picks the shortcut route;
+		// your Agility level now (with boosts, like the game checks shortcuts) picks the route;
 		// steps without a known spot use the closest object with that ID you can see
-		return AltarRoute.of(craftRegion, client.getRealSkillLevel(Skill.AGILITY)).withSpots(this::closestSpot);
+		return AltarRoute.of(craftRegion, client.getBoostedSkillLevel(Skill.AGILITY)).withSpots(this::closestSpot);
 	}
 
 	private static boolean isObjectAction(net.runelite.api.MenuAction a)

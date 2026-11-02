@@ -13,7 +13,7 @@ import java.util.Map;
  * the same ID). A spot of -1 means "not known yet": the closest object with that ID is used.
  * Add a route to ROUTES below; the key is the altar's map area (region). An altar can have
  * more routes for different Agility levels (shortcuts): the one with the highest level you have
- * (real level, boosts do not count) is used.
+ * (with boosts, like the game checks shortcuts) is used.
  */
 public class AltarRoute
 {
@@ -94,7 +94,7 @@ public class AltarRoute
 			ruins));
 	}
 
-	/** The route to this altar for your (real) Agility level. */
+	/** The route to this altar for your Agility level (with boosts). */
 	static AltarRoute of(int altarRegion, int agility)
 	{
 		AltarRoute best = NONE;
