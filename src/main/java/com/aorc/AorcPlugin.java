@@ -157,6 +157,8 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
 	private final java.util.Set<net.runelite.api.GameObject> bankObjects = new java.util.HashSet<>();
+	// Zeah: the dense runestones in the scene (found by name)
+	private final java.util.Set<net.runelite.api.GameObject> runestones = new java.util.HashSet<>();
 	// altars in the scene: objects with a "Craft-rune" option
 	private final java.util.Set<net.runelite.api.GameObject> altars = new java.util.HashSet<>();
 	private final java.util.Set<net.runelite.api.NPC> bankNpcs = new java.util.HashSet<>();
@@ -895,6 +897,7 @@ public class AorcPlugin extends Plugin
 			fairyRings.clear();
 			bankObjects.clear();
 			altars.clear();
+			runestones.clear();
 			bankNpcs.clear();
 		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
@@ -1024,6 +1027,7 @@ public class AorcPlugin extends Plugin
 				}
 			}
 			checkPouches(event.getItemContainer());
+			zeahBlockSlot = closestToChisel(event.getItemContainer().getItems());
 			lastInventory = now;
 		}
 		else if (event.getContainerId() == InventoryID.EQUIPMENT.getId())
@@ -1545,6 +1549,21 @@ public class AorcPlugin extends Plugin
 	{
 		java.util.List<String> out = new java.util.ArrayList<>();
 		AltarRoute r = route();
+		if (zeahActive() && lastInventory != null)
+		{
+			int step = zeahObject();
+			out.add("Zeah: next " + (step == 0 ? "chisel (slot " + (zeahBlockSlot + 1) + ")" : step == -1 ? "nothing"
+				: objectName(step) + " " + step));
+			out.add("dense " + lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0)
+				+ "  dark " + lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0)
+				+ "  frags " + lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
+				+ "  full " + inventoryFull + "  go " + zeahGo);
+			out.add("near: runestone " + near(ZEAH_RUNESTONE, 15) + "  dark altar " + near(ZEAH_DARK_ALTAR, 15)
+				+ "  blood altar " + near(ZEAH_BLOOD_ALTAR, 12));
+			out.add("from blood altar " + zeahFromBlood + "  used " + zeahUsed + "  runestones " + runestones.size()
+				+ "  agility " + client.getBoostedSkillLevel(Skill.AGILITY));
+			return out;
+		}
 		out.add("Route: " + r.name);
 		out.add("Region now: " + regionId() + "   altar region: " + craftRegion);
 		out.add("Essence: " + (lastInventory == null ? 0 : essenceCount(lastInventory)) + "   moved: " + debugMoved + " tiles");
@@ -1629,6 +1648,12 @@ public class AorcPlugin extends Plugin
 		if (def != null && hasOption(def.getActions(), "craft-rune"))
 		{
 			altars.add(o);
+		}
+		net.runelite.api.ObjectComposition base = client.getObjectDefinition(o.getId());
+		if (o.getId() == ZEAH_RUNESTONE || (def != null && "Dense runestone".equalsIgnoreCase(def.getName()))
+			|| (base != null && "Dense runestone".equalsIgnoreCase(base.getName())))
+		{
+			runestones.add(o);
 		}
 	}
 
@@ -1943,6 +1968,7 @@ public class AorcPlugin extends Plugin
 		fairyRings.remove(event.getGameObject());
 		bankObjects.remove(event.getGameObject());
 		altars.remove(event.getGameObject());
+		runestones.remove(event.getGameObject());
 	}
 
 	/**
@@ -2193,11 +2219,11 @@ public class AorcPlugin extends Plugin
 		}
 		for (int id : new int[]{ZEAH_SHORTCUT, ZEAH_LOW_TO_ALTAR, ZEAH_CLIMB_ROCKS, ZEAH_LOW_TO_STONE})
 		{
-			if (near(id, 2))
+			if (near(id, 4))
 			{
 				zeahTouched.add(id);
 			}
-			else if (zeahTouched.contains(id) && !near(id, 5))
+			else if (zeahTouched.contains(id) && !near(id, 7))
 			{
 				zeahUsed.add(id);
 			}
@@ -2217,7 +2243,7 @@ public class AorcPlugin extends Plugin
 		int step = zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
-			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 10),
+			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 15),
 			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
 			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE) || zeahUsed.contains(ZEAH_SHORTCUT),
 			client.getBoostedSkillLevel(Skill.AGILITY));
@@ -2280,16 +2306,72 @@ public class AorcPlugin extends Plugin
 		return ZEAH_RUNESTONE;
 	}
 
-	/** Zeah: the chisel and the dark blocks are highlighted when you should chisel. */
-	boolean zeahItem(int itemId)
+	private int zeahBlockSlot = -1;   // the dark block closest to the chisel (inventory slot)
+
+	/** Inventory slot of the dark essence block closest to the chisel (4 per row), or -1. */
+	static int closestToChisel(net.runelite.api.Item[] items)
 	{
-		return (itemId == CHISEL || itemId == RuneIds.DARK_ESSENCE_BLOCK) && config.highlightRoute() && zeahObject() == 0;
+		int chisel = -1;
+		for (int i = 0; i < items.length; i++)
+		{
+			if (items[i] != null && items[i].getId() == CHISEL)
+			{
+				chisel = i;
+			}
+		}
+		int best = -1;
+		double bestD = Double.MAX_VALUE;
+		for (int i = 0; i < items.length; i++)
+		{
+			if (items[i] != null && items[i].getId() == RuneIds.DARK_ESSENCE_BLOCK)
+			{
+				// same row first (the block next to it), then the row above
+				double d = chisel < 0 ? i : Math.hypot(i % 4 - chisel % 4, 1.5 * (i / 4 - chisel / 4));
+				if (d < bestD)
+				{
+					bestD = d;
+					best = i;
+				}
+			}
+		}
+		return best;
 	}
 
-	/** Objects with this ID in view (on your floor). */
+	/** Zeah: the chisel and the dark block closest to it are highlighted when you should chisel. */
+	boolean zeahItem(int itemId, int slot)
+	{
+		if (!config.highlightRoute() || (itemId != CHISEL && itemId != RuneIds.DARK_ESSENCE_BLOCK))
+		{
+			return false;
+		}
+		if (itemId == RuneIds.DARK_ESSENCE_BLOCK && slot != zeahBlockSlot)
+		{
+			return false;
+		}
+		return zeahObject() == 0;
+	}
+
+	/** Objects with this ID in view (on your floor). The Zeah runestone: every one you can chip now. */
 	private java.util.List<net.runelite.api.TileObject> objectsInView(int id)
 	{
 		java.util.List<net.runelite.api.TileObject> out = new java.util.ArrayList<>();
+		if (id == ZEAH_RUNESTONE)
+		{
+			// the runestones change between "can chip" and depleted (other IDs): find them by name
+			for (net.runelite.api.GameObject o : runestones)
+			{
+				net.runelite.api.ObjectComposition def = client.getObjectDefinition(o.getId());
+				if (def != null && def.getImpostorIds() != null && def.getImpostor() != null)
+				{
+					def = def.getImpostor();
+				}
+				if (o.getPlane() == client.getPlane() && def != null && hasOption(def.getActions(), "chip"))
+				{
+					out.add(o);
+				}
+			}
+			return out;
+		}
 		for (net.runelite.api.TileObject o : routeObjects.getOrDefault(id, java.util.Collections.emptyList()))
 		{
 			if (o.getPlane() == client.getPlane())
@@ -2320,9 +2402,9 @@ public class AorcPlugin extends Plugin
 		return false;
 	}
 
-	Color teleportHighlight(int itemId)
+	Color teleportHighlight(int itemId, int slot)
 	{
-		if (zeahItem(itemId))
+		if (zeahItem(itemId, slot))
 		{
 			return RouteOverlay.ROUTE;
 		}

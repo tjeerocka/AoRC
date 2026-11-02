@@ -808,6 +808,21 @@ public class LogicTest
 	}
 
 	@Test
+	public void darkBlockClosestToTheChisel()
+	{
+		net.runelite.api.Item[] inv = new net.runelite.api.Item[28];
+		for (int i = 0; i < 25; i++)
+		{
+			inv[i] = new net.runelite.api.Item(RuneIds.DARK_ESSENCE_BLOCK, 1);
+		}
+		inv[25] = new net.runelite.api.Item(AorcPlugin.CHISEL, 1);      // slot 26: bottom row, 2nd
+		inv[26] = new net.runelite.api.Item(RuneIds.DARK_ESSENCE_FRAGMENTS, 500);
+		assertEquals(24, AorcPlugin.closestToChisel(inv));               // the block left of it
+		inv[24] = null;
+		assertEquals(21, AorcPlugin.closestToChisel(inv));               // then the one above
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

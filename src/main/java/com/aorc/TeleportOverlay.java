@@ -31,7 +31,7 @@ class TeleportOverlay extends WidgetItemOverlay
 	@Override
 	public void renderItemOverlay(Graphics2D g, int itemId, WidgetItem item)
 	{
-		Color c = plugin.teleportHighlight(itemId);
+		Color c = plugin.teleportHighlight(itemId, item.getIndex());
 		Rectangle b = c == null ? null : item.getCanvasBounds();
 		if (b == null)
 		{
