@@ -151,6 +151,9 @@ public class AorcPlugin extends Plugin
 	private final Map<Integer, net.runelite.api.GameObject> routeObjects = new HashMap<>();
 	// fairy rings in the scene (matched by name: rings can have different object IDs)
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
+	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
+	private final java.util.Set<net.runelite.api.GameObject> bankObjects = new java.util.HashSet<>();
+	private final java.util.Set<net.runelite.api.NPC> bankNpcs = new java.util.HashSet<>();
 	// altar teleport used (your location jumped): no more cyan box until you are full again
 	private boolean altarTeleportUsed;
 	private int lastX = -1;
@@ -162,6 +165,7 @@ public class AorcPlugin extends Plugin
 	private boolean fairyRingClicked;  // clicked: counts as used once you teleport
 	private boolean inventoryFull;     // no free inventory slot
 	private boolean pouchesAllFull = true;
+	private boolean pouchesAllEmpty = true;
 	private int lastTickRegion = -1;
 
 	enum Teleport
@@ -889,6 +893,8 @@ public class AorcPlugin extends Plugin
 		{
 			routeObjects.clear();   // new map area: the objects spawn again
 			fairyRings.clear();
+			bankObjects.clear();
+			bankNpcs.clear();
 		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
@@ -1401,6 +1407,7 @@ public class AorcPlugin extends Plugin
 				pouchesFull &= amount >= 3;
 			}
 			pouchesAllFull = pouchesFull;
+			pouchesAllEmpty = pouchesEmpty;
 			if (essence == 0)
 			{
 				altarTeleportUsed = false;   // used up: next time you are full, show it again
@@ -1522,6 +1529,91 @@ public class AorcPlugin extends Plugin
 		{
 			fairyRings.add(o);
 		}
+		if (hasBankOption(client.getObjectDefinition(o.getId())))
+		{
+			bankObjects.add(o);
+		}
+	}
+
+	private static boolean hasBankOption(net.runelite.api.ObjectComposition def)
+	{
+		if (def == null)
+		{
+			return false;
+		}
+		if (def.getImpostorIds() != null && def.getImpostor() != null)
+		{
+			def = def.getImpostor();
+		}
+		return hasOption(def.getActions(), "bank");
+	}
+
+	private static boolean hasOption(String[] actions, String option)
+	{
+		if (actions != null)
+		{
+			for (String a : actions)
+			{
+				if (a != null && a.equalsIgnoreCase(option))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	@Subscribe
+	public void onNpcSpawned(net.runelite.api.events.NpcSpawned event)
+	{
+		net.runelite.api.NPC npc = event.getNpc();
+		if (npc.getComposition() != null && hasOption(npc.getComposition().getActions(), "bank"))
+		{
+			bankNpcs.add(npc);
+		}
+	}
+
+	@Subscribe
+	public void onNpcDespawned(net.runelite.api.events.NpcDespawned event)
+	{
+		bankNpcs.remove(event.getNpc());
+	}
+
+	/**
+	 * Back from the altar with nothing on you (essence and pouches empty), bank not open yet:
+	 * the bank chests, booths and bankers around you, to click.
+	 */
+	java.util.List<java.awt.Shape> bankTargets()
+	{
+		java.util.List<java.awt.Shape> out = new java.util.ArrayList<>();
+		if (!config.highlightRoute() || lastInventory == null || craftRegion == -1 || regionId() == craftRegion
+			|| essenceCount(lastInventory) > 0 || !pouchesAllEmpty || bankOpen())
+		{
+			return out;
+		}
+		for (net.runelite.api.GameObject o : bankObjects)
+		{
+			if (o.getPlane() == client.getPlane() && o.getConvexHull() != null)
+			{
+				out.add(o.getConvexHull());
+			}
+		}
+		for (net.runelite.api.NPC n : bankNpcs)
+		{
+			if (n.getConvexHull() != null)
+			{
+				out.add(n.getConvexHull());
+			}
+		}
+		return out;
+	}
+
+	/** The bank (or a deposit box) is open. */
+	private boolean bankOpen()
+	{
+		net.runelite.api.widgets.Widget bank = client.getWidget(12, 0);
+		net.runelite.api.widgets.Widget box = client.getWidget(192, 0);
+		return (bank != null && !bank.isHidden()) || (box != null && !box.isHidden());
 	}
 
 	private boolean isFairyRing(int objectId)
@@ -1545,6 +1637,7 @@ public class AorcPlugin extends Plugin
 	{
 		routeObjects.remove(event.getGameObject().getId(), event.getGameObject());
 		fairyRings.remove(event.getGameObject());
+		bankObjects.remove(event.getGameObject());
 	}
 
 	/**

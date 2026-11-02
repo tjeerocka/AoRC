@@ -13,8 +13,9 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
 /**
- * In the game world: the next thing to click on your way to the altar
- * (fairy ring, altar entrance, the altar itself). Learned from your own clicks.
+ * In the game world: the next thing to click: on your way to the altar the fairy ring, the
+ * altar entrance and the altar (learned from your own clicks); back at the bank the bank
+ * chests, booths and bankers.
  */
 class RouteOverlay extends Overlay
 {
@@ -34,9 +35,13 @@ class RouteOverlay extends Overlay
 	public Dimension render(Graphics2D g)
 	{
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		java.util.List<Shape> shapes = new java.util.ArrayList<>(plugin.bankTargets());
 		for (GameObject o : plugin.routeTargets())
 		{
-			Shape hull = o.getConvexHull();
+			shapes.add(o.getConvexHull());
+		}
+		for (Shape hull : shapes)
+		{
 			if (hull == null)
 			{
 				continue;
