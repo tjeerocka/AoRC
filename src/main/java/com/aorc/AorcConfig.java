@@ -257,4 +257,16 @@ public interface AorcConfig extends Config
 	{
 		return HighlightColor.DARK_GREEN;
 	}
+
+	@ConfigItem(
+		keyName = "debugPouch",
+		name = "Debug pouch counting",
+		description = "Show grey chat lines about how the essence pouch uses are counted (to find problems)",
+		section = warnSection,
+		position = 37
+	)
+	default boolean debugPouch()
+	{
+		return false;
+	}
 }

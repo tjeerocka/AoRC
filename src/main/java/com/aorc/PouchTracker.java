@@ -8,7 +8,7 @@ import java.util.Map;
  * to decaying, so we count each use (every time essence comes out of the pouch) since its
  * last repair. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
  * medium 270, large 261, giant 120, colossal 320. Uses in total = that / what the pouch holds
- * (colossal at 27 essence: 320 / 27 = 12 uses). Warning at 3 uses left (25% left).
+ * (colossal at level 75-84 holds 27: 320 / 27 = 12 uses). Warning at 3 uses left (25% left).
  * The small pouch never decays.
  */
 public class PouchTracker
@@ -46,12 +46,11 @@ public class PouchTracker
 	public static class Saved
 	{
 		Map<String, Integer> uses = new LinkedHashMap<>();       // uses since the last repair
-		Map<String, Integer> capacity = new LinkedHashMap<>();   // most essence seen in one use
 		Map<String, Boolean> decayed = new LinkedHashMap<>();
 	}
 
 	private final Map<String, Integer> uses = new LinkedHashMap<>();
-	private final Map<String, Integer> capacity = new LinkedHashMap<>();
+	private int runecraftLevel = 99;
 	private final Map<String, Boolean> decayed = new LinkedHashMap<>();
 
 	/** The pouch for an item ID (normal or decayed), or null. */
@@ -84,20 +83,39 @@ public class PouchTracker
 			return false;
 		}
 		boolean before = needsRepair(p);
-		capacity.merge(p.name(), essence, Math::max);
 		uses.merge(p.name(), 1, Integer::sum);
 		return !before && needsRepair(p);
+	}
+
+	/** Your Runecraft level (the colossal pouch holds more at higher levels). */
+	public void setRunecraftLevel(int level)
+	{
+		if (level > 0)
+		{
+			runecraftLevel = level;
+		}
+	}
+
+	/** Essence a pouch holds (OSRS Wiki); colossal: 8 / 16 / 27 / 40 at level 25 / 50 / 75 / 85. */
+	public static int capacity(Pouch p, int runecraftLevel)
+	{
+		switch (p)
+		{
+			case MEDIUM:
+				return 6;
+			case LARGE:
+				return 9;
+			case GIANT:
+				return 12;
+			default:
+				return runecraftLevel >= 85 ? 40 : runecraftLevel >= 75 ? 27 : runecraftLevel >= 50 ? 16 : 8;
+		}
 	}
 
 	/** Uses in total between repairs (12 for a colossal pouch holding 27). */
 	public int totalUses(Pouch p)
 	{
-		int cap = capacity.getOrDefault(p.name(), 0);
-		if (cap <= 0)
-		{
-			cap = p == Pouch.COLOSSAL ? 40 : p == Pouch.GIANT ? 12 : p == Pouch.LARGE ? 9 : 6;
-		}
-		return Math.max(1, (int) Math.ceil(p.limit / (double) cap));
+		return Math.max(1, (int) Math.ceil(p.limit / (double) capacity(p, runecraftLevel)));
 	}
 
 	public int usesLeft(Pouch p)
@@ -129,6 +147,16 @@ public class PouchTracker
 		}
 	}
 
+	/** Set how many uses are left now (to match the game / another plugin). */
+	public void setUsesLeft(Pouch p, int left)
+	{
+		if (p != null)
+		{
+			uses.put(p.name(), Math.max(0, totalUses(p) - Math.max(0, left)));
+			decayed.remove(p.name());
+		}
+	}
+
 	/** For the test button: this pouch is at 3 uses left (until the next repair). */
 	public void markNeedsRepair(Pouch p)
 	{
@@ -157,7 +185,7 @@ public class PouchTracker
 		return !uses.isEmpty() || !decayed.isEmpty();
 	}
 
-	/** All pouches repaired (the Dark Mage repairs them all at once). What they hold stays. */
+	/** All pouches repaired (the Dark Mage repairs them all at once). */
 	public void repaired()
 	{
 		uses.clear();
@@ -168,7 +196,6 @@ public class PouchTracker
 	{
 		Saved s = new Saved();
 		s.uses = new LinkedHashMap<>(uses);
-		s.capacity = new LinkedHashMap<>(capacity);
 		s.decayed = new LinkedHashMap<>(decayed);
 		return s;
 	}
@@ -176,17 +203,12 @@ public class PouchTracker
 	public void load(Saved s)
 	{
 		uses.clear();
-		capacity.clear();
 		decayed.clear();
 		if (s != null)
 		{
 			if (s.uses != null)
 			{
 				uses.putAll(s.uses);
-			}
-			if (s.capacity != null)
-			{
-				capacity.putAll(s.capacity);
 			}
 			if (s.decayed != null)
 			{

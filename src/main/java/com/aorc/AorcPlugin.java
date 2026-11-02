@@ -1272,17 +1272,31 @@ public class AorcPlugin extends Plugin
 		// With one wearing pouch on you (the small pouch does not wear) it is that one.
 		PouchTracker.Pouch from = emptyPouch != null && tick - emptyTick <= 3 ? emptyPouch : null;
 		boolean guessed = false;
+		pouches.setRunecraftLevel(client.getRealSkillLevel(Skill.RUNECRAFT));
 		if (from == null && carried.size() == 1 && !bankOpen())
 		{
 			from = carried.iterator().next();
 			guessed = true;
 		}
+		if (lastInventory != null && carried.size() > 0 && pouchEssence(lastInventory) != pouchEssence(now))
+		{
+			pouchDebug("essence " + pouchEssence(lastInventory) + " -> " + pouchEssence(now)
+				+ ", bank open " + bankOpen() + ", pouch " + (from == null ? "-" : from.getName())
+				+ (emptyPouch != null ? ", Empty clicked " + (tick - emptyTick) + " ticks ago" : "")
+				+ (noPouchWear ? ", no wear (cape / redwood lantern)" : ""));
+		}
 		if (from != null && lastInventory != null)
 		{
 			int before = pouchEssence(lastInventory);
 			int after = pouchEssence(now);
-			if (after > before && (!guessed || after - before >= 2))
+			// a guessed use needs at least half a pouch (a few essence can be something else)
+			int half = Math.max(2, PouchTracker.capacity(from, client.getRealSkillLevel(Skill.RUNECRAFT)) / 2);
+			if (after > before && (!guessed || after - before >= half))
 			{
+				if (!noPouchWear)
+				{
+					pouchDebug("counted 1 use: " + pouches.usesLeft(from) + " -> " + (pouches.usesLeft(from) - 1) + " uses left");
+				}
 				if (!noPouchWear && pouches.addUse(from, after - before) && config.warnPouch())
 				{
 					warn("pouch", from.getName() + " is about to decay (" + pouches.usesLeft(from) + "/" + pouches.totalUses(from) + " uses left). Repair it with Astral Contact (Dark Mage).");
@@ -1316,6 +1330,10 @@ public class AorcPlugin extends Plugin
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
 		PouchTracker.Pouch p = PouchTracker.of(event.getItemId());
+		if (p != null)
+		{
+			pouchDebug("click: " + event.getMenuOption() + " on " + p.getName());
+		}
 		if (p != null && event.getMenuOption() != null && event.getMenuOption().startsWith("Empty"))
 		{
 			emptyPouch = p;
@@ -1346,6 +1364,26 @@ public class AorcPlugin extends Plugin
 	 * Test the pouch warning: the pouches you carry (or the colossal pouch) count as worn,
 	 * so you see the warning and the highlights. They go away after a repair at the Dark Mage.
 	 */
+	/** "Set uses left" in the side panel: the pouches you carry are at this many uses left now. */
+	public void setPouchUsesLeft(int left)
+	{
+		for (PouchTracker.Pouch p : pouchesCarried)
+		{
+			pouches.setUsesLeft(p, left);
+		}
+		dirty = true;
+		refreshPanel();
+	}
+
+	/** Debug line in the chat (setting "Debug pouch counting"). */
+	private void pouchDebug(String msg)
+	{
+		if (config.debugPouch())
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=808080>[AoRC pouch] " + msg + "</col>", null);
+		}
+	}
+
 	public void testPouchWarning()
 	{
 		java.util.Set<PouchTracker.Pouch> which = pouchesCarried.isEmpty()
