@@ -2122,7 +2122,7 @@ public class AorcPlugin extends Plugin
 	static final int ZEAH_BLOOD_ALTAR = 27978;
 	static final int ZEAH_CLIMB_ROCKS = 27984;  // back to the runestones (73 Agility)
 	static final int ZEAH_CLIMB_AGILITY = 73;
-	static final int ZEAH_LOW_TO_STONE = 27987;   // 52 Agility: to the runestone
+	static final int ZEAH_LOW_TO_STONE = 27987;   // 52 Agility: from the dark altar to the runestone
 	static final int ZEAH_LOW_TO_ALTAR = 27988;   // 52 Agility: from the runestone to the dark altar
 	static final int ZEAH_LOW_AGILITY = 52;
 	private boolean zeahFromBlood;                // on the way back from the blood altar
@@ -2164,6 +2164,12 @@ public class AorcPlugin extends Plugin
 		if (dark > 0 && zeahLastDark <= 0)
 		{
 			zeahGo = frags >= ZEAH_FRAGMENTS;
+		}
+		if (dark == 0 && zeahLastDark > 0)
+		{
+			// all chiselled / bound: the shortcuts you use from now on are on the way back
+			zeahUsed.clear();
+			zeahTouched.clear();
 		}
 		if (dark == 0)
 		{
@@ -2212,14 +2218,16 @@ public class AorcPlugin extends Plugin
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
 			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), near(ZEAH_RUNESTONE, 10),
 			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
-			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE),
+			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE) || zeahUsed.contains(ZEAH_SHORTCUT),
 			client.getBoostedSkillLevel(Skill.AGILITY));
 		// a shortcut you cannot see yet: show where you are going instead
 		if ((step == ZEAH_SHORTCUT || step == ZEAH_LOW_TO_ALTAR) && objectsInView(step).isEmpty())
 		{
 			return ZEAH_DARK_ALTAR;
 		}
-		if ((step == ZEAH_CLIMB_ROCKS || step == ZEAH_LOW_TO_STONE) && objectsInView(step).isEmpty())
+		boolean toStone = lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0) == 0 && !inventoryFull;
+		if ((step == ZEAH_CLIMB_ROCKS || step == ZEAH_LOW_TO_STONE || (step == ZEAH_SHORTCUT && toStone))
+			&& objectsInView(step).isEmpty())
 		{
 			return ZEAH_RUNESTONE;
 		}
@@ -2257,10 +2265,15 @@ public class AorcPlugin extends Plugin
 		{
 			return -1;
 		}
-		// back from the blood altar to the runestone: the shortcut for your Agility (73 or 52), or walk
-		if ((nearBloodAltar || fromBlood) && dense == 0 && !usedToStone && !nearRunestone)
+		if (dense == 0 && !usedToStone && !nearRunestone)
 		{
-			return agility >= ZEAH_CLIMB_AGILITY ? ZEAH_CLIMB_ROCKS
+			if (nearBloodAltar || fromBlood)
+			{
+				// back from the blood altar: the 73 climb, or walk
+				return agility >= ZEAH_CLIMB_AGILITY ? ZEAH_CLIMB_ROCKS : ZEAH_RUNESTONE;
+			}
+			// back from the dark altar (first trip, after chiselling): 69 climb, 52 shortcut, or walk
+			return agility >= ZEAH_SHORTCUT_AGILITY ? ZEAH_SHORTCUT
 				: agility >= ZEAH_LOW_AGILITY ? ZEAH_LOW_TO_STONE : ZEAH_RUNESTONE;
 		}
 		return ZEAH_RUNESTONE;

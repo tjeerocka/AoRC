@@ -770,7 +770,10 @@ public class LogicTest
 		// first trip: chisel all dark blocks (also after passing 100 fragments)
 		assertEquals(0, zeah(0, 26, 0, true, false, true, false, 99));
 		assertEquals(0, zeah(0, 5, 150, false, false, false, false, 99));
-		assertEquals(AorcPlugin.ZEAH_RUNESTONE, zeah(0, 0, 200, false, false, false, false, 99));
+		// all chiselled, back to the runestone over the 69 climb (or already next to the runestone)
+		assertEquals(AorcPlugin.ZEAH_SHORTCUT, zeah(0, 0, 200, false, false, false, false, 99));
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE,
+			AorcPlugin.zeahStep(0, 0, 200, false, false, false, false, true, false, false, false, 99));
 		// second trip: dark blocks + 100 fragments: to the blood altar, bind
 		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, zeah(0, 26, 200, true, true, true, false, 99));
 		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, zeah(0, 26, 200, true, true, false, true, 99));
@@ -787,10 +790,13 @@ public class LogicTest
 		assertEquals(AorcPlugin.ZEAH_SHORTCUT, zeah(26, 0, 0, true, false, false, false, 69));
 		assertEquals(AorcPlugin.ZEAH_LOW_TO_ALTAR, zeah(26, 0, 0, true, false, false, false, 68));
 		assertEquals(AorcPlugin.ZEAH_DARK_ALTAR, zeah(26, 0, 0, true, false, false, false, 51));
-		// back to the runestone: 73 climb, 52 shortcut, or walk
+		// back from the blood altar: 73 climb, or walk
 		assertEquals(AorcPlugin.ZEAH_CLIMB_ROCKS, zeah(0, 0, 0, false, false, false, true, 73));
-		assertEquals(AorcPlugin.ZEAH_LOW_TO_STONE, zeah(0, 0, 0, false, false, false, true, 72));
-		assertEquals(AorcPlugin.ZEAH_RUNESTONE, zeah(0, 0, 0, false, false, false, true, 51));
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, zeah(0, 0, 0, false, false, false, true, 72));
+		// back from the dark altar (first trip): 69 climb, 52 shortcut, or walk
+		assertEquals(AorcPlugin.ZEAH_SHORTCUT, zeah(0, 0, 150, false, false, false, false, 69));
+		assertEquals(AorcPlugin.ZEAH_LOW_TO_STONE, zeah(0, 0, 150, false, false, false, false, 68));
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, zeah(0, 0, 150, false, false, false, false, 51));
 		// shortcut used: on to the dark altar / the runestone
 		assertEquals(AorcPlugin.ZEAH_DARK_ALTAR,
 			AorcPlugin.zeahStep(26, 0, 0, true, false, false, false, false, false, true, false, 99));
