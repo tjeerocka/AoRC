@@ -9,6 +9,9 @@ public class AorcPluginTest
 	public static void main(String[] args) throws Exception
 	{
 		ExternalPluginManager.loadBuiltin(AorcPlugin.class);
-		RuneLite.main(args);
+		// developer mode: shows RuneLite's Developer Tools plugin (object IDs, inspector)
+		String[] all = java.util.Arrays.copyOf(args, args.length + 1);
+		all[args.length] = "--developer-mode";
+		RuneLite.main(java.util.Arrays.asList(args).contains("--developer-mode") ? args : all);
 	}
 }
