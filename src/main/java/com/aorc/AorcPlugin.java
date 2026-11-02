@@ -1985,7 +1985,12 @@ public class AorcPlugin extends Plugin
 			nextStep = -1;
 			if (zeah > 0)
 			{
-				out.addAll(objectsInView(zeah));
+				// only the closest one (two runestones: the one next to you)
+				net.runelite.api.TileObject o = closest(objectsInView(zeah));
+				if (o != null)
+				{
+					out.add(o);
+				}
 			}
 			return out;
 		}
@@ -2380,6 +2385,30 @@ public class AorcPlugin extends Plugin
 			}
 		}
 		return out;
+	}
+
+	/** The object closest to you, or null. */
+	private net.runelite.api.TileObject closest(java.util.List<net.runelite.api.TileObject> list)
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null)
+		{
+			return list.isEmpty() ? null : list.get(0);
+		}
+		net.runelite.api.coords.WorldPoint me = p.getWorldLocation();
+		net.runelite.api.TileObject best = null;
+		int bestD = Integer.MAX_VALUE;
+		for (net.runelite.api.TileObject o : list)
+		{
+			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+			int d = w == null ? Integer.MAX_VALUE - 1 : Math.max(Math.abs(w.getX() - me.getX()), Math.abs(w.getY() - me.getY()));
+			if (d < bestD)
+			{
+				bestD = d;
+				best = o;
+			}
+		}
+		return best;
 	}
 
 	/** You stand within 'range' tiles of an object with this ID. */
