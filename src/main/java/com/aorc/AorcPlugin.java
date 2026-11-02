@@ -2471,27 +2471,36 @@ public class AorcPlugin extends Plugin
 		WorldPoint at = me == null ? null : me.getWorldLocation();
 		for (int id : new int[]{ZEAH_SHORTCUT, ZEAH_LOW_TO_ALTAR, ZEAH_CLIMB_ROCKS, ZEAH_LOW_TO_STONE})
 		{
-			net.runelite.api.TileObject o = closest(objectsInView(id));
-			WorldPoint w = o == null ? null : o.getWorldLocation();
-			if (at == null || w == null)
+			if (at == null)
 			{
 				continue;
 			}
-			int dx = at.getX() - w.getX();
-			int dy = at.getY() - w.getY();
-			int d = Math.max(Math.abs(dx), Math.abs(dy));
+			// {rock x, rock y, your dx, your dy}: the rock you stood next to (a climb has a rock with
+			// the same ID at both ends: we keep measuring from the one you started at)
 			int[] side = zeahApproach.get(id);
 			if (side == null)
 			{
-				if (d <= 4 && d > 0)
+				net.runelite.api.TileObject o = closest(objectsInView(id));
+				WorldPoint w = o == null ? null : o.getWorldLocation();
+				if (w != null)
 				{
-					zeahApproach.put(id, new int[]{dx, dy});   // the side you came from
+					int dx = at.getX() - w.getX();
+					int dy = at.getY() - w.getY();
+					int d = Math.max(Math.abs(dx), Math.abs(dy));
+					if (d <= 4 && d > 0)
+					{
+						zeahApproach.put(id, new int[]{w.getX(), w.getY(), dx, dy});   // the side you came from
+					}
 				}
+				continue;
 			}
-			else if (d >= 2)
+			int dx = at.getX() - side[0];
+			int dy = at.getY() - side[1];
+			int d = Math.max(Math.abs(dx), Math.abs(dy));
+			if (d >= 2)
 			{
-				// on the other side now (a short climb), or far away from it: used
-				double cos = (side[0] * dx + side[1] * dy) / (Math.hypot(side[0], side[1]) * Math.hypot(dx, dy));
+				// on the other side of that rock now (a short climb), or far away from it: used
+				double cos = (side[2] * dx + side[3] * dy) / (Math.hypot(side[2], side[3]) * Math.hypot(dx, dy));
 				if (cos < -0.3 || d > 7)
 				{
 					zeahUsed.add(id);
