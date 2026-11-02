@@ -1487,12 +1487,32 @@ public class AorcPlugin extends Plugin
 			}
 			fairyRingClicked = false;
 		}
-		if (teleportNow == Teleport.ALTAR && teleported)
+		// the altar teleport is done only if the item you clicked first was the altar teleport item
+		// (a misclick on another teleport, then the right one during the animation: keep it lit)
+		boolean byAltarItem = teleClickWasAltar || client.getTickCount() - teleClickTick > 10;
+		if (teleportNow == Teleport.ALTAR && teleported && byAltarItem)
 		{
 			altarTeleportUsed = true;
 			next = null;
 		}
 		teleportNow = next;
+	}
+
+	private int teleClickTick = -100;            // you clicked a (teleport) item
+	private boolean teleClickWasAltar;           // ...and the first of those clicks was the altar teleport
+	private static final java.util.Set<String> NOT_TELEPORT = new java.util.HashSet<>(java.util.Arrays.asList(
+		"use", "drop", "examine", "wear", "wield", "remove", "check", "fill", "empty", "count", "cancel"));
+
+	/** This item is your altar teleport (setting "Altar teleport"). */
+	private boolean isAltarTeleportItem(int itemId)
+	{
+		TeleportItem wanted = config.altarTeleport();
+		if (wanted == null || wanted == TeleportItem.NONE)
+		{
+			return false;
+		}
+		String name = itemNames.computeIfAbsent(itemId, i -> itemManager.getItemComposition(i).getName());
+		return wanted.matches(name);
 	}
 
 	// ---------- route to the altar (set by hand in AltarRoute) ----------
@@ -1504,6 +1524,16 @@ public class AorcPlugin extends Plugin
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
+		// teleport items: remember the first item clicked (a second click during the animation does nothing)
+		int item = event.getItemId();
+		if (item > 0 && !isObjectAction(event.getMenuAction()) && !NOT_TELEPORT.contains(option))
+		{
+			if (client.getTickCount() - teleClickTick > 5)
+			{
+				teleClickWasAltar = isAltarTeleportItem(item);
+			}
+			teleClickTick = client.getTickCount();
+		}
 		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
 		{
 			clickedObject = null;   // walked somewhere else: show the way again
