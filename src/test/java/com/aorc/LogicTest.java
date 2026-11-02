@@ -906,7 +906,7 @@ public class LogicTest
 	@Test
 	public void zeahPathsAreBuiltIn()
 	{
-		assertEquals(6, AorcPaths.PATHS.size());
+		assertEquals(9, AorcPaths.PATHS.size());
 		// from the runestone to the 69 climb (34741 at 1761, 3873): along the recorded walk
 		java.util.List<int[]> pts = AorcPaths.line(1762, 3855, 0, 1761, 3873, 0);
 		assertTrue(pts.size() > 3);
