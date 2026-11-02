@@ -1625,6 +1625,10 @@ public class AorcPlugin extends Plugin
 	{
 		java.util.List<String> out = new java.util.ArrayList<>();
 		AltarRoute r = route();
+		net.runelite.api.Player me = client.getLocalPlayer();
+		WorldPoint at = me == null ? null : me.getWorldLocation();
+		out.add("You: " + (at == null ? "?" : at.getX() + ", " + at.getY() + ", " + at.getPlane())
+			+ "   region " + regionId());
 		if (zeahActive() && lastInventory != null)
 		{
 			int step = zeahObject();
