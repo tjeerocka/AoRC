@@ -645,7 +645,8 @@ public class AorcPlugin extends Plugin
 			d.lastTripMillis = p.getLastMillis();
 		}
 		d.showBlocks = isAtZeah();
-		// essence pouches you carry: part used since the last repair
+		// essence pouches you carry: uses left (pouch size depends on your Runecraft level)
+		pouches.setRunecraftLevel(client.getRealSkillLevel(Skill.RUNECRAFT));
 		for (PouchTracker.Pouch p : pouchesCarried)
 		{
 			d.pouchNames.add(p.getName());
