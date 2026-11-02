@@ -19,12 +19,17 @@ public class AltarRoute
 	{
 		for (int i = 0; i < steps.size(); i++)
 		{
-			int[] r = steps.get(i);
-			if (r[0] == step[0] && r[3] == step[3] && Math.abs(r[1] - step[1]) <= 2 && Math.abs(r[2] - step[2]) <= 2)
+			if (same(steps.get(i), step))
 			{
 				return i;
 			}
 		}
 		return -1;
+	}
+
+	/** Same object at the same spot (within 2 tiles, same floor). */
+	static boolean same(int[] a, int[] b)
+	{
+		return a[0] == b[0] && a[3] == b[3] && Math.abs(a[1] - b[1]) <= 2 && Math.abs(a[2] - b[2]) <= 2;
 	}
 }

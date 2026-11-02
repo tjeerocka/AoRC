@@ -671,4 +671,12 @@ public class LogicTest
 		assertEquals(-1, r.find(new int[]{12345, 3640, 3300, 0}));
 		assertEquals(-1, r.find(new int[]{12345, 3600, 3300, 1}));
 	}
+
+	@Test
+	public void sameStepIsOneSpot()
+	{
+		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));
+		assertFalse(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{8, 100, 100, 0}));
+		assertFalse(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 103, 100, 0}));
+	}
 }

@@ -152,7 +152,8 @@ public class AorcPlugin extends Plugin
 	// objects clicked on the way this trip: {object ID, x, y, plane}
 	private final java.util.List<int[]> recordingSteps = new java.util.ArrayList<>();
 	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
-	private int stepClicked = -1;      // step you just clicked: passed once you are moved away
+	private int[] pendingStep;         // object you just clicked: a step once it moves you
+	private int pendingStepTick;
 	// fairy rings in the scene (matched by name: rings can have different object IDs)
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
@@ -1421,7 +1422,7 @@ public class AorcPlugin extends Plugin
 				fairyRingUsed = false;
 				fairyRingClicked = false;
 				stepsPassed.clear();
-				stepClicked = -1;
+				pendingStep = null;
 				recordingSteps.clear();
 				recordingFairyRing = false;
 			}
@@ -1439,11 +1440,26 @@ public class AorcPlugin extends Plugin
 			}
 		}
 		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
-		boolean teleported = jumped();   // every tick, so it always compares with the last tick
-		if (teleported && stepClicked >= 0)
+		int moved = moved();             // every tick, so it always compares with the last tick
+		boolean teleported = moved > 10;
+		if (pendingStep != null && moved > 2)
 		{
-			stepsPassed.add(stepClicked);    // that cave / tunnel took you on: done for this trip
-			stepClicked = -1;
+			// the object you clicked moved you (cave, tunnel, ...): it is a real step of the route
+			java.util.List<int[]> rec = recordingSteps;
+			if (rec.isEmpty() || AltarRoute.same(rec.get(rec.size() - 1), pendingStep) == false)
+			{
+				rec.add(pendingStep);
+			}
+			int i = route().find(pendingStep);
+			for (int k = 0; k <= i; k++)
+			{
+				stepsPassed.add(k);          // this step and every step before it: done for this trip
+			}
+			pendingStep = null;
+		}
+		else if (pendingStep != null && client.getTickCount() - pendingStepTick > 50)
+		{
+			pendingStep = null;              // clicked but never went through it
 		}
 		if (teleported && fairyRingClicked)
 		{
@@ -1467,6 +1483,10 @@ public class AorcPlugin extends Plugin
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
+		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
+		{
+			pendingStep = null;   // walked somewhere else instead
+		}
 		if (id <= 0 || !isObjectAction(event.getMenuAction()))
 		{
 			return;
@@ -1490,15 +1510,15 @@ public class AorcPlugin extends Plugin
 			recordingFairyRing = true;
 			fairyRingClicked = true;     // used once you really teleport (see updateTeleport)
 		}
-		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0 && regionId() != craftRegion
+		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0
 			&& !hasBankOption(client.getObjectDefinition(id)))
 		{
-			// any other object on the way (cave, tunnel, ruins, ...): a step of your route
+			// any other object on the way: only a step if it moves you (cave, tunnel, ruins),
+			// so a tree or rock you click is never learned
 			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
 				client, event.getParam0(), event.getParam1(), client.getPlane());
-			int[] step = {id, w.getX(), w.getY(), w.getPlane()};
-			recordingSteps.add(step);
-			stepClicked = route().find(step);
+			pendingStep = new int[]{id, w.getX(), w.getY(), w.getPlane()};
+			pendingStepTick = client.getTickCount();
 		}
 	}
 
@@ -1522,7 +1542,11 @@ public class AorcPlugin extends Plugin
 	public void onGameObjectSpawned(net.runelite.api.events.GameObjectSpawned event)
 	{
 		net.runelite.api.GameObject o = event.getGameObject();
-		routeObjects.computeIfAbsent(o.getId(), k -> new java.util.ArrayList<>()).add(o);
+		java.util.List<net.runelite.api.GameObject> same = routeObjects.computeIfAbsent(o.getId(), k -> new java.util.ArrayList<>());
+		if (!same.contains(o))
+		{
+			same.add(o);
+		}
 		if (isFairyRing(o.getId()))
 		{
 			fairyRings.add(o);
@@ -1678,28 +1702,42 @@ public class AorcPlugin extends Plugin
 				}
 			}
 		}
-		// the steps on your way you have not passed yet this trip (only that exact object:
-		// the cave on the other side, with the same name, is not part of your way there)
-		if (!atAltar)
+		// only the NEXT step you have not passed yet this trip (the first one you can see), and
+		// only that exact object: the cave on the other side, with the same name, is not your way
+		for (int i = 0; i < route.steps.size(); i++)
 		{
-			for (int i = 0; i < route.steps.size(); i++)
+			if (stepsPassed.contains(i))
 			{
-				if (stepsPassed.contains(i))
+				continue;
+			}
+			int[] r = route.steps.get(i);
+			if (r[0] == route.altar)
+			{
+				continue;   // the altar has its own outline
+			}
+			boolean found = false;
+			for (net.runelite.api.GameObject o : routeObjects.getOrDefault(r[0], java.util.Collections.emptyList()))
+			{
+				net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+				if (w != null && AltarRoute.same(r, new int[]{r[0], w.getX(), w.getY(), w.getPlane()}))
 				{
-					continue;
-				}
-				int[] r = route.steps.get(i);
-				for (net.runelite.api.GameObject o : routeObjects.getOrDefault(r[0], java.util.Collections.emptyList()))
-				{
-					net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
-					if (w != null && w.getPlane() == r[3] && Math.abs(w.getX() - r[1]) <= 2 && Math.abs(w.getY() - r[2]) <= 2)
-					{
-						out.add(o);
-					}
+					out.add(o);
+					found = true;
 				}
 			}
+			if (found)
+			{
+				break;
+			}
 		}
-		return out;
+		// one outline per spot (two outlines on top of each other look twice as strong)
+		java.util.Map<String, net.runelite.api.GameObject> one = new java.util.LinkedHashMap<>();
+		for (net.runelite.api.GameObject o : out)
+		{
+			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+			one.putIfAbsent(o.getId() + ":" + w, o);
+		}
+		return new java.util.ArrayList<>(one.values());
 	}
 
 	/**
@@ -1729,20 +1767,21 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** Your location jumped since the last tick (a teleport). */
-	private boolean jumped()
+	/** How far you moved since the last tick (tiles); 99 for another floor. */
+	private int moved()
 	{
 		net.runelite.api.Player p = client.getLocalPlayer();
 		if (p == null || p.getWorldLocation() == null)
 		{
-			return false;
+			return 0;
 		}
 		net.runelite.api.coords.WorldPoint w = p.getWorldLocation();
-		boolean jump = lastX != -1 && (w.getPlane() != lastPlane
-			|| Math.abs(w.getX() - lastX) > 10 || Math.abs(w.getY() - lastY) > 10);
+		int d = lastX == -1 ? 0 : w.getPlane() != lastPlane ? 99
+			: Math.max(Math.abs(w.getX() - lastX), Math.abs(w.getY() - lastY));
 		lastX = w.getX();
 		lastY = w.getY();
 		lastPlane = w.getPlane();
-		return jump;
+		return d;
 	}
 
 	/** Essence in a pouch now (the game keeps it in a varbit). */
