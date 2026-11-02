@@ -47,11 +47,15 @@ public class PouchTracker
 	{
 		Map<String, Integer> uses = new LinkedHashMap<>();       // uses since the last repair
 		Map<String, Boolean> decayed = new LinkedHashMap<>();
+		// pouches whose durability is known (since a repair); null in older saves = none known
+		java.util.Set<String> known;
 	}
 
 	private final Map<String, Integer> uses = new LinkedHashMap<>();
 	private int runecraftLevel = 99;
 	private final Map<String, Boolean> decayed = new LinkedHashMap<>();
+	// durability is only known after a repair (the game never shows it)
+	private final java.util.Set<String> known = new java.util.HashSet<>();
 
 	/** The pouch for an item ID (normal or decayed), or null. */
 	public static Pouch of(int itemId)
@@ -144,7 +148,27 @@ public class PouchTracker
 
 	public boolean needsRepair(Pouch p)
 	{
-		return p != null && usesLeft(p) <= WARN_USES_LEFT;
+		if (p == null)
+		{
+			return false;
+		}
+		if (Boolean.TRUE.equals(decayed.get(p.name())))
+		{
+			return true;
+		}
+		return isKnown(p) && usesLeft(p) <= WARN_USES_LEFT;
+	}
+
+	/** Durability known (repaired since AoRC started counting)? Else the panel shows "?". */
+	public boolean isKnown(Pouch p)
+	{
+		return p != null && known.contains(p.name());
+	}
+
+	/** Fills counted since AoRC started counting this pouch (also while the durability is unknown). */
+	public int fills(Pouch p)
+	{
+		return p == null ? 0 : uses.getOrDefault(p.name(), 0);
 	}
 
 	/** The pouch has decayed (game message or decayed item seen). */
@@ -169,17 +193,20 @@ public class PouchTracker
 		return false;
 	}
 
-	/** Any use counted since the last repair. */
-	public boolean hasAny()
+	/**
+	 * All pouches repaired (the Dark Mage repairs them all at once): full durability, known now.
+	 * @return true when something changed
+	 */
+	public boolean repaired()
 	{
-		return !uses.isEmpty() || !decayed.isEmpty();
-	}
-
-	/** All pouches repaired (the Dark Mage repairs them all at once). */
-	public void repaired()
-	{
+		boolean changed = !uses.isEmpty() || !decayed.isEmpty() || known.size() < Pouch.values().length;
 		uses.clear();
 		decayed.clear();
+		for (Pouch p : Pouch.values())
+		{
+			known.add(p.name());
+		}
+		return changed;
 	}
 
 	public Saved save()
@@ -187,6 +214,7 @@ public class PouchTracker
 		Saved s = new Saved();
 		s.uses = new LinkedHashMap<>(uses);
 		s.decayed = new LinkedHashMap<>(decayed);
+		s.known = new java.util.HashSet<>(known);
 		return s;
 	}
 
@@ -194,8 +222,13 @@ public class PouchTracker
 	{
 		uses.clear();
 		decayed.clear();
+		known.clear();
 		if (s != null)
 		{
+			if (s.known != null)
+			{
+				known.addAll(s.known);
+			}
 			if (s.uses != null)
 			{
 				uses.putAll(s.uses);

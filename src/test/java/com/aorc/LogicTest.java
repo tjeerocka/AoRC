@@ -637,8 +637,19 @@ public class LogicTest
 		assertTrue(PouchTracker.isDegraded(26786));
 		assertEquals(null, PouchTracker.of(5509));   // small pouch never decays
 
-		// colossal at level 82 holds 27: 320 / 27 = 12 uses, warning at 3/12 left
+		// unknown until the first repair: counts fills, but no warning
 		t.setRunecraftLevel(82);
+		assertFalse(t.isKnown(c));
+		for (int i = 0; i < 11; i++)
+		{
+			assertFalse(t.addUse(c, 27));
+		}
+		assertEquals(11, t.fills(c));
+		assertFalse(t.needsRepair(c));
+		assertTrue(t.repaired());
+		assertTrue(t.isKnown(c));
+
+		// colossal at level 82 holds 27: 320 / 27 = 12 uses, warning at 3/12 left
 		for (int i = 0; i < 8; i++)
 		{
 			assertFalse(t.addUse(c, 27));

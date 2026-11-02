@@ -127,6 +127,8 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
 	// pouches that hold essence now (filled, not emptied yet): filling them again is no new use
 	private final java.util.Set<PouchTracker.Pouch> pouchFull = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
+	// pouches with unknown durability we already reminded you about (once per client start)
+	private final java.util.Set<PouchTracker.Pouch> remindedUnknown = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
 	private PouchTracker.Pouch lastFilled;  // last counted fill (undone if the game says there was no essence)
 	private int lastFilledTick;
 	private boolean noPouchWear;
@@ -650,7 +652,10 @@ public class AorcPlugin extends Plugin
 		for (PouchTracker.Pouch p : pouchesCarried)
 		{
 			d.pouchNames.add(p.getName());
-			d.pouchUses.add(pouches.usesLeft(p) + "/" + pouches.totalUses(p));
+			// "?/12 (5 fills)" until the first repair, then "9/12"
+			d.pouchUses.add(pouches.isKnown(p) || pouches.needsRepair(p)
+				? pouches.usesLeft(p) + "/" + pouches.totalUses(p)
+				: "?/" + pouches.totalUses(p) + " (" + pouches.fills(p) + (pouches.fills(p) == 1 ? " fill)" : " fills)"));
 		}
 		d.currentTripMillis = trips.getCurrentMillis(now);
 		d.currentTripRunes = trips.getCurrentRunes();
@@ -1326,6 +1331,11 @@ public class AorcPlugin extends Plugin
 			lastFilledTick = tick;
 			countUse(p, "fill");
 			dirty = true;
+			if (!pouches.isKnown(p) && config.warnPouch() && remindedUnknown.add(p))
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> I don't know the durability of your "
+					+ p.getName().toLowerCase() + " yet. Repair it once (Astral Contact, Dark Mage) and I will count it from then on.", null);
+			}
 		}
 		else if (option.startsWith("empty"))
 		{
@@ -1344,9 +1354,8 @@ public class AorcPlugin extends Plugin
 		String t = Text.removeTags(text.getText()).toLowerCase();
 		if (t.contains("repaired your pouches") || t.contains("transfiguration spell") || t.contains("repaired your pouch"))
 		{
-			if (pouches.hasAny())
+			if (pouches.repaired())
 			{
-				pouches.repaired();
 				dirty = true;
 			}
 		}

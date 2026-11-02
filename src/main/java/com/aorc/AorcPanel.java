@@ -510,7 +510,7 @@ class AorcPanel extends PluginPanel
 			// "9/12 durability", orange "Repair! 3/12" at 3 left
 			String uses = d.pouchUses.get(i);
 			boolean repair = uses.startsWith("0/") || uses.startsWith("1/") || uses.startsWith("2/") || uses.startsWith("3/");
-			session.cell(d.pouchNames.get(i), repair ? "Repair! " + uses : uses + " durability",
+			session.cell(d.pouchNames.get(i), repair ? "Repair! " + uses : uses.startsWith("?") ? uses : uses + " durability",
 				repair ? Color.ORANGE : Color.LIGHT_GRAY);
 		}
 		session.end();
