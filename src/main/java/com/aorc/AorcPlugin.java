@@ -1682,6 +1682,35 @@ public class AorcPlugin extends Plugin
 		return config.routeDebug();
 	}
 
+	/** Near an altar: "Empty" on a pouch is the left-click (moved to the top, like Menu Entry Swapper). */
+	@Subscribe
+	public void onPostMenuSort(net.runelite.api.events.PostMenuSort event)
+	{
+		if (client.isMenuOpen() || !pouchOnlyEmpty())
+		{
+			return;
+		}
+		net.runelite.api.MenuEntry[] all = client.getMenuEntries();
+		for (int i = 0; i < all.length - 1; i++)
+		{
+			net.runelite.api.MenuEntry e = all[i];
+			if ("empty".equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId()))
+			{
+				// the last entry is the left-click
+				all[i] = all[all.length - 1];
+				all[all.length - 1] = e;
+				client.setMenuEntries(all);
+				return;
+			}
+		}
+	}
+
+	/** Within 10 tiles of an altar (not at ZMI or Guardians of the Rift, where you fill there). */
+	private boolean pouchOnlyEmpty()
+	{
+		return nearAltar() && !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE;
+	}
+
 	/** Remove the menu entry that was just added (it is the last one). */
 	private void removeMenuEntry(net.runelite.api.MenuEntry e)
 	{
@@ -1740,7 +1769,7 @@ public class AorcPlugin extends Plugin
 		// (not at ZMI or Guardians of the Rift: there you fill your pouches next to the altar)
 		String opt = Text.removeTags(e.getOption());
 		if (("fill".equalsIgnoreCase(opt) || "check".equalsIgnoreCase(opt)) && isPouch(e.getItemId())
-			&& nearAltar() && !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE)
+			&& pouchOnlyEmpty())
 		{
 			removeMenuEntry(e);
 			return;
