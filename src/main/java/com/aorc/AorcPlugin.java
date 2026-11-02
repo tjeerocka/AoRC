@@ -1499,6 +1499,35 @@ public class AorcPlugin extends Plugin
 		}
 	}
 
+	/** {x, y, plane} of the closest object with this ID in view, or null. */
+	private int[] closestSpot(int id)
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		java.util.List<net.runelite.api.TileObject> list = routeObjects.get(id);
+		if (p == null || p.getWorldLocation() == null || list == null)
+		{
+			return null;
+		}
+		net.runelite.api.coords.WorldPoint me = p.getWorldLocation();
+		int[] best = null;
+		int bestD = Integer.MAX_VALUE;
+		for (net.runelite.api.TileObject o : list)
+		{
+			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+			if (w == null)
+			{
+				continue;
+			}
+			int d = Math.max(Math.abs(w.getX() - me.getX()), Math.abs(w.getY() - me.getY()));
+			if (d < bestD)
+			{
+				bestD = d;
+				best = new int[]{w.getX(), w.getY(), w.getPlane()};
+			}
+		}
+		return best;
+	}
+
 	private String objectName(int id)
 	{
 		net.runelite.api.ObjectComposition def = client.getObjectDefinition(id);
@@ -1563,7 +1592,9 @@ public class AorcPlugin extends Plugin
 	/** The route to the altar you are heading to (the one you crafted at last). */
 	private AltarRoute route()
 	{
-		return AltarRoute.of(craftRegion);
+		// your real Agility level (boosts do not count) picks the shortcut route;
+		// steps without a known spot use the closest object with that ID you can see
+		return AltarRoute.of(craftRegion, client.getRealSkillLevel(Skill.AGILITY)).withSpots(this::closestSpot);
 	}
 
 	private static boolean isObjectAction(net.runelite.api.MenuAction a)
@@ -1798,7 +1829,10 @@ public class AorcPlugin extends Plugin
 		}
 		if (routeDebug() && e.getType() == net.runelite.api.MenuAction.EXAMINE_OBJECT)
 		{
-			e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ")");
+			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
+				client, e.getParam0(), e.getParam1(), client.getPlane());
+			e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ", "
+				+ w.getX() + ", " + w.getY() + ", " + w.getPlane() + ")");
 		}
 	}
 

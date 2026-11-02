@@ -664,8 +664,8 @@ public class LogicTest
 	@Test
 	public void moryRouteStepsMatchTheExactSpot()
 	{
-		AltarRoute r = AltarRoute.of(12875);
-		assertEquals("Blood - Mory", r.name);
+		AltarRoute r = AltarRoute.of(12875, 99);
+		assertEquals("Blood - Mory (93 Agility)", r.name);
 		assertEquals(5, r.steps.size());
 		// step 2: cave entrance 5046 at (3467, 9820)
 		assertEquals(1, r.findSpot(3468, 9819, 0));
@@ -678,13 +678,13 @@ public class LogicTest
 		assertTrue(r.hidden.contains(43763));
 		assertEquals(Integer.valueOf(3), r.hiddenAt.get(43763));   // only while step 4 is next
 		// an altar without a route
-		assertEquals(0, AltarRoute.of(1).steps.size());
+		assertEquals(0, AltarRoute.of(1, 99).steps.size());
 	}
 
 	@Test
 	public void stepPassedWhenYouCrawlThroughIt()
 	{
-		AltarRoute r = AltarRoute.of(12875);
+		AltarRoute r = AltarRoute.of(12875, 99);
 		java.util.Set<Integer> passed = new java.util.HashSet<>();
 		passed.add(0);
 		// step 2 (3467, 9820), step 3 (3500, 9803): in front of step 2, then through it, out east
@@ -696,7 +696,7 @@ public class LogicTest
 	@Test
 	public void stepNotPassedWhenYouWalkBack()
 	{
-		AltarRoute r = AltarRoute.of(12875);
+		AltarRoute r = AltarRoute.of(12875, 99);
 		java.util.Set<Integer> passed = new java.util.HashSet<>();
 		passed.add(0);
 		assertEquals(-1, r.passedNow(passed, 3462, 9820, 0, 3464, 9820, 0, 2));
@@ -706,7 +706,7 @@ public class LogicTest
 	@Test
 	public void stepPassedWhenItTeleportsYou()
 	{
-		AltarRoute r = AltarRoute.of(12875);
+		AltarRoute r = AltarRoute.of(12875, 99);
 		java.util.Set<Integer> passed = new java.util.HashSet<>(java.util.Arrays.asList(0, 1, 2, 3));
 		// next to the ruins (3560, 9780), then far away inside the altar
 		assertEquals(4, r.passedNow(passed, 3561, 9781, 0, 2460, 4890, 0, 99));
@@ -715,7 +715,7 @@ public class LogicTest
 	@Test
 	public void afterLoginBetweenStepsTheEarlierOnesAreDone()
 	{
-		AltarRoute r = AltarRoute.of(12875);
+		AltarRoute r = AltarRoute.of(12875, 99);
 		java.util.Set<Integer> passed = new java.util.HashSet<>();
 		// logged in next to step 2 (nothing remembered): step 1 is done
 		assertEquals(0, r.passedNow(passed, 3466, 9821, 0, 3466, 9821, 0, 0));
@@ -734,6 +734,23 @@ public class LogicTest
 		assertTrue(AorcPlugin.isPouch(5514));    // giant
 		assertTrue(AorcPlugin.isPouch(26786));   // colossal, decayed
 		assertFalse(AorcPlugin.isPouch(565));    // blood rune
+	}
+
+	@Test
+	public void moryRoutePickedByAgility()
+	{
+		assertEquals(93, AltarRoute.of(12875, 93).minAgility);
+		assertEquals(74, AltarRoute.of(12875, 92).minAgility);
+		assertEquals(7, AltarRoute.of(12875, 80).steps.size());
+		assertEquals(0, AltarRoute.of(12875, 73).minAgility);
+		assertEquals(5, AltarRoute.of(12875, 50).steps.size());
+		// spots not known yet: filled in from the closest object with that ID
+		AltarRoute r = AltarRoute.of(12875, 80).withSpots(id -> id == 12770 ? new int[]{3480, 9830, 0} : null);
+		assertEquals(2, r.findSpot(3480, 9830, 0));
+		assertEquals(-1, r.findSpot(-1, -1, 0));
+		// a step without a known spot is never passed by accident
+		java.util.Set<Integer> passed = new java.util.HashSet<>(java.util.Arrays.asList(0, 1));
+		assertEquals(-1, AltarRoute.of(12875, 80).passedNow(passed, 0, 0, 0, 5, 5, 0, 0));
 	}
 
 	@Test

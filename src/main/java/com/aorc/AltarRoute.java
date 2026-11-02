@@ -10,11 +10,15 @@ import java.util.Map;
  * The way to one altar, set by hand (no learning): whether you use a fairy ring, every object
  * you go through on the way ({object ID, x, y, plane}, in order) and the altar itself.
  * The spot makes sure only that exact object is highlighted (the cave on the other side has
- * the same ID). Add a route to ROUTES below; the key is the altar's map area (region).
+ * the same ID). A spot of -1 means "not known yet": the closest object with that ID is used.
+ * Add a route to ROUTES below; the key is the altar's map area (region). An altar can have
+ * more routes for different Agility levels (shortcuts): the one with the highest level you have
+ * (real level, boosts do not count) is used.
  */
 public class AltarRoute
 {
 	final String name;
+	final int minAgility;
 	final boolean fairyRing;
 	final int altar;
 	final List<int[]> steps;
@@ -25,7 +29,13 @@ public class AltarRoute
 
 	AltarRoute(String name, boolean fairyRing, int altar, int[]... steps)
 	{
+		this(name, 0, fairyRing, altar, steps);
+	}
+
+	AltarRoute(String name, int minAgility, boolean fairyRing, int altar, int[]... steps)
+	{
 		this.name = name;
+		this.minAgility = minAgility;
 		this.fairyRing = fairyRing;
 		this.altar = altar;
 		List<int[]> list = new ArrayList<>();
@@ -48,23 +58,79 @@ public class AltarRoute
 	static final AltarRoute NONE = new AltarRoute("none", false, -1);
 
 	/** Routes by the altar's map area (region ID, shown as "altar region" in Route debug). */
-	static final Map<Integer, AltarRoute> ROUTES = new HashMap<>();
+	static final Map<Integer, List<AltarRoute>> ROUTES = new HashMap<>();
+
+	private static void add(int region, AltarRoute r)
+	{
+		ROUTES.computeIfAbsent(region, k -> new ArrayList<>()).add(r);
+	}
 
 	static
 	{
 		// Blood - Mory: fairy ring DLS, then the caves to the blood altar
-		ROUTES.put(12875, new AltarRoute("Blood - Mory", true, 43479,
-			new int[]{16308, 3447, 9821, 0},    // 1. Cave entrance
-			new int[]{5046, 3467, 9820, 0},     // 2. Cave entrance
-			new int[]{43759, 3500, 9803, 0},    // 3. Cave
+		int[] cave1 = {16308, 3447, 9821, 0};    // Cave entrance
+		int[] cave2 = {5046, 3467, 9820, 0};     // Cave entrance
+		int[] ruins = {25380, 3560, 9780, 0};    // Mysterious ruins
+		// 93 Agility: the shortcut
+		add(12875, new AltarRoute("Blood - Mory (93 Agility)", 93, true, 43479,
+			cave1, cave2,
+			new int[]{43759, 3500, 9803, 0},    // 3. Cave (93 Agility)
 			new int[]{43762, 3540, 9772, 0},    // 4. Cave
-			new int[]{25380, 3560, 9780, 0})    // 5. Mysterious ruins
+			ruins)
 			.hide(4, 43763));                   // step 4 from the other side (the way back)
+		// 74 Agility (spots not known yet: -1)
+		add(12875, new AltarRoute("Blood - Mory (74 Agility)", 74, true, 43479,
+			cave1, cave2,
+			new int[]{12770, -1, -1, 0},        // 3. Cave entrance
+			new int[]{12771, -1, -1, 0},        // 4. Cave entrance
+			new int[]{43755, -1, -1, 0},        // 5. Cave (74 Agility)
+			new int[]{43758, -1, -1, 0},        // 6. Cave
+			ruins));
+		// below 74 Agility: walk around after step 4
+		add(12875, new AltarRoute("Blood - Mory", 0, true, 43479,
+			cave1, cave2,
+			new int[]{12770, -1, -1, 0},        // 3. Cave entrance
+			new int[]{12771, -1, -1, 0},        // 4. Cave entrance
+			ruins));
 	}
 
-	static AltarRoute of(int altarRegion)
+	/** The route to this altar for your (real) Agility level. */
+	static AltarRoute of(int altarRegion, int agility)
 	{
-		return ROUTES.getOrDefault(altarRegion, NONE);
+		AltarRoute best = NONE;
+		for (AltarRoute r : ROUTES.getOrDefault(altarRegion, Collections.emptyList()))
+		{
+			if (agility >= r.minAgility && (best == NONE || r.minAgility > best.minAgility))
+			{
+				best = r;
+			}
+		}
+		return best;
+	}
+
+	/** This route with the unknown spots (-1) filled in by 'spotOf' (object ID -> {x, y, plane}, or null). */
+	AltarRoute withSpots(java.util.function.IntFunction<int[]> spotOf)
+	{
+		boolean unknown = false;
+		for (int[] st : steps)
+		{
+			unknown |= st[1] < 0;
+		}
+		if (!unknown)
+		{
+			return this;
+		}
+		int[][] filled = new int[steps.size()][];
+		for (int i = 0; i < steps.size(); i++)
+		{
+			int[] st = steps.get(i);
+			int[] at = st[1] < 0 ? spotOf.apply(st[0]) : null;
+			filled[i] = at == null ? st : new int[]{st[0], at[0], at[1], at[2]};
+		}
+		AltarRoute r = new AltarRoute(name, minAgility, fairyRing, altar, filled);
+		r.hidden.addAll(hidden);
+		r.hiddenAt.putAll(hiddenAt);
+		return r;
 	}
 
 	/** Index of the step at this spot (within 2 tiles, same floor; any object ID there), or -1. */
@@ -73,7 +139,7 @@ public class AltarRoute
 		for (int i = 0; i < steps.size(); i++)
 		{
 			int[] r = steps.get(i);
-			if (r[3] == plane && Math.abs(r[1] - x) <= 2 && Math.abs(r[2] - y) <= 2)
+			if (r[1] >= 0 && r[3] == plane && Math.abs(r[1] - x) <= 2 && Math.abs(r[2] - y) <= 2)
 			{
 				return i;
 			}
@@ -99,6 +165,10 @@ public class AltarRoute
 		for (int i = 0; i < steps.size(); i++)
 		{
 			int[] st = steps.get(i);
+			if (st[1] < 0)
+			{
+				continue;   // spot not known yet
+			}
 			if (!passed.contains(i) && moved > 2 && fromPlane == st[3]
 				&& Math.abs(fromX - st[1]) <= NEAR && Math.abs(fromY - st[2]) <= NEAR)
 			{
@@ -114,7 +184,7 @@ public class AltarRoute
 				best = Math.max(best, i - 1);
 			}
 			// between this step and the next one, past this one
-			if (i + 1 < steps.size() && steps.get(i + 1)[3] == plane)
+			if (i + 1 < steps.size() && steps.get(i + 1)[3] == plane && steps.get(i + 1)[1] >= 0)
 			{
 				int[] nx = steps.get(i + 1);
 				double gap = Math.hypot(nx[1] - st[1], nx[2] - st[2]);

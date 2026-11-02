@@ -307,7 +307,7 @@ public interface AorcConfig extends Config
 	@ConfigItem(
 		keyName = "highlightRoute",
 		name = "Highlight route to the altar",
-		description = "Highlight the fairy ring, every cave on the way and the altar (built-in routes, now: Blood - Mory). "
+		description = "Highlight the fairy ring, every cave on the way and the altar (built-in routes, now: Blood - Mory, with the shortcuts for your Agility level). "
 			+ "While a cave is highlighted, the cave next to it that takes you back has no Enter option. Also highlights "
 			+ "the essence to take in the bank (the essence you used last)",
 		section = teleportSection,
