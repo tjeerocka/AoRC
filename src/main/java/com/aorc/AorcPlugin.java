@@ -1803,8 +1803,8 @@ public class AorcPlugin extends Plugin
 		net.runelite.api.MenuEntry e = event.getMenuEntry();
 		// while a step is the highlighted one: no "Enter" on the object next to it that takes you
 		// back the wrong way (step 4 from the other side); "Walk here" and "Examine" stay
-		Integer at = route().hiddenAt.get(e.getIdentifier());
-		if (at != null && at == nextStep && isObjectAction(e.getType()))
+		java.util.Set<Integer> at = route().hiddenAt.get(e.getIdentifier());
+		if (at != null && at.contains(nextStep) && isObjectAction(e.getType()))
 		{
 			removeMenuEntry(e);
 			return;

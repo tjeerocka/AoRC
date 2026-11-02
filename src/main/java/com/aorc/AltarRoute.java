@@ -24,8 +24,8 @@ public class AltarRoute
 	final List<int[]> steps;
 	/** Objects never highlighted on this route (the way back through a cave, from the other side). */
 	final java.util.Set<Integer> hidden = new java.util.HashSet<>();
-	/** Object ID -> step (index): no "Enter" on that object while that step is the highlighted one. */
-	final Map<Integer, Integer> hiddenAt = new HashMap<>();
+	/** Object ID -> steps (index): no "Enter" on that object while one of those steps is the highlighted one. */
+	final Map<Integer, java.util.Set<Integer>> hiddenAt = new HashMap<>();
 
 	AltarRoute(String name, boolean fairyRing, int altar, int[]... steps)
 	{
@@ -49,7 +49,7 @@ public class AltarRoute
 		for (int id : ids)
 		{
 			hidden.add(id);
-			hiddenAt.put(id, step - 1);
+			hiddenAt.computeIfAbsent(id, k -> new java.util.HashSet<>()).add(step - 1);
 		}
 		return this;
 	}
@@ -78,19 +78,19 @@ public class AltarRoute
 			new int[]{43762, 3540, 9772, 0},    // 4. Cave
 			ruins)
 			.hide(4, 43763));                   // step 4 from the other side (the way back)
-		// 74 Agility (spots not known yet: -1)
+		int[] cave3 = {12770, 3484, 9832, 0};   // Cave entrance
+		int[] cave4 = {12771, 3492, 9861, 0};   // Cave entrance
+		// 74 Agility
 		add(12875, new AltarRoute("Blood - Mory (74 Agility)", 74, true, 43479,
-			cave1, cave2,
-			new int[]{12770, -1, -1, 0},        // 3. Cave entrance
-			new int[]{12771, -1, -1, 0},        // 4. Cave entrance
-			new int[]{43755, -1, -1, 0},        // 5. Cave (74 Agility)
-			new int[]{43758, -1, -1, 0},        // 6. Cave
-			ruins));
+			cave1, cave2, cave3, cave4,
+			new int[]{43755, 3560, 9813, 0},    // 5. Cave (74 Agility)
+			new int[]{43758, 3555, 9787, 0},    // 6. Cave
+			ruins)
+			.hide(5, 43756, 43757)              // steps 5 and 6 from the other side (the way back)
+			.hide(6, 43756, 43757));
 		// below 74 Agility: walk around after step 4
 		add(12875, new AltarRoute("Blood - Mory", 0, true, 43479,
-			cave1, cave2,
-			new int[]{12770, -1, -1, 0},        // 3. Cave entrance
-			new int[]{12771, -1, -1, 0},        // 4. Cave entrance
+			cave1, cave2, cave3, cave4,
 			ruins));
 	}
 

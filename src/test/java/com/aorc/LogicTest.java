@@ -676,7 +676,7 @@ public class LogicTest
 		assertEquals(-1, r.findSpot(3467, 9820, 1));
 		// the way back through step 4 is never highlighted
 		assertTrue(r.hidden.contains(43763));
-		assertEquals(Integer.valueOf(3), r.hiddenAt.get(43763));   // only while step 4 is next
+		assertTrue(r.hiddenAt.get(43763).contains(3));   // only while step 4 is next
 		// an altar without a route
 		assertEquals(0, AltarRoute.of(1, 99).steps.size());
 	}
@@ -744,13 +744,15 @@ public class LogicTest
 		assertEquals(7, AltarRoute.of(12875, 80).steps.size());
 		assertEquals(0, AltarRoute.of(12875, 73).minAgility);
 		assertEquals(5, AltarRoute.of(12875, 50).steps.size());
-		// spots not known yet: filled in from the closest object with that ID
-		AltarRoute r = AltarRoute.of(12875, 80).withSpots(id -> id == 12770 ? new int[]{3480, 9830, 0} : null);
-		assertEquals(2, r.findSpot(3480, 9830, 0));
-		assertEquals(-1, r.findSpot(-1, -1, 0));
-		// a step without a known spot is never passed by accident
-		java.util.Set<Integer> passed = new java.util.HashSet<>(java.util.Arrays.asList(0, 1));
-		assertEquals(-1, AltarRoute.of(12875, 80).passedNow(passed, 0, 0, 0, 5, 5, 0, 0));
+		// 74 route: cave 43755 is step 5; 43756 / 43757 (the way back) blocked at steps 5 and 6
+		AltarRoute r = AltarRoute.of(12875, 80);
+		assertEquals(4, r.findSpot(3560, 9813, 0));
+		assertTrue(r.hiddenAt.get(43756).contains(4) && r.hiddenAt.get(43756).contains(5));
+		assertTrue(r.hidden.contains(43757));
+		// a spot not known yet (-1) is filled in from the closest object with that ID
+		AltarRoute u = new AltarRoute("test", 0, false, 1, new int[]{9, -1, -1, 0});
+		assertEquals(0, u.withSpots(id -> new int[]{3480, 9830, 0}).findSpot(3480, 9830, 0));
+		assertEquals(-1, u.findSpot(-1, -1, 0));
 	}
 
 	@Test
