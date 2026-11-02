@@ -71,6 +71,12 @@ public class AorcPlugin extends Plugin
 	@Inject
 	private TeleportOverlay teleportOverlay;
 
+	@Inject
+	private RouteOverlay routeOverlay;
+
+	@Inject
+	private BankEssenceOverlay bankEssenceOverlay;
+
 
 	@Inject
 	private ConfigManager configManager;
@@ -137,11 +143,20 @@ public class AorcPlugin extends Plugin
 	private volatile Teleport teleportNow;
 	private final Map<Integer, String> itemNames = new HashMap<>();
 	private boolean smallPouchCarried;
+	// route to the altar, learned from your clicks (object IDs, -1 = not learned yet)
+	private int routeFairyRing = -1;
+	private int routeEntrance = -1;
+	private int routeAltar = -1;
+	private int lastEssence = -1;           // essence item used in your last craft
+	private final Map<Integer, net.runelite.api.GameObject> routeObjects = new HashMap<>();
 	// altar teleport used (your location jumped): no more cyan box until you are full again
 	private boolean altarTeleportUsed;
 	private int lastX = -1;
 	private int lastY = -1;
 	private int lastPlane = -1;
+	private int essenceDropped = -1;   // essence type that went down this tick
+	private int lastRouteClick = -1;   // last object clicked on the way to the altar
+	private int lastTickRegion = -1;
 
 	enum Teleport
 	{
@@ -226,6 +241,8 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(pouchOverlay);
 		overlayManager.add(repairSpellOverlay);
 		overlayManager.add(teleportOverlay);
+		overlayManager.add(routeOverlay);
+		overlayManager.add(bankEssenceOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = buildNav(ImageUtil.loadImageResource(getClass(), "icon.png"));
@@ -252,6 +269,8 @@ public class AorcPlugin extends Plugin
 		overlayManager.remove(pouchOverlay);
 		overlayManager.remove(repairSpellOverlay);
 		overlayManager.remove(teleportOverlay);
+		overlayManager.remove(routeOverlay);
+		overlayManager.remove(bankEssenceOverlay);
 		if (panel != null)
 		{
 			panel.stop();
@@ -382,6 +401,10 @@ public class AorcPlugin extends Plugin
 		d.trips = trips.save();
 		d.tripPlaces = places.save();
 		d.craftRegion = craftRegion;
+		d.routeFairyRing = routeFairyRing;
+		d.routeEntrance = routeEntrance;
+		d.routeAltar = routeAltar;
+		d.lastEssence = lastEssence;
 		d.essence = essence.save();
 		d.goalRunes = new java.util.LinkedHashMap<>(goalRunes);
 		d.goalStartLevel = goalStartLevel;
@@ -451,6 +474,10 @@ public class AorcPlugin extends Plugin
 		essence.load(d.essence);
 		places.load(d.tripPlaces);
 		craftRegion = d.craftRegion != null ? d.craftRegion : -1;
+		routeFairyRing = d.routeFairyRing != null ? d.routeFairyRing : -1;
+		routeEntrance = d.routeEntrance != null ? d.routeEntrance : -1;
+		routeAltar = d.routeAltar != null ? d.routeAltar : -1;
+		lastEssence = d.lastEssence != null ? d.lastEssence : -1;
 		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;
 		goalStartXp = d.goalStartXp != null ? d.goalStartXp : -1;
 		// older files have no goal counter yet: start from the rune counts
@@ -852,6 +879,10 @@ public class AorcPlugin extends Plugin
 			// Logged in: load this account's numbers (only the first time)
 			loadForAccount();
 		}
+		if (state == GameState.LOADING)
+		{
+			routeObjects.clear();   // new map area: the objects spawn again
+		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
 			fragmentsUsed = false;
@@ -928,6 +959,15 @@ public class AorcPlugin extends Plugin
 				if (essenceCount(lastInventory) > 0 && essenceCount(now) == 0)
 				{
 					essenceEmptied = true;
+				}
+
+				// essence that went down: remembered (when it was a craft) for the bank highlight
+				for (int ess : new int[]{RuneIds.PURE_ESSENCE, RuneIds.RUNE_ESSENCE, RuneIds.DAEYALT_ESSENCE})
+				{
+					if (now.getOrDefault(ess, 0) < lastInventory.getOrDefault(ess, 0))
+					{
+						essenceDropped = ess;
+					}
 				}
 
 				if (now.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0)
@@ -1034,6 +1074,7 @@ public class AorcPlugin extends Plugin
 
 		updatePouchWear();
 		updateTeleport();
+		updateRoute();
 		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
@@ -1149,6 +1190,10 @@ public class AorcPlugin extends Plugin
 				places.onCraft(TripLocations.placeOf(mainRune, runeTypes, arceuusCraft || soulAtZeah, guardianUsed, regionId()));
 				imbuedSinceCraft = false;
 				craftRegion = regionId();
+				if (essenceDropped != -1)
+				{
+					lastEssence = essenceDropped;   // the essence this craft used
+				}
 			}
 			if (imbued)
 			{
@@ -1168,6 +1213,7 @@ public class AorcPlugin extends Plugin
 		pendingGains.clear();
 		fragmentsUsed = false;
 		guardianUsed = false;
+		essenceDropped = -1;
 		// After the runes of this craft are counted, so they belong to this trip
 		endTripIfEmptied();
 	}
@@ -1359,6 +1405,126 @@ public class AorcPlugin extends Plugin
 			next = null;
 		}
 		teleportNow = next;
+	}
+
+	// ---------- route to the altar (learned from your clicks) ----------
+
+	/** Learn the route: the fairy ring, the entrance ("Enter") and the altar ("Craft-rune") you click. */
+	@Subscribe
+	public void onMenuOptionClicked(net.runelite.api.events.MenuOptionClicked event)
+	{
+		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
+		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
+		int id = event.getId();
+		if (id <= 0 || !isObjectAction(event.getMenuAction()))
+		{
+			return;
+		}
+		if (option.equals("craft-rune"))
+		{
+			learn(id, 2);
+		}
+		else if (target.contains("fairy ring") && essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0)
+		{
+			learn(id, 0);
+		}
+		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0 && regionId() != craftRegion)
+		{
+			// any other object on the way (cave, tunnel, ruins, ...): if you reach the altar
+			// right after it, it was the entrance (see updateRoute)
+			lastRouteClick = id;
+		}
+	}
+
+	/** Arrived at the altar: the last object you clicked on the way was the entrance. */
+	private void updateRoute()
+	{
+		int region = regionId();
+		if (craftRegion != -1 && region == craftRegion && lastTickRegion != -1 && lastTickRegion != craftRegion
+			&& lastRouteClick > 0)
+		{
+			learn(lastRouteClick, 1);
+		}
+		if (region != lastTickRegion)
+		{
+			lastRouteClick = -1;
+		}
+		lastTickRegion = region;
+	}
+
+	private static boolean isObjectAction(net.runelite.api.MenuAction a)
+	{
+		return a == net.runelite.api.MenuAction.GAME_OBJECT_FIRST_OPTION
+			|| a == net.runelite.api.MenuAction.GAME_OBJECT_SECOND_OPTION
+			|| a == net.runelite.api.MenuAction.GAME_OBJECT_THIRD_OPTION
+			|| a == net.runelite.api.MenuAction.GAME_OBJECT_FOURTH_OPTION
+			|| a == net.runelite.api.MenuAction.GAME_OBJECT_FIFTH_OPTION;
+	}
+
+	/** 0 = fairy ring, 1 = entrance, 2 = altar. */
+	private void learn(int objectId, int what)
+	{
+		int before = what == 0 ? routeFairyRing : what == 1 ? routeEntrance : routeAltar;
+		if (before == objectId)
+		{
+			return;
+		}
+		if (what == 0)
+		{
+			routeFairyRing = objectId;
+		}
+		else if (what == 1)
+		{
+			routeEntrance = objectId;
+		}
+		else
+		{
+			routeAltar = objectId;
+		}
+		dirty = true;
+	}
+
+	@Subscribe
+	public void onGameObjectSpawned(net.runelite.api.events.GameObjectSpawned event)
+	{
+		routeObjects.put(event.getGameObject().getId(), event.getGameObject());
+	}
+
+	@Subscribe
+	public void onGameObjectDespawned(net.runelite.api.events.GameObjectDespawned event)
+	{
+		routeObjects.remove(event.getGameObject().getId(), event.getGameObject());
+	}
+
+	/**
+	 * What to highlight in the world now: on the way (essence on you, away from the altar) the
+	 * fairy ring and the altar entrance; at the altar with essence, the altar.
+	 */
+	java.util.List<net.runelite.api.GameObject> routeTargets()
+	{
+		java.util.List<net.runelite.api.GameObject> out = new java.util.ArrayList<>();
+		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) == 0)
+		{
+			return out;
+		}
+		boolean atAltar = craftRegion != -1 && regionId() == craftRegion;
+		int[] ids = atAltar ? new int[]{routeAltar} : new int[]{routeFairyRing, routeEntrance, routeAltar};
+		for (int id : ids)
+		{
+			net.runelite.api.GameObject o = id > 0 ? routeObjects.get(id) : null;
+			if (o != null && o.getPlane() == client.getPlane())
+			{
+				out.add(o);
+			}
+		}
+		return out;
+	}
+
+	/** Bank: the essence to take (the one you used last), while you have none on you. */
+	boolean isBankEssence(int itemId)
+	{
+		return config.highlightRoute() && itemId == lastEssence && lastInventory != null
+			&& essenceCount(lastInventory) == 0;
 	}
 
 	/** Your location jumped since the last tick (a teleport). */

@@ -303,4 +303,17 @@ public interface AorcConfig extends Config
 	{
 		return TeleportItem.NONE;
 	}
+
+	@ConfigItem(
+		keyName = "highlightRoute",
+		name = "Highlight route to the altar",
+		description = "Highlight the fairy ring, the altar entrance and the altar on your way (learned from your own clicks), "
+			+ "and the essence to take in the bank (the essence you used last)",
+		section = teleportSection,
+		position = 44
+	)
+	default boolean highlightRoute()
+	{
+		return true;
+	}
 }
