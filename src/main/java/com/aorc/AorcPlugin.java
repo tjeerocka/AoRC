@@ -156,6 +156,9 @@ public class AorcPlugin extends Plugin
 	private int lastPlane = -1;
 	private int essenceDropped = -1;   // essence type that went down this tick
 	private int lastRouteClick = -1;   // last object clicked on the way to the altar
+	private boolean fairyRingUsed;     // used this trip: no more fairy ring outline until the next trip
+	private boolean inventoryFull;     // no free inventory slot
+	private boolean pouchesAllFull = true;
 	private int lastTickRegion = -1;
 
 	enum Teleport
@@ -1310,10 +1313,20 @@ public class AorcPlugin extends Plugin
 		pouchesCarried.clear();
 		pouchesDecayed.clear();
 		smallPouchCarried = false;
+		inventoryFull = false;
 		if (inv == null)
 		{
 			return;
 		}
+		int used = 0;
+		for (Item item : inv.getItems())
+		{
+			if (item.getId() > 0)
+			{
+				used++;
+			}
+		}
+		inventoryFull = used >= 28;
 		for (Item item : inv.getItems())
 		{
 			if (item.getId() == SMALL_POUCH)
@@ -1364,7 +1377,7 @@ public class AorcPlugin extends Plugin
 	private void updateTeleport()
 	{
 		Teleport next = null;
-		if (config.highlightTeleports() && lastInventory != null)
+		if (lastInventory != null)
 		{
 			int region = regionId();
 			int essence = essenceCount(lastInventory);
@@ -1383,18 +1396,23 @@ public class AorcPlugin extends Plugin
 				pouchesEmpty &= amount == 0;
 				pouchesFull &= amount >= 3;
 			}
-			// bank: only where you crafted last (known after one craft, also saved for restarts)
-			if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty)
-			{
-				next = Teleport.BANK;
-			}
-			else if (region != craftRegion && essence > 0 && pouchesFull && !altarTeleportUsed)
-			{
-				next = Teleport.ALTAR;
-			}
+			pouchesAllFull = pouchesFull;
 			if (essence == 0)
 			{
 				altarTeleportUsed = false;   // used up: next time you are full, show it again
+				fairyRingUsed = false;
+			}
+			if (config.highlightTeleports())
+			{
+				// bank: only where you crafted last (known after one craft, also saved for restarts)
+				if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty)
+				{
+					next = Teleport.BANK;
+				}
+				else if (region != craftRegion && essence > 0 && pouchesFull && !altarTeleportUsed)
+				{
+					next = Teleport.ALTAR;
+				}
 			}
 		}
 		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
@@ -1427,6 +1445,7 @@ public class AorcPlugin extends Plugin
 		else if (target.contains("fairy ring") && essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0)
 		{
 			learn(id, 0);
+			fairyRingUsed = true;
 		}
 		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0 && regionId() != craftRegion)
 		{
@@ -1508,7 +1527,8 @@ public class AorcPlugin extends Plugin
 			return out;
 		}
 		boolean atAltar = craftRegion != -1 && regionId() == craftRegion;
-		int[] ids = atAltar ? new int[]{routeAltar} : new int[]{routeFairyRing, routeEntrance, routeAltar};
+		int[] ids = atAltar ? new int[]{routeAltar}
+			: new int[]{fairyRingUsed ? -1 : routeFairyRing, routeEntrance, routeAltar};
 		for (int id : ids)
 		{
 			net.runelite.api.GameObject o = id > 0 ? routeObjects.get(id) : null;
@@ -1523,8 +1543,8 @@ public class AorcPlugin extends Plugin
 	/** Bank: the essence to take (the one you used last), while you have none on you. */
 	boolean isBankEssence(int itemId)
 	{
-		return config.highlightRoute() && itemId == lastEssence && lastInventory != null
-			&& essenceCount(lastInventory) == 0;
+		// until your inventory and your pouches are both full
+		return config.highlightRoute() && itemId == lastEssence && !(inventoryFull && pouchesAllFull);
 	}
 
 	/** Your location jumped since the last tick (a teleport). */
