@@ -165,7 +165,6 @@ public class AorcPlugin extends Plugin
 	private boolean fairyRingClicked;  // clicked: counts as used once you teleport
 	private boolean inventoryFull;     // no free inventory slot
 	private boolean pouchesAllFull = true;
-	private boolean pouchesAllEmpty = true;
 	private int lastTickRegion = -1;
 
 	enum Teleport
@@ -1407,7 +1406,6 @@ public class AorcPlugin extends Plugin
 				pouchesFull &= amount >= 3;
 			}
 			pouchesAllFull = pouchesFull;
-			pouchesAllEmpty = pouchesEmpty;
 			if (essence == 0)
 			{
 				altarTeleportUsed = false;   // used up: next time you are full, show it again
@@ -1580,14 +1578,15 @@ public class AorcPlugin extends Plugin
 	}
 
 	/**
-	 * Back from the altar with nothing on you (essence and pouches empty), bank not open yet:
+	 * Away from the altar until your inventory and pouches are full (bank not open right now):
 	 * the bank chests, booths and bankers around you, to click.
 	 */
 	java.util.List<java.awt.Shape> bankTargets()
 	{
 		java.util.List<java.awt.Shape> out = new java.util.ArrayList<>();
+		// until your inventory and your pouches are both full of essence
 		if (!config.highlightRoute() || lastInventory == null || craftRegion == -1 || regionId() == craftRegion
-			|| essenceCount(lastInventory) > 0 || !pouchesAllEmpty || bankOpen())
+			|| (inventoryFull && pouchesAllFull && essenceCount(lastInventory) > 0) || bankOpen())
 		{
 			return out;
 		}
