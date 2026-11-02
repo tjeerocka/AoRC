@@ -270,8 +270,8 @@ public interface AorcConfig extends Config
 	@ConfigItem(
 		keyName = "highlightTeleports",
 		name = "Highlight teleports",
-		description = "After your last craft (essence and pouches empty) the bank teleport is highlighted (yellow). "
-			+ "When you are full of essence (pouches full too) the altar teleport is highlighted (cyan).",
+		description = "After your last craft (essence and pouches empty) the bank teleport is highlighted. "
+			+ "When you are full of essence (pouches full too) the altar teleport is highlighted (both in cyan, like the route).",
 		section = teleportSection,
 		position = 41
 	)

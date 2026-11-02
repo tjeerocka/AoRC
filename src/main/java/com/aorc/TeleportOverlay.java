@@ -15,8 +15,8 @@ import net.runelite.client.ui.overlay.WidgetItemOverlay;
  */
 class TeleportOverlay extends WidgetItemOverlay
 {
-	static final Color BANK = new Color(255, 215, 0);     // yellow: teleport to the bank
-	static final Color ALTAR = new Color(0, 220, 255);    // cyan: teleport to the altar
+	static final Color BANK = RouteOverlay.ROUTE;         // cyan, like the rest of the route
+	static final Color ALTAR = RouteOverlay.ROUTE;        // cyan: teleport to the altar
 
 	private final AorcPlugin plugin;
 
