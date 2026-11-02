@@ -1415,7 +1415,8 @@ public class AorcPlugin extends Plugin
 				fairyRingClicked = false;
 				stepsPassed.clear();
 			}
-			if (config.highlightTeleports())
+			// Blood - Zeah: no bank and no altar teleport, you walk the whole cycle
+			if (config.highlightTeleports() && !zeahActive())
 			{
 				// bank: only where you crafted last (known after one craft, also saved for restarts)
 				if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty)
