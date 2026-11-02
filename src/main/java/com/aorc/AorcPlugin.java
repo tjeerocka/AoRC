@@ -1443,6 +1443,11 @@ public class AorcPlugin extends Plugin
 				if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty)
 				{
 					next = Teleport.BANK;
+					bankTeleportPending = true;
+				}
+				else if (bankTeleportPending && essence == 0 && !bankOpen())
+				{
+					next = Teleport.BANK;   // left the altar another way (a misclicked teleport): still lit
 				}
 				else if (region != craftRegion && essence > 0 && pouchesFull && !altarTeleportUsed)
 				{
@@ -1490,6 +1495,15 @@ public class AorcPlugin extends Plugin
 		// the altar teleport is done only if the item you clicked first was the altar teleport item
 		// (a misclick on another teleport, then the right one during the animation: keep it lit)
 		boolean byAltarItem = teleClickWasAltar || client.getTickCount() - teleClickTick > 10;
+		boolean byBankItem = teleClickWasBank || client.getTickCount() - teleClickTick > 10;
+		if (teleported && byBankItem && teleportNow == Teleport.BANK)
+		{
+			bankTeleportPending = false;   // the bank teleport took you away: done
+		}
+		if (lastInventory != null && (essenceCount(lastInventory) > 0 || bankOpen()))
+		{
+			bankTeleportPending = false;   // at the bank (or full again)
+		}
 		if (teleportNow == Teleport.ALTAR && teleported && byAltarItem)
 		{
 			altarTeleportUsed = true;
@@ -1500,13 +1514,14 @@ public class AorcPlugin extends Plugin
 
 	private int teleClickTick = -100;            // you clicked a (teleport) item
 	private boolean teleClickWasAltar;           // ...and the first of those clicks was the altar teleport
+	private boolean teleClickWasBank;            // ...or the bank teleport
+	private boolean bankTeleportPending;         // done at the altar: the bank teleport stays lit until used
 	private static final java.util.Set<String> NOT_TELEPORT = new java.util.HashSet<>(java.util.Arrays.asList(
 		"use", "drop", "examine", "wear", "wield", "remove", "check", "fill", "empty", "count", "cancel"));
 
-	/** This item is your altar teleport (setting "Altar teleport"). */
-	private boolean isAltarTeleportItem(int itemId)
+	/** This item is the teleport item set in the settings (bank or altar teleport). */
+	private boolean isTeleportItem(int itemId, TeleportItem wanted)
 	{
-		TeleportItem wanted = config.altarTeleport();
 		if (wanted == null || wanted == TeleportItem.NONE)
 		{
 			return false;
@@ -1530,7 +1545,8 @@ public class AorcPlugin extends Plugin
 		{
 			if (client.getTickCount() - teleClickTick > 5)
 			{
-				teleClickWasAltar = isAltarTeleportItem(item);
+				teleClickWasAltar = isTeleportItem(item, config.altarTeleport());
+				teleClickWasBank = isTeleportItem(item, config.bankTeleport());
 			}
 			teleClickTick = client.getTickCount();
 		}
