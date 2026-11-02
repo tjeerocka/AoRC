@@ -1842,6 +1842,27 @@ public class AorcPlugin extends Plugin
 	{
 		net.runelite.api.TileObject o = closest(routeTargets());
 		WorldPoint t = o == null ? null : o.getWorldLocation();
+		if (o == null && config.highlightRoute())
+		{
+			// Zeah: the next object is too far away to be loaded (the blood altar from the dark
+			// altar): point the line and arrows at where it is
+			int z = zeahObject();
+			int[] spot = z > 0 ? ZEAH_SPOTS.get(z) : null;
+			if (spot != null)
+			{
+				nextTarget = new WorldPoint(spot[0], spot[1], spot[2]);
+				clickedObject = null;
+				if (config.routeHintArrow())
+				{
+					setOurHintArrow(nextTarget);
+				}
+				else
+				{
+					clearOurHintArrow();
+				}
+				return;
+			}
+		}
 		// you clicked it and you stand next to it (you use it now): no line and no arrows, only
 		// its outline; while you still walk there, the line stays
 		if (t != null && clickedObject != null && t.getPlane() == clickedObject.getPlane()
@@ -1859,15 +1880,21 @@ public class AorcPlugin extends Plugin
 		nextTarget = t;
 		if (config.routeHintArrow() && nextTarget != null)
 		{
-			if (!nextTarget.equals(ourHintArrow) && (!client.hasHintArrow() || ourHintArrow != null))
-			{
-				client.setHintArrow(nextTarget);
-				ourHintArrow = nextTarget;
-			}
+			setOurHintArrow(nextTarget);
 		}
 		else
 		{
 			clearOurHintArrow();
+		}
+	}
+
+	/** Our hint arrow on this spot (never over a quest's arrow). */
+	private void setOurHintArrow(WorldPoint p)
+	{
+		if (!p.equals(ourHintArrow) && (!client.hasHintArrow() || ourHintArrow != null))
+		{
+			client.setHintArrow(p);
+			ourHintArrow = p;
 		}
 	}
 
@@ -2339,6 +2366,18 @@ public class AorcPlugin extends Plugin
 	private final Map<Integer, int[]> zeahApproach = new HashMap<>();             // side you came from
 	private final java.util.Set<Integer> zeahUsed = new java.util.HashSet<>();      // went over it
 	static final int CHISEL = 1755;
+	/** Where the Zeah objects are (for the line and arrows when they are too far to be loaded). */
+	static final Map<Integer, int[]> ZEAH_SPOTS = new HashMap<>();
+
+	static
+	{
+		ZEAH_SPOTS.put(ZEAH_RUNESTONE, new int[]{1762, 3850, 0});    // between the two runestones
+		ZEAH_SPOTS.put(ZEAH_SHORTCUT, new int[]{1761, 3873, 0});
+		ZEAH_SPOTS.put(ZEAH_DARK_ALTAR, new int[]{1715, 3882, 0});
+		ZEAH_SPOTS.put(ZEAH_BLOOD_ALTAR, new int[]{1715, 3828, 0});
+		ZEAH_SPOTS.put(ZEAH_CLIMB_ROCKS, new int[]{1743, 3854, 0});
+		ZEAH_SPOTS.put(ZEAH_LOW_TO_ALTAR, new int[]{1770, 3849, 0});
+	}
 	private boolean zeahGo;                      // these dark blocks go to the blood altar (not chiselled first)
 	private int zeahLastDark = -1;
 	private int zeahLastFrags = -1;
