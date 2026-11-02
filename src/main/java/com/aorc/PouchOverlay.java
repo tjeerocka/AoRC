@@ -9,7 +9,7 @@ import javax.inject.Inject;
 import net.runelite.api.widgets.WidgetItem;
 import net.runelite.client.ui.overlay.WidgetItemOverlay;
 
-/** Inventory: an orange box around an essence pouch that needs a repair. */
+/** Inventory: a box around an essence pouch: cyan = empty it now (at the altar), orange = needs a repair. */
 class PouchOverlay extends WidgetItemOverlay
 {
 
@@ -28,7 +28,9 @@ class PouchOverlay extends WidgetItemOverlay
 	@Override
 	public void renderItemOverlay(Graphics2D g, int itemId, WidgetItem item)
 	{
-		if (!plugin.pouchNeedsRepair(itemId))
+		// at the altar: the pouch to empty next (cyan) beats the repair box (orange)
+		boolean empty = plugin.pouchToEmpty(itemId);
+		if (!empty && !plugin.pouchNeedsRepair(itemId))
 		{
 			return;
 		}
@@ -40,7 +42,7 @@ class PouchOverlay extends WidgetItemOverlay
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		// pulse a little so it catches the eye
 		int a = 120 + (int) (80 * Math.abs(Math.sin(System.currentTimeMillis() / 400.0)));
-		Color c = PouchOverlay.REPAIR;
+		Color c = empty ? RouteOverlay.ROUTE : PouchOverlay.REPAIR;
 		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 60));
 		g.fillRoundRect(b.x - 1, b.y - 1, b.width + 2, b.height + 2, 6, 6);
 		g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), a));

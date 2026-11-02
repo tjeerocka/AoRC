@@ -1540,6 +1540,25 @@ public class AorcPlugin extends Plugin
 		return out;
 	}
 
+	/**
+	 * At the altar with no essence left in your inventory: the pouch that still has essence,
+	 * to empty next (this beats the repair box).
+	 */
+	boolean pouchToEmpty(int itemId)
+	{
+		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) > 0
+			|| craftRegion == -1 || regionId() != craftRegion)
+		{
+			return false;
+		}
+		if (itemId == SMALL_POUCH)
+		{
+			return client.getVarbitValue(VarbitID.SMALL_ESSENCE_POUCH) > 0;
+		}
+		PouchTracker.Pouch p = PouchTracker.of(itemId);
+		return p != null && pouchAmount(p) > 0;
+	}
+
 	/** Bank: the essence to take (the one you used last), while you have none on you. */
 	boolean isBankEssence(int itemId)
 	{
