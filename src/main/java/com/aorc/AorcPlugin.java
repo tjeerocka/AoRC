@@ -125,8 +125,8 @@ public class AorcPlugin extends Plugin
 	// essence pouch wear
 	private final PouchTracker pouches = new PouchTracker();
 	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
-	private PouchTracker.Pouch fillPouch;   // pouch you just clicked "Fill" on
-	private int fillTick;
+	private PouchTracker.Pouch emptyPouch;  // pouch you just clicked "Empty" on
+	private int emptyTick;
 	private boolean noPouchWear;
 	// talking to the Dark Mage while a pouch needs a repair: highlight what to click
 	private volatile boolean repairGuide;            // Runecraft / max cape or redwood lantern: pouches do not decay
@@ -1237,7 +1237,7 @@ public class AorcPlugin extends Plugin
 
 	// ---------- essence pouches ----------
 
-	/** Pouches in your inventory, essence put into a pouch, decayed / repaired pouches. */
+	/** Pouches in your inventory, essence taken out of a pouch, decayed pouches. */
 	private void checkPouches(ItemContainer inv, Map<Integer, Integer> now)
 	{
 		java.util.Set<PouchTracker.Pouch> carried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
@@ -1262,18 +1262,20 @@ public class AorcPlugin extends Plugin
 		pouchesCarried.clear();
 		pouchesCarried.addAll(carried);
 
-		// "Fill" clicked on a pouch, and essence left the inventory right after: it went into that pouch
-		if (fillPouch != null && lastInventory != null && tick - fillTick <= 2)
+		// "Empty" clicked on a pouch, and essence came into the inventory right after: that essence
+		// was put in that pouch before. Counted when it comes out (not when filling), so it also
+		// works when you fill your pouches straight from the bank.
+		if (emptyPouch != null && lastInventory != null && tick - emptyTick <= 3)
 		{
 			int before = pouchEssence(lastInventory);
 			int after = pouchEssence(now);
-			if (after < before)
+			if (after > before)
 			{
-				if (!noPouchWear && pouches.addFilled(fillPouch, before - after) && config.warnPouch())
+				if (!noPouchWear && pouches.addFilled(emptyPouch, after - before) && config.warnPouch())
 				{
-					warn("pouch", fillPouch.getName() + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage).");
+					warn("pouch", emptyPouch.getName() + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage).");
 				}
-				fillPouch = null;
+				emptyPouch = null;
 				changed = true;
 			}
 		}
@@ -1294,10 +1296,10 @@ public class AorcPlugin extends Plugin
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
 		PouchTracker.Pouch p = PouchTracker.of(event.getItemId());
-		if (p != null && event.getMenuOption() != null && event.getMenuOption().startsWith("Fill"))
+		if (p != null && event.getMenuOption() != null && event.getMenuOption().startsWith("Empty"))
 		{
-			fillPouch = p;
-			fillTick = tick;
+			emptyPouch = p;
+			emptyTick = tick;
 		}
 	}
 

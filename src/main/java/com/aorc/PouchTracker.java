@@ -5,7 +5,8 @@ import java.util.Map;
 
 /**
  * Essence pouch wear. The game hides how close a pouch is to decaying, so we count the
- * essence you put in each pouch since its last repair (OSRS Wiki, "Essence pouch"):
+ * essence that went through each pouch since its last repair (counted when you empty it,
+ * so filling straight from the bank works too). Limits from the OSRS Wiki, "Essence pouch":
  * medium about 270 essence, large 261, giant 120, colossal 320, then it decays.
  * At 75% used (25% left) the pouch needs a repair (Dark Mage via Astral Contact).
  * The small pouch never decays.
