@@ -27,7 +27,7 @@ public class AorcStorage
 		Integer craftRegion;   // map area of your last craft (the altar)
 		// route learned from your clicks: fairy ring, altar entrance, altar (object IDs), essence used
 		Integer routeFairyRing;
-		Integer routeEntrance;
+		java.util.List<int[]> routeSteps;   // {object ID, x, y, plane} per step on the way
 		Integer routeAltar;
 		Integer lastEssence;
 		// level goal bar: the goal level and the XP the bar starts from

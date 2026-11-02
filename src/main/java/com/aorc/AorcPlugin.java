@@ -145,10 +145,14 @@ public class AorcPlugin extends Plugin
 	private boolean smallPouchCarried;
 	// route to the altar, learned from your clicks (object IDs, -1 = not learned yet)
 	private int routeFairyRing = -1;
-	private int routeEntrance = -1;
 	private int routeAltar = -1;
 	private int lastEssence = -1;           // essence item used in your last craft
-	private final Map<Integer, net.runelite.api.GameObject> routeObjects = new HashMap<>();
+	private final Map<Integer, java.util.List<net.runelite.api.GameObject>> routeObjects = new HashMap<>();
+	// steps on the way (caves, tunnels, ruins...): {object ID, x, y, plane}, learned from your last run
+	private java.util.List<int[]> routeSteps = new java.util.ArrayList<>();
+	private final java.util.List<int[]> recordingSteps = new java.util.ArrayList<>();
+	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
+	private int stepClicked = -1;      // step you just clicked: passed once you are moved away
 	// fairy rings in the scene (matched by name: rings can have different object IDs)
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
@@ -160,12 +164,10 @@ public class AorcPlugin extends Plugin
 	private int lastY = -1;
 	private int lastPlane = -1;
 	private int essenceDropped = -1;   // essence type that went down this tick
-	private int lastRouteClick = -1;   // last object clicked on the way to the altar
 	private boolean fairyRingUsed;     // used this trip: no more fairy ring outline until the next trip
 	private boolean fairyRingClicked;  // clicked: counts as used once you teleport
 	private boolean inventoryFull;     // no free inventory slot
 	private boolean pouchesAllFull = true;
-	private int lastTickRegion = -1;
 
 	enum Teleport
 	{
@@ -411,7 +413,7 @@ public class AorcPlugin extends Plugin
 		d.tripPlaces = places.save();
 		d.craftRegion = craftRegion;
 		d.routeFairyRing = routeFairyRing;
-		d.routeEntrance = routeEntrance;
+		d.routeSteps = new java.util.ArrayList<>(routeSteps);
 		d.routeAltar = routeAltar;
 		d.lastEssence = lastEssence;
 		d.essence = essence.save();
@@ -484,7 +486,7 @@ public class AorcPlugin extends Plugin
 		places.load(d.tripPlaces);
 		craftRegion = d.craftRegion != null ? d.craftRegion : -1;
 		routeFairyRing = d.routeFairyRing != null ? d.routeFairyRing : -1;
-		routeEntrance = d.routeEntrance != null ? d.routeEntrance : -1;
+		routeSteps = d.routeSteps != null ? new java.util.ArrayList<>(d.routeSteps) : new java.util.ArrayList<>();
 		routeAltar = d.routeAltar != null ? d.routeAltar : -1;
 		lastEssence = d.lastEssence != null ? d.lastEssence : -1;
 		goalStartLevel = d.goalStartLevel != null ? d.goalStartLevel : -1;
@@ -1086,7 +1088,6 @@ public class AorcPlugin extends Plugin
 
 		updatePouchWear();
 		updateTeleport();
-		updateRoute();
 		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
@@ -1411,6 +1412,9 @@ public class AorcPlugin extends Plugin
 				altarTeleportUsed = false;   // used up: next time you are full, show it again
 				fairyRingUsed = false;
 				fairyRingClicked = false;
+				stepsPassed.clear();
+				stepClicked = -1;
+				recordingSteps.clear();
 			}
 			if (config.highlightTeleports())
 			{
@@ -1427,6 +1431,11 @@ public class AorcPlugin extends Plugin
 		}
 		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
 		boolean teleported = jumped();   // every tick, so it always compares with the last tick
+		if (teleported && stepClicked >= 0)
+		{
+			stepsPassed.add(stepClicked);    // that cave / tunnel took you on: done for this trip
+			stepClicked = -1;
+		}
 		if (teleported && fairyRingClicked)
 		{
 			fairyRingUsed = true;          // the fairy ring took you away: its outline is done
@@ -1442,7 +1451,7 @@ public class AorcPlugin extends Plugin
 
 	// ---------- route to the altar (learned from your clicks) ----------
 
-	/** Learn the route: the fairy ring, the entrance ("Enter") and the altar ("Craft-rune") you click. */
+	/** Learn the route: the fairy ring, every object you click on the way, and the altar ("Craft-rune"). */
 	@Subscribe
 	public void onMenuOptionClicked(net.runelite.api.events.MenuOptionClicked event)
 	{
@@ -1456,34 +1465,43 @@ public class AorcPlugin extends Plugin
 		if (option.equals("craft-rune"))
 		{
 			learn(id, 2);
+			// you reached the altar: the objects you clicked on the way are your route now
+			if (!recordingSteps.isEmpty())
+			{
+				routeSteps = new java.util.ArrayList<>(recordingSteps);
+				recordingSteps.clear();
+				dirty = true;
+			}
 		}
 		else if (target.contains("fairy ring") && essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0)
 		{
 			learn(id, 0);
 			fairyRingClicked = true;     // used once you really teleport (see updateTeleport)
 		}
-		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0 && regionId() != craftRegion)
+		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0 && regionId() != craftRegion
+			&& !hasBankOption(client.getObjectDefinition(id)))
 		{
-			// any other object on the way (cave, tunnel, ruins, ...): if you reach the altar
-			// right after it, it was the entrance (see updateRoute)
-			lastRouteClick = id;
+			// any other object on the way (cave, tunnel, ruins, ...): a step of your route
+			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
+				client, event.getParam0(), event.getParam1(), client.getPlane());
+			int[] step = {id, w.getX(), w.getY(), w.getPlane()};
+			recordingSteps.add(step);
+			stepClicked = findStep(step);
 		}
 	}
 
-	/** Arrived at the altar: the last object you clicked on the way was the entrance. */
-	private void updateRoute()
+	/** Index of this step in your route (same object, within 2 tiles), or -1. */
+	private int findStep(int[] step)
 	{
-		int region = regionId();
-		if (craftRegion != -1 && region == craftRegion && lastTickRegion != -1 && lastTickRegion != craftRegion
-			&& lastRouteClick > 0)
+		for (int i = 0; i < routeSteps.size(); i++)
 		{
-			learn(lastRouteClick, 1);
+			int[] r = routeSteps.get(i);
+			if (r[0] == step[0] && r[3] == step[3] && Math.abs(r[1] - step[1]) <= 2 && Math.abs(r[2] - step[2]) <= 2)
+			{
+				return i;
+			}
 		}
-		if (region != lastTickRegion)
-		{
-			lastRouteClick = -1;
-		}
-		lastTickRegion = region;
+		return -1;
 	}
 
 	private static boolean isObjectAction(net.runelite.api.MenuAction a)
@@ -1495,10 +1513,10 @@ public class AorcPlugin extends Plugin
 			|| a == net.runelite.api.MenuAction.GAME_OBJECT_FIFTH_OPTION;
 	}
 
-	/** 0 = fairy ring, 1 = entrance, 2 = altar. */
+	/** 0 = fairy ring, 2 = altar. */
 	private void learn(int objectId, int what)
 	{
-		int before = what == 0 ? routeFairyRing : what == 1 ? routeEntrance : routeAltar;
+		int before = what == 0 ? routeFairyRing : routeAltar;
 		if (before == objectId)
 		{
 			return;
@@ -1506,10 +1524,6 @@ public class AorcPlugin extends Plugin
 		if (what == 0)
 		{
 			routeFairyRing = objectId;
-		}
-		else if (what == 1)
-		{
-			routeEntrance = objectId;
 		}
 		else
 		{
@@ -1522,7 +1536,7 @@ public class AorcPlugin extends Plugin
 	public void onGameObjectSpawned(net.runelite.api.events.GameObjectSpawned event)
 	{
 		net.runelite.api.GameObject o = event.getGameObject();
-		routeObjects.put(o.getId(), o);
+		routeObjects.computeIfAbsent(o.getId(), k -> new java.util.ArrayList<>()).add(o);
 		if (isFairyRing(o.getId()))
 		{
 			fairyRings.add(o);
@@ -1634,14 +1648,18 @@ public class AorcPlugin extends Plugin
 	@Subscribe
 	public void onGameObjectDespawned(net.runelite.api.events.GameObjectDespawned event)
 	{
-		routeObjects.remove(event.getGameObject().getId(), event.getGameObject());
+		java.util.List<net.runelite.api.GameObject> list = routeObjects.get(event.getGameObject().getId());
+		if (list != null)
+		{
+			list.remove(event.getGameObject());
+		}
 		fairyRings.remove(event.getGameObject());
 		bankObjects.remove(event.getGameObject());
 	}
 
 	/**
 	 * What to highlight in the world now: on the way (essence on you, away from the altar) the
-	 * fairy ring and the altar entrance; at the altar with essence, the altar.
+	 * fairy ring and every step of your route you have not passed yet; at the altar, the altar.
 	 */
 	java.util.List<net.runelite.api.GameObject> routeTargets()
 	{
@@ -1651,7 +1669,7 @@ public class AorcPlugin extends Plugin
 			return out;
 		}
 		boolean atAltar = craftRegion != -1 && regionId() == craftRegion;
-		int[] ids = atAltar ? new int[]{routeAltar} : new int[]{routeEntrance, routeAltar};
+		int[] ids = {routeAltar};
 		// fairy ring on your route (any ring you see, they can have different IDs), until you used it
 		if (!atAltar && routeFairyRing > 0 && !fairyRingUsed)
 		{
@@ -1665,10 +1683,33 @@ public class AorcPlugin extends Plugin
 		}
 		for (int id : ids)
 		{
-			net.runelite.api.GameObject o = id > 0 ? routeObjects.get(id) : null;
-			if (o != null && o.getPlane() == client.getPlane())
+			for (net.runelite.api.GameObject o : routeObjects.getOrDefault(id, java.util.Collections.emptyList()))
 			{
-				out.add(o);
+				if (o.getPlane() == client.getPlane())
+				{
+					out.add(o);
+				}
+			}
+		}
+		// the steps on your way you have not passed yet this trip (only that exact object:
+		// the cave on the other side, with the same name, is not part of your way there)
+		if (!atAltar)
+		{
+			for (int i = 0; i < routeSteps.size(); i++)
+			{
+				if (stepsPassed.contains(i))
+				{
+					continue;
+				}
+				int[] r = routeSteps.get(i);
+				for (net.runelite.api.GameObject o : routeObjects.getOrDefault(r[0], java.util.Collections.emptyList()))
+				{
+					net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+					if (w != null && w.getPlane() == r[3] && Math.abs(w.getX() - r[1]) <= 2 && Math.abs(w.getY() - r[2]) <= 2)
+					{
+						out.add(o);
+					}
+				}
 			}
 		}
 		return out;
