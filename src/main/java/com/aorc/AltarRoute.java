@@ -65,6 +65,58 @@ public class AltarRoute
 		return -1;
 	}
 
+	/** Next to a step: this close (tiles) counts as standing at it. */
+	static final int NEAR = 3;
+
+	/**
+	 * Which step you just went through this tick, or -1 (no clicks needed):
+	 * - you jumped (more than 2 tiles in one tick) from right next to it (ruins, ladders), or
+	 * - you were right next to it and now stand on its other side (caves you crawl through).
+	 * Walking up to a cave and back the way you came does not count.
+	 * 'approach' remembers per step where you stood when you were next to it.
+	 */
+	int passedNow(java.util.Set<Integer> passed, Map<Integer, int[]> approach,
+		int fromX, int fromY, int fromPlane, int x, int y, int plane, int moved)
+	{
+		for (int i = 0; i < steps.size(); i++)
+		{
+			if (passed.contains(i))
+			{
+				continue;
+			}
+			int[] st = steps.get(i);
+			boolean wasNear = fromPlane == st[3] && Math.abs(fromX - st[1]) <= NEAR && Math.abs(fromY - st[2]) <= NEAR;
+			if (moved > 2 && wasNear)
+			{
+				return i;
+			}
+			if (plane != st[3])
+			{
+				continue;
+			}
+			int dx = x - st[1];
+			int dy = y - st[2];
+			int d = Math.max(Math.abs(dx), Math.abs(dy));
+			if (d <= NEAR)
+			{
+				if (dx != 0 || dy != 0)
+				{
+					approach.putIfAbsent(i, new int[]{dx, dy});
+				}
+			}
+			else if (d <= 20 && approach.containsKey(i))
+			{
+				int[] a = approach.get(i);
+				double cos = (a[0] * dx + a[1] * dy) / (Math.hypot(a[0], a[1]) * Math.hypot(dx, dy));
+				if (cos < -0.3)
+				{
+					return i;   // came from one side, now on the other side
+				}
+			}
+		}
+		return -1;
+	}
+
 	/** Same object at the same spot (within 2 tiles, same floor). */
 	static boolean same(int[] a, int[] b)
 	{

@@ -149,8 +149,8 @@ public class AorcPlugin extends Plugin
 	private int lastEssence = -1;           // essence item used in your last craft
 	private final Map<Integer, java.util.List<net.runelite.api.TileObject>> routeObjects = new HashMap<>();
 	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
-	private int[] pendingStep;         // object you just clicked: a step once it moves you
-	private int pendingStepTick;
+	// per route step: where you stood when you were next to it (to see you went through it)
+	private final Map<Integer, int[]> stepApproach = new HashMap<>();
 	// route debug: what happened to your last click, and how far you moved last tick
 	private String debugLastClick = "-";
 	private int debugMoved;
@@ -1412,7 +1412,7 @@ public class AorcPlugin extends Plugin
 				fairyRingUsed = false;
 				fairyRingClicked = false;
 				stepsPassed.clear();
-				pendingStep = null;
+				stepApproach.clear();
 			}
 			if (config.highlightTeleports())
 			{
@@ -1434,23 +1434,21 @@ public class AorcPlugin extends Plugin
 		int moved = moved();             // every tick, so it always compares with the last tick
 		debugMoved = moved;
 		boolean teleported = moved > 10;
-		if (pendingStep != null && moved > 2)
+		// went through a step of the route (no clicks needed): it and every step before it are done
+		if (lastInventory != null && essenceCount(lastInventory) > 0)
 		{
-			// the object you clicked moved you (cave, tunnel, ruins): if it is a step of the route
-			// (by its spot, any object there), it and every step before it are done
-			int i = route().findSpot(pendingStep[1], pendingStep[2], pendingStep[3]);
-			debugLastClick = objectName(pendingStep[0]) + " " + pendingStep[0] + " -> "
-				+ (i >= 0 ? "step " + (i + 1) + " PASSED" : "not a route step") + " (moved " + moved + " tiles)";
-			for (int k = 0; k <= i; k++)
+			AltarRoute r = route();
+			int i = r.passedNow(stepsPassed, stepApproach, fromX, fromY, fromPlane, lastX, lastY, lastPlane, moved);
+			if (i >= 0)
 			{
-				stepsPassed.add(k);          // this step and every step before it: done for this trip
+				for (int k = 0; k <= i; k++)
+				{
+					stepsPassed.add(k);
+					stepApproach.remove(k);
+				}
+				int[] st = r.steps.get(i);
+				debugLastClick = "step " + (i + 1) + " PASSED (" + objectName(st[0]) + " " + st[0] + ", moved " + moved + ")";
 			}
-			pendingStep = null;
-		}
-		else if (pendingStep != null && client.getTickCount() - pendingStepTick > 50)
-		{
-			debugLastClick = objectName(pendingStep[0]) + " " + pendingStep[0] + " -> dropped (did not move you)";
-			pendingStep = null;              // clicked but never went through it
 		}
 		if (teleported && fairyRingClicked)
 		{
@@ -1477,20 +1475,13 @@ public class AorcPlugin extends Plugin
 
 	// ---------- route to the altar (set by hand in AltarRoute) ----------
 
-	/** Follow the route: which fairy ring and route step you clicked (passed once it moves you). */
+	/** The fairy ring you clicked (used once you teleport from it). Route steps need no clicks. */
 	@Subscribe
 	public void onMenuOptionClicked(net.runelite.api.events.MenuOptionClicked event)
 	{
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
-		// any other click (walk, teleport item, fairy ring, another object) replaces the object
-		// you clicked before: only the last object you clicked can become a step
-		if (pendingStep != null)
-		{
-			debugLastClick = objectName(pendingStep[0]) + " " + pendingStep[0] + " -> dropped (you clicked something else)";
-		}
-		pendingStep = null;
 		if (id <= 0 || !isObjectAction(event.getMenuAction()))
 		{
 			return;
@@ -1506,16 +1497,6 @@ public class AorcPlugin extends Plugin
 				client, event.getParam0(), event.getParam1(), client.getPlane());
 			fairyRingAt = new int[]{w.getX(), w.getY(), w.getPlane()};
 			debugLastClick = "Fairy ring " + id + " (" + w.getX() + ", " + w.getY() + ") -> waiting for the teleport";
-		}
-		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0
-			&& !hasBankOption(client.getObjectDefinition(id)))
-		{
-			// any other object on the way: if it moves you, the route step at that spot is passed
-			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
-				client, event.getParam0(), event.getParam1(), client.getPlane());
-			pendingStep = new int[]{id, w.getX(), w.getY(), w.getPlane()};
-			pendingStepTick = client.getTickCount();
-			debugLastClick = objectName(id) + " " + id + " (" + w.getX() + ", " + w.getY() + ", " + w.getPlane() + ") -> waiting for a move";
 		}
 	}
 
@@ -1546,7 +1527,7 @@ public class AorcPlugin extends Plugin
 			out.add("  " + (i + 1) + ". " + objectName(st[0]) + " " + st[0] + " (" + st[1] + ", " + st[2] + ", " + st[3] + ") "
 				+ (stepsPassed.contains(i) ? "passed" : i == debugNextStep ? "NEXT" : ""));
 		}
-		out.add("Last click: " + debugLastClick);
+		out.add("Last: " + debugLastClick);
 		return out;
 	}
 

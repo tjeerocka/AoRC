@@ -679,6 +679,41 @@ public class LogicTest
 	}
 
 	@Test
+	public void stepPassedWhenYouCrawlThroughIt()
+	{
+		AltarRoute r = AltarRoute.of(12875);
+		java.util.Set<Integer> passed = new java.util.HashSet<>();
+		java.util.Map<Integer, int[]> approach = new java.util.HashMap<>();
+		// step 2 (3467, 9820): walk up from the west, crawl through slowly, come out east
+		assertEquals(-1, r.passedNow(passed, approach, 3462, 9820, 0, 3464, 9820, 0, 2));
+		assertEquals(-1, r.passedNow(passed, approach, 3464, 9820, 0, 3465, 9820, 0, 1));
+		assertEquals(-1, r.passedNow(passed, approach, 3465, 9820, 0, 3467, 9820, 0, 2));
+		assertEquals(-1, r.passedNow(passed, approach, 3467, 9820, 0, 3469, 9820, 0, 2));
+		assertEquals(1, r.passedNow(passed, approach, 3469, 9820, 0, 3471, 9820, 0, 2));
+	}
+
+	@Test
+	public void stepNotPassedWhenYouWalkBack()
+	{
+		AltarRoute r = AltarRoute.of(12875);
+		java.util.Set<Integer> passed = new java.util.HashSet<>();
+		java.util.Map<Integer, int[]> approach = new java.util.HashMap<>();
+		assertEquals(-1, r.passedNow(passed, approach, 3462, 9820, 0, 3464, 9820, 0, 2));
+		assertEquals(-1, r.passedNow(passed, approach, 3464, 9820, 0, 3460, 9821, 0, 2));
+		assertEquals(-1, r.passedNow(passed, approach, 3460, 9821, 0, 3455, 9821, 0, 2));
+	}
+
+	@Test
+	public void stepPassedWhenItTeleportsYou()
+	{
+		AltarRoute r = AltarRoute.of(12875);
+		java.util.Set<Integer> passed = new java.util.HashSet<>();
+		java.util.Map<Integer, int[]> approach = new java.util.HashMap<>();
+		// next to the ruins (3560, 9780), then far away inside the altar
+		assertEquals(4, r.passedNow(passed, approach, 3561, 9781, 0, 2460, 4890, 0, 99));
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));
