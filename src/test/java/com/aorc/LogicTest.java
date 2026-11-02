@@ -884,6 +884,14 @@ public class LogicTest
 		assertEquals(200, pts.get(0)[1]);
 		// no path near you: a straight line (only the target)
 		assertEquals(1, AorcPaths.line(300, 300, 0, 105, 204, 0).size());
+		// the path goes past you, not past the target: follow it to its end, then straight on
+		pts = AorcPaths.line(100, 200, 0, 105, 215, 0);
+		assertEquals(3, pts.size());
+		assertEquals(105, pts.get(1)[0]);
+		assertEquals(204, pts.get(1)[1]);
+		// backwards too: from the end, towards a target past the start
+		pts = AorcPaths.line(105, 204, 0, 90, 200, 0);
+		assertEquals(100, pts.get(pts.size() - 2)[0]);
 		AorcPaths.PATHS.clear();
 		AorcPaths.PATHS.addAll(saved);
 	}

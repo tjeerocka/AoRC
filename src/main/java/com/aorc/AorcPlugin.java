@@ -2638,7 +2638,7 @@ public class AorcPlugin extends Plugin
 		return best;
 	}
 
-	/** The one of these you clicked last (you are using it: it stays lit), or null. */
+	/** The one of these you clicked last and stand next to (you are using it: it stays lit), or null. */
 	private net.runelite.api.TileObject clickedOne(java.util.List<net.runelite.api.TileObject> list)
 	{
 		if (lastClickedObject == null)
@@ -2648,7 +2648,7 @@ public class AorcPlugin extends Plugin
 		for (net.runelite.api.TileObject o : list)
 		{
 			WorldPoint w = o.getWorldLocation();
-			if (w != null && w.getPlane() == lastClickedObject.getPlane()
+			if (w != null && distanceTo(o) <= 2 && w.getPlane() == lastClickedObject.getPlane()
 				&& Math.abs(w.getX() - lastClickedObject.getX()) <= 3 && Math.abs(w.getY() - lastClickedObject.getY()) <= 3)
 			{
 				return o;

@@ -56,13 +56,27 @@ final class AorcPaths
 	static List<int[]> line(int x, int y, int plane, int tx, int ty, int tPlane)
 	{
 		List<int[]> best = null;
+		boolean bestFull = false;
+		double bestLen = Double.MAX_VALUE;
 		for (int[][] path : PATHS)
 		{
 			int from = nearestPart(path, x, y, plane);
-			int to = nearestPart(path, tx, ty, tPlane);
-			if (from < 0 || to < 0)
+			if (from < 0)
 			{
 				continue;
+			}
+			int to = nearestPart(path, tx, ty, tPlane);
+			boolean full = to >= 0;
+			if (to < 0)
+			{
+				// the path goes past you but not past the target: follow it to its point closest
+				// to the target (only when that gets you clearly closer), then straight on
+				int k = closestPoint(path, tx, ty, tPlane);
+				if (k < 0 || dist(path[k], tx, ty) >= Math.hypot(tx - x, ty - y) - 2)
+				{
+					continue;
+				}
+				to = k > from ? k : k - 1;   // up to and with point k (both directions)
 			}
 			// part i runs from point i to point i+1; paths can be walked both ways
 			List<int[]> pts = new ArrayList<>();
@@ -80,9 +94,13 @@ final class AorcPaths
 					pts.add(path[i]);
 				}
 			}
-			if (best == null || pts.size() < best.size())
+			// a path that goes past you AND the target wins; then the shortest walk
+			double len = walkLength(x, y, pts, tx, ty);
+			if (best == null || (full && !bestFull) || (full == bestFull && len < bestLen))
 			{
 				best = pts;
+				bestFull = full;
+				bestLen = len;
 			}
 		}
 		if (best == null)
@@ -91,6 +109,41 @@ final class AorcPaths
 		}
 		best.add(new int[]{tx, ty, tPlane});
 		return best;
+	}
+
+	/** Index of the point of this path closest to (x, y) on that floor, or -1. */
+	static int closestPoint(int[][] path, int x, int y, int plane)
+	{
+		int best = -1;
+		double bestD = Double.MAX_VALUE;
+		for (int i = 0; i < path.length; i++)
+		{
+			if (path[i][2] == plane && dist(path[i], x, y) < bestD)
+			{
+				bestD = dist(path[i], x, y);
+				best = i;
+			}
+		}
+		return best;
+	}
+
+	private static double walkLength(int x, int y, List<int[]> pts, int tx, int ty)
+	{
+		double len = 0;
+		int px = x;
+		int py = y;
+		for (int[] p : pts)
+		{
+			len += Math.hypot(p[0] - px, p[1] - py);
+			px = p[0];
+			py = p[1];
+		}
+		return len + Math.hypot(tx - px, ty - py);
+	}
+
+	private static double dist(int[] p, int x, int y)
+	{
+		return Math.hypot(p[0] - x, p[1] - y);
 	}
 
 	/** The part (point i to i+1) of this path closest to (x, y), if within ON_PATH tiles; else -1. */
