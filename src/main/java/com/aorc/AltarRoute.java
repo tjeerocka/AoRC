@@ -18,9 +18,10 @@ public class AltarRoute
 	final boolean fairyRing;
 	final int altar;
 	final List<int[]> steps;
-	/** Objects never highlighted on this route, and without "Enter" while you carry essence
-	 * (the way back through a cave, from the other side). */
+	/** Objects never highlighted on this route (the way back through a cave, from the other side). */
 	final java.util.Set<Integer> hidden = new java.util.HashSet<>();
+	/** Object ID -> step (index): no "Enter" on that object while that step is the highlighted one. */
+	final Map<Integer, Integer> hiddenAt = new HashMap<>();
 
 	AltarRoute(String name, boolean fairyRing, int altar, int[]... steps)
 	{
@@ -32,11 +33,13 @@ public class AltarRoute
 		this.steps = Collections.unmodifiableList(list);
 	}
 
-	AltarRoute hide(int... ids)
+	/** The way back at step 'step' (1 = first): never highlighted, and no options while that step is next. */
+	AltarRoute hide(int step, int... ids)
 	{
 		for (int id : ids)
 		{
 			hidden.add(id);
+			hiddenAt.put(id, step - 1);
 		}
 		return this;
 	}
@@ -56,7 +59,7 @@ public class AltarRoute
 			new int[]{43759, 3500, 9803, 0},    // 3. Cave
 			new int[]{43762, 3540, 9772, 0},    // 4. Cave
 			new int[]{25380, 3560, 9780, 0})    // 5. Mysterious ruins
-			.hide(43763));                      // step 4 from the other side (the way back)
+			.hide(4, 43763));                   // step 4 from the other side (the way back)
 	}
 
 	static AltarRoute of(int altarRegion)

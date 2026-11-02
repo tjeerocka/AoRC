@@ -676,6 +676,7 @@ public class LogicTest
 		assertEquals(-1, r.findSpot(3467, 9820, 1));
 		// the way back through step 4 is never highlighted
 		assertTrue(r.hidden.contains(43763));
+		assertEquals(Integer.valueOf(3), r.hiddenAt.get(43763));   // only while step 4 is next
 		// an altar without a route
 		assertEquals(0, AltarRoute.of(1).steps.size());
 	}

@@ -154,7 +154,7 @@ public class AorcPlugin extends Plugin
 	// route debug: what happened to your last click, and how far you moved last tick
 	private String debugLastClick = "-";
 	private int debugMoved;
-	private int debugNextStep = -1;
+	private int nextStep = -1;          // the route step highlighted now (-1 = none)
 	// fairy rings in the scene (matched by name: rings can have different object IDs)
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
@@ -1525,7 +1525,7 @@ public class AorcPlugin extends Plugin
 		{
 			int[] st = r.steps.get(i);
 			out.add("  " + (i + 1) + ". " + objectName(st[0]) + " " + st[0] + " (" + st[1] + ", " + st[2] + ", " + st[3] + ") "
-				+ (stepsPassed.contains(i) ? "passed" : i == debugNextStep ? "NEXT" : ""));
+				+ (stepsPassed.contains(i) ? "passed" : i == nextStep ? "NEXT" : ""));
 		}
 		out.add("Last: " + debugLastClick);
 		return out;
@@ -1545,7 +1545,7 @@ public class AorcPlugin extends Plugin
 				if (w != null && AltarRoute.same(st, new int[]{st[0], w.getX(), w.getY(), w.getPlane()}))
 				{
 					out.put(o, "Step " + (i + 1) + "/" + r.steps.size() + " - " + st[0]
-						+ (stepsPassed.contains(i) ? " - passed" : i == debugNextStep ? " - NEXT" : " - waiting"));
+						+ (stepsPassed.contains(i) ? " - passed" : i == nextStep ? " - NEXT" : " - waiting"));
 				}
 			}
 		}
@@ -1696,10 +1696,10 @@ public class AorcPlugin extends Plugin
 	public void onMenuEntryAdded(net.runelite.api.events.MenuEntryAdded event)
 	{
 		net.runelite.api.MenuEntry e = event.getMenuEntry();
-		// on the way to the altar: no "Enter" on the objects that take you back the wrong way
-		// (step 4 from the other side); "Walk here" and "Examine" stay
-		if (config.highlightRoute() && isObjectAction(e.getType()) && route().hidden.contains(e.getIdentifier())
-			&& lastInventory != null && essenceCount(lastInventory) > 0)
+		// while a step is the highlighted one: no "Enter" on the object next to it that takes you
+		// back the wrong way (step 4 from the other side); "Walk here" and "Examine" stay
+		Integer at = route().hiddenAt.get(e.getIdentifier());
+		if (at != null && at == nextStep && isObjectAction(e.getType()))
 		{
 			net.runelite.api.MenuEntry[] all = client.getMenuEntries();
 			if (all.length > 0 && all[all.length - 1] == e)
@@ -1829,7 +1829,7 @@ public class AorcPlugin extends Plugin
 		java.util.List<net.runelite.api.TileObject> out = new java.util.ArrayList<>();
 		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) == 0)
 		{
-			debugNextStep = -1;
+			nextStep = -1;
 			return out;
 		}
 		boolean atAltar = craftRegion != -1 && regionId() == craftRegion;
@@ -1886,7 +1886,7 @@ public class AorcPlugin extends Plugin
 				break;
 			}
 		}
-		debugNextStep = next;
+		nextStep = next;
 		// one outline per spot (two outlines on top of each other look twice as strong)
 		java.util.Map<String, net.runelite.api.TileObject> one = new java.util.LinkedHashMap<>();
 		for (net.runelite.api.TileObject o : out)
