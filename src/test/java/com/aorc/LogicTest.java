@@ -870,6 +870,7 @@ public class LogicTest
 	@Test
 	public void lineFollowsAKnownPathAroundTheWall()
 	{
+		java.util.List<int[][]> saved = new java.util.ArrayList<>(AorcPaths.PATHS);
 		AorcPaths.PATHS.clear();
 		AorcPaths.PATHS.add(new int[][]{{100, 200, 0}, {105, 200, 0}, {105, 204, 0}});
 		// from the start to the end: past the corner, not straight
@@ -884,6 +885,18 @@ public class LogicTest
 		// no path near you: a straight line (only the target)
 		assertEquals(1, AorcPaths.line(300, 300, 0, 105, 204, 0).size());
 		AorcPaths.PATHS.clear();
+		AorcPaths.PATHS.addAll(saved);
+	}
+
+	@Test
+	public void zeahPathsAreBuiltIn()
+	{
+		assertEquals(6, AorcPaths.PATHS.size());
+		// from the runestone to the 69 climb (34741 at 1761, 3873): along the recorded walk
+		java.util.List<int[]> pts = AorcPaths.line(1762, 3855, 0, 1761, 3873, 0);
+		assertTrue(pts.size() > 3);
+		// from the dark altar to the blood altar: a long way round, many corners
+		assertTrue(AorcPaths.line(1718, 3882, 0, 1719, 3828, 0).size() > 10);
 	}
 
 	@Test
