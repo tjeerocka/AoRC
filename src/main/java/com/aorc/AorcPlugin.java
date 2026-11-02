@@ -175,6 +175,7 @@ public class AorcPlugin extends Plugin
 	private int essenceDropped = -1;   // essence type that went down this tick
 	private boolean fairyRingUsed;     // used this trip: no more fairy ring outline until the next trip
 	private boolean fairyRingClicked;  // clicked: counts as used once you teleport
+	private int[] fairyRingAt;         // the ring you clicked {x, y, plane}
 	private boolean inventoryFull;     // no free inventory slot
 	private boolean pouchesAllFull = true;
 
@@ -1460,6 +1461,9 @@ public class AorcPlugin extends Plugin
 			}
 		}
 		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
+		int fromX = lastX;
+		int fromY = lastY;
+		int fromPlane = lastPlane;
 		int moved = moved();             // every tick, so it always compares with the last tick
 		debugMoved = moved;
 		boolean teleported = moved > 10;
@@ -1486,7 +1490,17 @@ public class AorcPlugin extends Plugin
 		}
 		if (teleported && fairyRingClicked)
 		{
-			fairyRingUsed = true;          // the fairy ring took you away: its outline is done
+			// only when the jump started at the ring you clicked (not another teleport later)
+			if (fairyRingAt != null && fromPlane == fairyRingAt[2]
+				&& Math.abs(fromX - fairyRingAt[0]) <= 3 && Math.abs(fromY - fairyRingAt[1]) <= 3)
+			{
+				fairyRingUsed = true;      // the fairy ring took you away: its outline is done
+				debugLastClick = "Fairy ring -> USED (moved " + moved + " tiles)";
+			}
+			else
+			{
+				debugLastClick = "Fairy ring -> not used (you teleported from somewhere else)";
+			}
 			fairyRingClicked = false;
 		}
 		if (teleportNow == Teleport.ALTAR && teleported)
@@ -1534,7 +1548,11 @@ public class AorcPlugin extends Plugin
 		else if (target.contains("fairy ring") && essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0)
 		{
 			recordingFairyRing = true;
-			fairyRingClicked = true;     // used once you really teleport (see updateTeleport)
+			fairyRingClicked = true;     // used once you really teleport from it (see updateTeleport)
+			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
+				client, event.getParam0(), event.getParam1(), client.getPlane());
+			fairyRingAt = new int[]{w.getX(), w.getY(), w.getPlane()};
+			debugLastClick = "Fairy ring " + id + " (" + w.getX() + ", " + w.getY() + ") -> waiting for the teleport";
 		}
 		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0
 			&& !hasBankOption(client.getObjectDefinition(id)))
