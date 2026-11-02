@@ -756,6 +756,29 @@ public class LogicTest
 	}
 
 	@Test
+	public void zeahCycle()
+	{
+		// dense, dark, fragments, full, go, near dark altar, near blood altar
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, AorcPlugin.zeahStep(10, 0, 0, false, false, false, false, 99));
+		assertEquals(AorcPlugin.ZEAH_SHORTCUT, AorcPlugin.zeahStep(26, 0, 0, true, false, false, false, 99));
+		assertEquals(AorcPlugin.ZEAH_DARK_ALTAR, AorcPlugin.zeahStep(26, 0, 0, true, false, true, false, 99));
+		// first trip: chisel all dark blocks (also after passing 100 fragments)
+		assertEquals(0, AorcPlugin.zeahStep(0, 26, 0, true, false, true, false, 99));
+		assertEquals(0, AorcPlugin.zeahStep(0, 5, 150, false, false, false, false, 99));
+		assertEquals(AorcPlugin.ZEAH_RUNESTONE, AorcPlugin.zeahStep(0, 0, 200, false, false, false, false, 99));
+		// second trip: dark blocks + 100 fragments: to the blood altar, bind
+		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, AorcPlugin.zeahStep(0, 26, 200, true, true, true, false, 99));
+		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, AorcPlugin.zeahStep(0, 26, 200, true, true, false, true, 99));
+		// fragments used: chisel, bind again, then climb back
+		assertEquals(0, AorcPlugin.zeahStep(0, 26, 0, false, true, false, true, 99));
+		assertEquals(AorcPlugin.ZEAH_BLOOD_ALTAR, AorcPlugin.zeahStep(0, 0, 180, false, false, false, true, 99));
+		assertEquals(AorcPlugin.ZEAH_CLIMB_ROCKS, AorcPlugin.zeahStep(0, 0, 0, false, false, false, true, 99));
+		// Agility: below 69 no shortcut (walk to the dark altar), below 73 no climb back
+		assertEquals(AorcPlugin.ZEAH_DARK_ALTAR, AorcPlugin.zeahStep(26, 0, 0, true, false, false, false, 68));
+		assertEquals(-1, AorcPlugin.zeahStep(0, 0, 0, false, false, false, true, 72));
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

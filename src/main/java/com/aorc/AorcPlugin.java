@@ -1088,6 +1088,7 @@ public class AorcPlugin extends Plugin
 
 		updatePouchWear();
 		updateTeleport();
+		updateZeah();
 		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
@@ -1950,6 +1951,17 @@ public class AorcPlugin extends Plugin
 	java.util.List<net.runelite.api.TileObject> routeTargets()
 	{
 		java.util.List<net.runelite.api.TileObject> out = new java.util.ArrayList<>();
+		// Blood - Zeah: its own cycle instead of a route
+		int zeah = config.highlightRoute() ? zeahObject() : -2;
+		if (zeah != -2)
+		{
+			nextStep = -1;
+			if (zeah > 0)
+			{
+				out.addAll(objectsInView(zeah));
+			}
+			return out;
+		}
 		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) == 0)
 		{
 			nextStep = -1;
@@ -2101,8 +2113,139 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** Colour of the box around this item (inventory / worn), or null: the teleport to use now. */
+	// ---------- Blood - Zeah: the cycle (mine, venerate, chisel, bind, climb back) ----------
+
+	static final int ZEAH_RUNESTONE = 8975;     // Dense runestone you can chip
+	static final int ZEAH_SHORTCUT = 34741;     // on the way to the dark altar (69 Agility)
+	static final int ZEAH_SHORTCUT_AGILITY = 69;
+	static final int ZEAH_DARK_ALTAR = 27979;
+	static final int ZEAH_BLOOD_ALTAR = 27978;
+	static final int ZEAH_CLIMB_ROCKS = 27984;  // back to the runestones (73 Agility)
+	static final int ZEAH_CLIMB_AGILITY = 73;
+	static final int CHISEL = 1755;
+	/** At this many fragments (when you get your dark blocks) you go to the blood altar. */
+	static final int ZEAH_FRAGMENTS = 100;
+	private boolean zeahGo;                      // these dark blocks go to the blood altar (not chiselled first)
+	private int zeahLastDark = -1;
+
+	/** You are at Zeah: one of its runestones or altars is in view. */
+	private boolean zeahActive()
+	{
+		return !objectsInView(ZEAH_RUNESTONE).isEmpty() || !objectsInView(ZEAH_DARK_ALTAR).isEmpty()
+			|| !objectsInView(ZEAH_BLOOD_ALTAR).isEmpty();
+	}
+
+	/** Each tick: decide once, when you get your dark blocks, if they go to the blood altar. */
+	private void updateZeah()
+	{
+		if (lastInventory == null)
+		{
+			return;
+		}
+		int dark = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0);
+		int frags = lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0);
+		if (dark > 0 && zeahLastDark <= 0)
+		{
+			zeahGo = frags >= ZEAH_FRAGMENTS;
+		}
+		if (dark == 0)
+		{
+			zeahGo = false;
+		}
+		zeahLastDark = dark;
+	}
+
+	/**
+	 * The Zeah object to click now, 0 = the chisel and dark blocks (no object), -1 = nothing,
+	 * -2 = not at Zeah. See zeahStep for the rules.
+	 */
+	private int zeahObject()
+	{
+		if (lastInventory == null || !zeahActive())
+		{
+			return -2;
+		}
+		return zeahStep(lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0),
+			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
+			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
+			inventoryFull, zeahGo, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12),
+			client.getBoostedSkillLevel(Skill.AGILITY));
+	}
+
+	/** The Zeah cycle: what to click next (object ID, 0 = chisel the dark blocks, -1 = nothing). */
+	static int zeahStep(int dense, int dark, int frags, boolean full, boolean go, boolean nearDarkAltar, boolean nearBloodAltar,
+		int agility)
+	{
+		if (dark > 0)
+		{
+			if (nearBloodAltar)
+			{
+				return frags > 0 ? ZEAH_BLOOD_ALTAR : 0;   // bind, then chisel the rest
+			}
+			return go ? ZEAH_BLOOD_ALTAR : 0;              // to the altar, or chisel them all first
+		}
+		if (nearBloodAltar)
+		{
+			if (frags > 0)
+			{
+				return ZEAH_BLOOD_ALTAR;   // bind the last ones
+			}
+			return agility >= ZEAH_CLIMB_AGILITY ? ZEAH_CLIMB_ROCKS : -1;   // back (below 73: walk)
+		}
+		if (dense > 0 && full)
+		{
+			// below 69 Agility: no shortcut, walk around to the dark altar
+			return nearDarkAltar || agility < ZEAH_SHORTCUT_AGILITY ? ZEAH_DARK_ALTAR : ZEAH_SHORTCUT;
+		}
+		return full ? -1 : ZEAH_RUNESTONE;
+	}
+
+	/** Zeah: the chisel and the dark blocks are highlighted when you should chisel. */
+	boolean zeahItem(int itemId)
+	{
+		return (itemId == CHISEL || itemId == RuneIds.DARK_ESSENCE_BLOCK) && config.highlightRoute() && zeahObject() == 0;
+	}
+
+	/** Objects with this ID in view (on your floor). */
+	private java.util.List<net.runelite.api.TileObject> objectsInView(int id)
+	{
+		java.util.List<net.runelite.api.TileObject> out = new java.util.ArrayList<>();
+		for (net.runelite.api.TileObject o : routeObjects.getOrDefault(id, java.util.Collections.emptyList()))
+		{
+			if (o.getPlane() == client.getPlane())
+			{
+				out.add(o);
+			}
+		}
+		return out;
+	}
+
+	/** You stand within 'range' tiles of an object with this ID. */
+	private boolean near(int id, int range)
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null)
+		{
+			return false;
+		}
+		net.runelite.api.coords.WorldPoint me = p.getWorldLocation();
+		for (net.runelite.api.TileObject o : objectsInView(id))
+		{
+			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+			if (w != null && Math.abs(w.getX() - me.getX()) <= range && Math.abs(w.getY() - me.getY()) <= range)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	Color teleportHighlight(int itemId)
 	{
+		if (zeahItem(itemId))
+		{
+			return RouteOverlay.ROUTE;
+		}
 		Teleport t = teleportNow;
 		if (t == null)
 		{
