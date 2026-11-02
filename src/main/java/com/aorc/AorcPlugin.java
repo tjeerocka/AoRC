@@ -1689,9 +1689,7 @@ public class AorcPlugin extends Plugin
 		{
 			altars.add(o);
 		}
-		net.runelite.api.ObjectComposition base = client.getObjectDefinition(o.getId());
-		if (o.getId() == ZEAH_RUNESTONE || (def != null && "Dense runestone".equalsIgnoreCase(def.getName()))
-			|| (base != null && "Dense runestone".equalsIgnoreCase(base.getName())))
+		if (isRunestone(o.getId()))
 		{
 			runestones.add(o);
 		}
@@ -1842,6 +1840,29 @@ public class AorcPlugin extends Plugin
 	{
 		net.runelite.api.TileObject o = closest(routeTargets());
 		WorldPoint t = o == null ? null : o.getWorldLocation();
+		if (config.highlightRoute() && zeahObject() == 0 && lastInventory != null && !zeahGo
+			&& !near(ZEAH_BLOOD_ALTAR, 12))
+		{
+			// chiselling your first load: the chisel and block are lit, and the line shows the way
+			// back to the runestone, so you can chisel while you walk
+			// the way back as if all were chiselled (fragments on you, nothing else)
+			boolean climbedBack = zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_STONE);
+			int back = zeahStep(0, 0, 1, false, false, false, false, near(ZEAH_DARK_ALTAR, 15), false,
+				atRunestones(), false, false, climbedBack, client.getBoostedSkillLevel(Skill.AGILITY));
+			net.runelite.api.TileObject b = closest(objectsInView(back));
+			int[] spot = ZEAH_SPOTS.get(back);
+			o = b;
+			t = b != null ? b.getWorldLocation() : spot == null ? null : new WorldPoint(spot[0], spot[1], spot[2]);
+			if (b == null && t != null)
+			{
+				nextTarget = t;
+				if (config.routeHintArrow())
+				{
+					setOurHintArrow(t);
+				}
+				return;
+			}
+		}
 		if (o == null && config.highlightRoute())
 		{
 			// Zeah: the next object is too far away to be loaded (the blood altar from the dark
@@ -2059,6 +2080,36 @@ public class AorcPlugin extends Plugin
 			e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ", "
 				+ w.getX() + ", " + w.getY() + ", " + w.getPlane() + ")");
 		}
+	}
+
+	/** The Zeah dense runestones: their IDs, or any form they can switch to named "Dense runestone". */
+	private boolean isRunestone(int id)
+	{
+		if (id == ZEAH_RUNESTONE || id == 8981 || id == 10796)
+		{
+			return true;
+		}
+		net.runelite.api.ObjectComposition base = client.getObjectDefinition(id);
+		if (base == null)
+		{
+			return false;
+		}
+		if ("Dense runestone".equalsIgnoreCase(base.getName()))
+		{
+			return true;
+		}
+		if (base.getImpostorIds() != null)
+		{
+			for (int alt : base.getImpostorIds())
+			{
+				net.runelite.api.ObjectComposition d = alt < 0 ? null : client.getObjectDefinition(alt);
+				if (d != null && "Dense runestone".equalsIgnoreCase(d.getName()))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private static boolean hasBankOption(net.runelite.api.ObjectComposition def)
@@ -2418,6 +2469,9 @@ public class AorcPlugin extends Plugin
 		{
 			// new dark blocks (venerated): with fragments on you they go to the blood altar
 			zeahGo = frags > 0;
+			// from here on, the shortcuts you use are on the way back
+			zeahUsed.clear();
+			zeahApproach.clear();
 		}
 		boolean nearBlood = near(ZEAH_BLOOD_ALTAR, 12);
 		if (zeahLastFrags > 0 && frags == 0)
