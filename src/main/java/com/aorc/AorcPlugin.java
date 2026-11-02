@@ -152,7 +152,7 @@ public class AorcPlugin extends Plugin
 	private Map<Integer, AltarRoute> routes = new HashMap<>();
 	private boolean recordingFairyRing;     // this trip you used a fairy ring
 	private int lastEssence = -1;           // essence item used in your last craft
-	private final Map<Integer, java.util.List<net.runelite.api.GameObject>> routeObjects = new HashMap<>();
+	private final Map<Integer, java.util.List<net.runelite.api.TileObject>> routeObjects = new HashMap<>();
 	// objects clicked on the way this trip: {object ID, x, y, plane}
 	private final java.util.List<int[]> recordingSteps = new java.util.ArrayList<>();
 	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
@@ -1581,14 +1581,14 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** Route debug: the label above every object of the route that is in view. */
-	java.util.Map<net.runelite.api.GameObject, String> routeDebugLabels()
+	java.util.Map<net.runelite.api.TileObject, String> routeDebugLabels()
 	{
-		java.util.Map<net.runelite.api.GameObject, String> out = new java.util.LinkedHashMap<>();
+		java.util.Map<net.runelite.api.TileObject, String> out = new java.util.LinkedHashMap<>();
 		AltarRoute r = route();
 		for (int i = 0; i < r.steps.size(); i++)
 		{
 			int[] st = r.steps.get(i);
-			for (net.runelite.api.GameObject o : routeObjects.getOrDefault(st[0], java.util.Collections.emptyList()))
+			for (net.runelite.api.TileObject o : routeObjects.getOrDefault(st[0], java.util.Collections.emptyList()))
 			{
 				net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
 				if (w != null && AltarRoute.same(st, new int[]{st[0], w.getX(), w.getY(), w.getPlane()}))
@@ -1598,11 +1598,11 @@ public class AorcPlugin extends Plugin
 				}
 			}
 		}
-		for (net.runelite.api.GameObject o : routeObjects.getOrDefault(r.altar, java.util.Collections.emptyList()))
+		for (net.runelite.api.TileObject o : routeObjects.getOrDefault(r.altar, java.util.Collections.emptyList()))
 		{
 			out.put(o, "Altar - " + r.altar);
 		}
-		for (net.runelite.api.GameObject o : fairyRings)
+		for (net.runelite.api.TileObject o : fairyRings)
 		{
 			out.putIfAbsent(o, "Fairy ring - " + o.getId());
 		}
@@ -1629,11 +1629,7 @@ public class AorcPlugin extends Plugin
 	public void onGameObjectSpawned(net.runelite.api.events.GameObjectSpawned event)
 	{
 		net.runelite.api.GameObject o = event.getGameObject();
-		java.util.List<net.runelite.api.GameObject> same = routeObjects.computeIfAbsent(o.getId(), k -> new java.util.ArrayList<>());
-		if (!same.contains(o))
-		{
-			same.add(o);
-		}
+		addRouteObject(o);
 		if (isFairyRing(o.getId()))
 		{
 			fairyRings.add(o);
@@ -1641,6 +1637,94 @@ public class AorcPlugin extends Plugin
 		if (hasBankOption(client.getObjectDefinition(o.getId())))
 		{
 			bankObjects.add(o);
+		}
+	}
+
+	// caves, doors and openings in walls are wall / decoration objects, not game objects
+	@Subscribe
+	public void onWallObjectSpawned(net.runelite.api.events.WallObjectSpawned event)
+	{
+		addRouteObject(event.getWallObject());
+	}
+
+	@Subscribe
+	public void onWallObjectDespawned(net.runelite.api.events.WallObjectDespawned event)
+	{
+		removeRouteObject(event.getWallObject());
+	}
+
+	@Subscribe
+	public void onDecorativeObjectSpawned(net.runelite.api.events.DecorativeObjectSpawned event)
+	{
+		addRouteObject(event.getDecorativeObject());
+	}
+
+	@Subscribe
+	public void onDecorativeObjectDespawned(net.runelite.api.events.DecorativeObjectDespawned event)
+	{
+		removeRouteObject(event.getDecorativeObject());
+	}
+
+	@Subscribe
+	public void onGroundObjectSpawned(net.runelite.api.events.GroundObjectSpawned event)
+	{
+		addRouteObject(event.getGroundObject());
+	}
+
+	@Subscribe
+	public void onGroundObjectDespawned(net.runelite.api.events.GroundObjectDespawned event)
+	{
+		removeRouteObject(event.getGroundObject());
+	}
+
+	private void addRouteObject(net.runelite.api.TileObject o)
+	{
+		java.util.List<net.runelite.api.TileObject> same = routeObjects.computeIfAbsent(o.getId(), k -> new java.util.ArrayList<>());
+		if (!same.contains(o))
+		{
+			same.add(o);
+		}
+	}
+
+	private void removeRouteObject(net.runelite.api.TileObject o)
+	{
+		java.util.List<net.runelite.api.TileObject> list = routeObjects.get(o.getId());
+		if (list != null)
+		{
+			list.remove(o);
+		}
+	}
+
+	/** The outline of any kind of object. */
+	static java.awt.Shape hull(net.runelite.api.TileObject o)
+	{
+		if (o instanceof net.runelite.api.GameObject)
+		{
+			return ((net.runelite.api.GameObject) o).getConvexHull();
+		}
+		if (o instanceof net.runelite.api.WallObject)
+		{
+			return ((net.runelite.api.WallObject) o).getConvexHull();
+		}
+		if (o instanceof net.runelite.api.DecorativeObject)
+		{
+			return ((net.runelite.api.DecorativeObject) o).getConvexHull();
+		}
+		if (o instanceof net.runelite.api.GroundObject)
+		{
+			return ((net.runelite.api.GroundObject) o).getConvexHull();
+		}
+		return o.getClickbox();
+	}
+
+	/** Route debug: the object ID in the right-click menu ("Examine Cave (ID 43762)"). */
+	@Subscribe
+	public void onMenuEntryAdded(net.runelite.api.events.MenuEntryAdded event)
+	{
+		net.runelite.api.MenuEntry e = event.getMenuEntry();
+		if (config.routeDebug() && e.getType() == net.runelite.api.MenuAction.EXAMINE_OBJECT)
+		{
+			e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ")");
 		}
 	}
 
@@ -1745,11 +1829,7 @@ public class AorcPlugin extends Plugin
 	@Subscribe
 	public void onGameObjectDespawned(net.runelite.api.events.GameObjectDespawned event)
 	{
-		java.util.List<net.runelite.api.GameObject> list = routeObjects.get(event.getGameObject().getId());
-		if (list != null)
-		{
-			list.remove(event.getGameObject());
-		}
+		removeRouteObject(event.getGameObject());
 		fairyRings.remove(event.getGameObject());
 		bankObjects.remove(event.getGameObject());
 	}
@@ -1758,9 +1838,9 @@ public class AorcPlugin extends Plugin
 	 * What to highlight in the world now: on the way (essence on you, away from the altar) the
 	 * fairy ring and every step of your route you have not passed yet; at the altar, the altar.
 	 */
-	java.util.List<net.runelite.api.GameObject> routeTargets()
+	java.util.List<net.runelite.api.TileObject> routeTargets()
 	{
-		java.util.List<net.runelite.api.GameObject> out = new java.util.ArrayList<>();
+		java.util.List<net.runelite.api.TileObject> out = new java.util.ArrayList<>();
 		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) == 0)
 		{
 			debugNextStep = -1;
@@ -1772,7 +1852,7 @@ public class AorcPlugin extends Plugin
 		// fairy ring on your route (any ring you see, they can have different IDs), until you used it
 		if (!atAltar && route.fairyRing && !fairyRingUsed)
 		{
-			for (net.runelite.api.GameObject o : fairyRings)
+			for (net.runelite.api.TileObject o : fairyRings)
 			{
 				if (o.getPlane() == client.getPlane())
 				{
@@ -1782,7 +1862,7 @@ public class AorcPlugin extends Plugin
 		}
 		for (int id : ids)
 		{
-			for (net.runelite.api.GameObject o : routeObjects.getOrDefault(id, java.util.Collections.emptyList()))
+			for (net.runelite.api.TileObject o : routeObjects.getOrDefault(id, java.util.Collections.emptyList()))
 			{
 				if (o.getPlane() == client.getPlane())
 				{
@@ -1805,7 +1885,7 @@ public class AorcPlugin extends Plugin
 				continue;   // the altar has its own outline
 			}
 			boolean found = false;
-			for (net.runelite.api.GameObject o : routeObjects.getOrDefault(r[0], java.util.Collections.emptyList()))
+			for (net.runelite.api.TileObject o : routeObjects.getOrDefault(r[0], java.util.Collections.emptyList()))
 			{
 				net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
 				if (w != null && AltarRoute.same(r, new int[]{r[0], w.getX(), w.getY(), w.getPlane()}))
@@ -1822,8 +1902,8 @@ public class AorcPlugin extends Plugin
 		}
 		debugNextStep = next;
 		// one outline per spot (two outlines on top of each other look twice as strong)
-		java.util.Map<String, net.runelite.api.GameObject> one = new java.util.LinkedHashMap<>();
-		for (net.runelite.api.GameObject o : out)
+		java.util.Map<String, net.runelite.api.TileObject> one = new java.util.LinkedHashMap<>();
+		for (net.runelite.api.TileObject o : out)
 		{
 			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
 			one.putIfAbsent(o.getId() + ":" + w, o);

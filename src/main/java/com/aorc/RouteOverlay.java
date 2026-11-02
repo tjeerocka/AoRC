@@ -7,7 +7,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import javax.inject.Inject;
-import net.runelite.api.GameObject;
+import net.runelite.api.TileObject;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -38,9 +38,9 @@ class RouteOverlay extends Overlay
 	{
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		java.util.List<Shape> shapes = new java.util.ArrayList<>(plugin.bankTargets());
-		for (GameObject o : plugin.routeTargets())
+		for (TileObject o : plugin.routeTargets())
 		{
-			shapes.add(o.getConvexHull());
+			shapes.add(AorcPlugin.hull(o));
 		}
 		for (Shape hull : shapes)
 		{
@@ -58,7 +58,7 @@ class RouteOverlay extends Overlay
 		if (config.routeDebug())
 		{
 			// route debug: step number, object ID and passed / next above every route object
-			for (java.util.Map.Entry<GameObject, String> e : plugin.routeDebugLabels().entrySet())
+			for (java.util.Map.Entry<TileObject, String> e : plugin.routeDebugLabels().entrySet())
 			{
 				net.runelite.api.Point p = e.getKey().getCanvasTextLocation(g, e.getValue(), 150);
 				if (p != null)
