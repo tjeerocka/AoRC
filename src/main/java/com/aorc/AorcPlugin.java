@@ -1020,6 +1020,10 @@ public class AorcPlugin extends Plugin
 		}
 
 		checkRepairDialogue();
+		if (tick % 5 == 0)
+		{
+			syncFromPouchPlugin();
+		}
 		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
@@ -1321,6 +1325,59 @@ public class AorcPlugin extends Plugin
 		if (changed)
 		{
 			dirty = true;
+		}
+	}
+
+	/**
+	 * You also run the "Essence Pouch Tracking" plugin: take the durability it shows, so AoRC
+	 * knows it right away (also after a login) without typing it in. Read every 3 seconds.
+	 */
+	private void syncFromPouchPlugin()
+	{
+		String json;
+		try
+		{
+			json = configManager.getRSProfileConfiguration(PouchTracker.OTHER_GROUP, PouchTracker.OTHER_KEY);
+		}
+		catch (RuntimeException e)
+		{
+			return;
+		}
+		if (json == null || json.isEmpty())
+		{
+			return;
+		}
+		PouchTracker.OtherState other;
+		try
+		{
+			other = gson.fromJson(json, PouchTracker.OtherState.class);
+		}
+		catch (RuntimeException e)
+		{
+			return;   // its format changed: keep counting ourselves
+		}
+		if (other == null)
+		{
+			return;
+		}
+		int level = client.getRealSkillLevel(Skill.RUNECRAFT);
+		pouches.setRunecraftLevel(level);
+		for (PouchTracker.Pouch p : PouchTracker.Pouch.values())
+		{
+			int durability = PouchTracker.durabilityOf(other.get(p), PouchTracker.capacity(p, level));
+			if (durability < 0 || durability == pouches.usesLeft(p))
+			{
+				continue;
+			}
+			boolean before = pouches.needsRepair(p);
+			pouches.setUsesLeft(p, Math.min(durability, pouches.totalUses(p)));
+			fillCounted.remove(p);   // this fill is in the other plugin's number already
+			dirty = true;
+			pouchDebug("synced from Essence Pouch Tracking: durability " + pouches.usesLeft(p) + "/" + pouches.totalUses(p));
+			if (!before && pouches.needsRepair(p) && pouchesCarried.contains(p) && config.warnPouch())
+			{
+				warnPouch(p);
+			}
 		}
 	}
 

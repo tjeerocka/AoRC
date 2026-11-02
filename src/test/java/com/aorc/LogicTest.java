@@ -662,4 +662,22 @@ public class LogicTest
 		t.markDecayed(PouchTracker.Pouch.GIANT);
 		assertTrue(t.needsRepair(PouchTracker.Pouch.GIANT));
 	}
+
+	@Test
+	public void durabilityFromPouchTrackingPlugin()
+	{
+		PouchTracker.OtherPouch o = new PouchTracker.OtherPouch();
+		o.maxCapacity = 27;
+		o.remainingEssenceBeforeDecay = 320;
+		assertEquals(12, PouchTracker.durabilityOf(o, 27));
+		o.remainingEssenceBeforeDecay = 320 - 27;
+		assertEquals(11, PouchTracker.durabilityOf(o, 27));
+		o.remainingEssenceBeforeDecay = 81;
+		assertEquals(3, PouchTracker.durabilityOf(o, 27));
+		o.unknownDecay = true;
+		assertEquals(-1, PouchTracker.durabilityOf(o, 27));
+		o.unknownDecay = false;
+		o.isDegraded = true;
+		assertEquals(0, PouchTracker.durabilityOf(o, 27));
+	}
 }

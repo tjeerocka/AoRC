@@ -215,4 +215,64 @@ public class PouchTracker
 			}
 		}
 	}
+
+	// ---------- reading the "Essence Pouch Tracking" plugin (if you have it) ----------
+
+	/** Config group and key where the Essence Pouch Tracking plugin saves its pouches (JSON). */
+	static final String OTHER_GROUP = "essencepouchtracking";
+	static final String OTHER_KEY = "trackingState";
+
+	/** The parts of that plugin's saved data we read. */
+	static class OtherState
+	{
+		OtherPouch mediumPouch;
+		OtherPouch largePouch;
+		OtherPouch giantPouch;
+		OtherPouch colossalPouch;
+
+		OtherPouch get(Pouch p)
+		{
+			switch (p)
+			{
+				case MEDIUM:
+					return mediumPouch;
+				case LARGE:
+					return largePouch;
+				case GIANT:
+					return giantPouch;
+				default:
+					return colossalPouch;
+			}
+		}
+	}
+
+	static class OtherPouch
+	{
+		int remainingEssenceBeforeDecay;
+		boolean isDegraded;
+		boolean unknownDecay;
+		int maxCapacity;
+	}
+
+	/**
+	 * Durability that plugin shows: essence it can still take before decaying / what it holds
+	 * (320 left, holds 27 = 12). -1 when it does not know.
+	 */
+	static int durabilityOf(OtherPouch o, int capacityFallback)
+	{
+		if (o == null || o.unknownDecay)
+		{
+			return -1;
+		}
+		if (o.isDegraded)
+		{
+			return 0;
+		}
+		int cap = o.maxCapacity > 0 ? o.maxCapacity : capacityFallback;
+		if (cap <= 0 || o.remainingEssenceBeforeDecay < 0)
+		{
+			return -1;
+		}
+		return (int) Math.ceil(o.remainingEssenceBeforeDecay / (double) cap);
+	}
 }
