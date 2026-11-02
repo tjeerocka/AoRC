@@ -137,6 +137,11 @@ public class AorcPlugin extends Plugin
 	private volatile Teleport teleportNow;
 	private final Map<Integer, String> itemNames = new HashMap<>();
 	private boolean smallPouchCarried;
+	// altar teleport used (your location jumped): no more cyan box until you are full again
+	private boolean altarTeleportUsed;
+	private int lastX = -1;
+	private int lastY = -1;
+	private int lastPlane = -1;
 
 	enum Teleport
 	{
@@ -1337,12 +1342,40 @@ public class AorcPlugin extends Plugin
 			{
 				next = Teleport.BANK;
 			}
-			else if (region != craftRegion && essence > 0 && pouchesFull)
+			else if (region != craftRegion && essence > 0 && pouchesFull && !altarTeleportUsed)
 			{
 				next = Teleport.ALTAR;
 			}
+			if (essence == 0)
+			{
+				altarTeleportUsed = false;   // used up: next time you are full, show it again
+			}
+		}
+		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
+		boolean teleported = jumped();   // every tick, so it always compares with the last tick
+		if (teleportNow == Teleport.ALTAR && teleported)
+		{
+			altarTeleportUsed = true;
+			next = null;
 		}
 		teleportNow = next;
+	}
+
+	/** Your location jumped since the last tick (a teleport). */
+	private boolean jumped()
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null)
+		{
+			return false;
+		}
+		net.runelite.api.coords.WorldPoint w = p.getWorldLocation();
+		boolean jump = lastX != -1 && (w.getPlane() != lastPlane
+			|| Math.abs(w.getX() - lastX) > 10 || Math.abs(w.getY() - lastY) > 10);
+		lastX = w.getX();
+		lastY = w.getY();
+		lastPlane = w.getPlane();
+		return jump;
 	}
 
 	/** Essence in a pouch now (the game keeps it in a varbit). */
