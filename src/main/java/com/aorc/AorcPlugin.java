@@ -1494,10 +1494,9 @@ public class AorcPlugin extends Plugin
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
-		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
-		{
-			pendingStep = null;   // walked somewhere else instead
-		}
+		// any other click (walk, teleport item, fairy ring, another object) replaces the object
+		// you clicked before: only the last object you clicked can become a step
+		pendingStep = null;
 		if (id <= 0 || !isObjectAction(event.getMenuAction()))
 		{
 			return;
