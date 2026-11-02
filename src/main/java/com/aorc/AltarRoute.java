@@ -18,6 +18,8 @@ public class AltarRoute
 	final boolean fairyRing;
 	final int altar;
 	final List<int[]> steps;
+	/** Objects never highlighted on this route (the way back through a cave, from the other side). */
+	final java.util.Set<Integer> hidden = new java.util.HashSet<>();
 
 	AltarRoute(String name, boolean fairyRing, int altar, int[]... steps)
 	{
@@ -27,6 +29,15 @@ public class AltarRoute
 		List<int[]> list = new ArrayList<>();
 		Collections.addAll(list, steps);
 		this.steps = Collections.unmodifiableList(list);
+	}
+
+	AltarRoute hide(int... ids)
+	{
+		for (int id : ids)
+		{
+			hidden.add(id);
+		}
+		return this;
 	}
 
 	/** No route known for this altar. */
@@ -43,7 +54,8 @@ public class AltarRoute
 			new int[]{5046, 3467, 9820, 0},     // 2. Cave entrance
 			new int[]{43759, 3500, 9803, 0},    // 3. Cave
 			new int[]{43762, 3540, 9772, 0},    // 4. Cave
-			new int[]{25380, 3560, 9780, 0}));  // 5. Mysterious ruins
+			new int[]{25380, 3560, 9780, 0})    // 5. Mysterious ruins
+			.hide(43763));                      // step 4 from the other side (the way back)
 	}
 
 	static AltarRoute of(int altarRegion)

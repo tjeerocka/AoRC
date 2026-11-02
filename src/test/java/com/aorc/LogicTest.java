@@ -674,6 +674,8 @@ public class LogicTest
 		// the cave on the other side (far away) or another floor is not a step
 		assertEquals(-1, r.findSpot(3480, 9820, 0));
 		assertEquals(-1, r.findSpot(3467, 9820, 1));
+		// the way back through step 4 is never highlighted
+		assertTrue(r.hidden.contains(43763));
 		// an altar without a route
 		assertEquals(0, AltarRoute.of(1).steps.size());
 	}

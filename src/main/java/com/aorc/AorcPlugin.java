@@ -1557,6 +1557,7 @@ public class AorcPlugin extends Plugin
 		{
 			out.putIfAbsent(o, "Fairy ring - " + o.getId());
 		}
+		out.keySet().removeIf(o -> r.hidden.contains(o.getId()));
 		return out;
 	}
 
@@ -1878,6 +1879,10 @@ public class AorcPlugin extends Plugin
 		java.util.Map<String, net.runelite.api.TileObject> one = new java.util.LinkedHashMap<>();
 		for (net.runelite.api.TileObject o : out)
 		{
+			if (route.hidden.contains(o.getId()))
+			{
+				continue;   // never highlighted on this route
+			}
 			net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
 			one.putIfAbsent(o.getId() + ":" + w, o);
 		}
