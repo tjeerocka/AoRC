@@ -2,6 +2,7 @@ package com.aorc;
 
 import com.google.gson.Gson;
 import com.google.inject.Provides;
+import java.awt.Color;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +68,9 @@ public class AorcPlugin extends Plugin
 	@Inject
 	private RepairSpellOverlay repairSpellOverlay;
 
+	@Inject
+	private TeleportOverlay teleportOverlay;
+
 
 	@Inject
 	private ConfigManager configManager;
@@ -129,6 +133,17 @@ public class AorcPlugin extends Plugin
 	private final Map<PouchTracker.Pouch, Integer> pouchFills = new java.util.EnumMap<>(PouchTracker.Pouch.class);
 	// pouches we warned about (warn again only after a repair)
 	private final java.util.Set<PouchTracker.Pouch> pouchesWarned = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
+	// teleport to highlight now: BANK, ALTAR or null; item names looked up once
+	private volatile Teleport teleportNow;
+	private final Map<Integer, String> itemNames = new HashMap<>();
+	private boolean smallPouchCarried;
+
+	enum Teleport
+	{
+		BANK,
+		ALTAR
+	}
+
 	// talking to the Dark Mage while a pouch needs a repair: highlight what to click
 	private volatile boolean repairGuide;
 	// Inactive blood essence in the inventory
@@ -205,6 +220,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(spitOverlay);
 		overlayManager.add(pouchOverlay);
 		overlayManager.add(repairSpellOverlay);
+		overlayManager.add(teleportOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
 		navButton = buildNav(ImageUtil.loadImageResource(getClass(), "icon.png"));
@@ -230,6 +246,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.remove(spitOverlay);
 		overlayManager.remove(pouchOverlay);
 		overlayManager.remove(repairSpellOverlay);
+		overlayManager.remove(teleportOverlay);
 		if (panel != null)
 		{
 			panel.stop();
@@ -1009,6 +1026,7 @@ public class AorcPlugin extends Plugin
 		}
 
 		updatePouchWear();
+		updateTeleport();
 		updateRepairGuide();
 
 		// A trip that ended at the altar is counted when you leave the altar (other map area),
@@ -1238,12 +1256,17 @@ public class AorcPlugin extends Plugin
 	{
 		pouchesCarried.clear();
 		pouchesDecayed.clear();
+		smallPouchCarried = false;
 		if (inv == null)
 		{
 			return;
 		}
 		for (Item item : inv.getItems())
 		{
+			if (item.getId() == SMALL_POUCH)
+			{
+				smallPouchCarried = true;
+			}
 			PouchTracker.Pouch p = PouchTracker.of(item.getId());
 			if (p != null)
 			{
@@ -1277,6 +1300,83 @@ public class AorcPlugin extends Plugin
 				warnPouch(p);
 			}
 		}
+	}
+
+	private static final int SMALL_POUCH = 5509;
+
+	/**
+	 * Which teleport to highlight: the bank one at the altar once your essence and pouches are
+	 * empty, the altar one away from the altar once your essence and pouches are full.
+	 */
+	private void updateTeleport()
+	{
+		Teleport next = null;
+		if (config.highlightTeleports() && lastInventory != null && craftRegion != -1)
+		{
+			int region = regionId();
+			int essence = essenceCount(lastInventory);
+			int rc = client.getRealSkillLevel(Skill.RUNECRAFT);
+			boolean pouchesEmpty = true;
+			boolean pouchesFull = true;
+			for (PouchTracker.Pouch p : pouchesCarried)
+			{
+				int amount = pouchAmount(p);
+				pouchesEmpty &= amount == 0;
+				pouchesFull &= amount >= PouchTracker.capacity(p, pouchWear(p), rc);
+			}
+			if (smallPouchCarried)
+			{
+				int amount = client.getVarbitValue(VarbitID.SMALL_ESSENCE_POUCH);
+				pouchesEmpty &= amount == 0;
+				pouchesFull &= amount >= 3;
+			}
+			if (region == craftRegion && essence == 0 && pouchesEmpty)
+			{
+				next = Teleport.BANK;
+			}
+			else if (region != craftRegion && essence > 0 && pouchesFull)
+			{
+				next = Teleport.ALTAR;
+			}
+		}
+		teleportNow = next;
+	}
+
+	/** Essence in a pouch now (the game keeps it in a varbit). */
+	private int pouchAmount(PouchTracker.Pouch p)
+	{
+		switch (p)
+		{
+			case MEDIUM:
+				return client.getVarbitValue(VarbitID.MEDIUM_ESSENCE_POUCH);
+			case LARGE:
+				return client.getVarbitValue(VarbitID.LARGE_ESSENCE_POUCH);
+			case GIANT:
+				return client.getVarbitValue(VarbitID.GIANT_ESSENCE_POUCH);
+			default:
+				return client.getVarbitValue(VarbitID.COLOSSAL_ESSENCE_POUCH);
+		}
+	}
+
+	/** Colour of the box around this item (inventory / worn), or null: the teleport to use now. */
+	Color teleportHighlight(int itemId)
+	{
+		Teleport t = teleportNow;
+		if (t == null)
+		{
+			return null;
+		}
+		TeleportItem wanted = t == Teleport.BANK ? config.bankTeleport() : config.altarTeleport();
+		if (wanted == null || wanted == TeleportItem.NONE)
+		{
+			return null;
+		}
+		String name = itemNames.computeIfAbsent(itemId, id -> itemManager.getItemComposition(id).getName());
+		if (!wanted.matches(name))
+		{
+			return null;
+		}
+		return t == Teleport.BANK ? TeleportOverlay.BANK : TeleportOverlay.ALTAR;
 	}
 
 	/** The game's hidden wear counter of a pouch (0 = just repaired). */

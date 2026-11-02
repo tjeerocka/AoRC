@@ -257,4 +257,50 @@ public interface AorcConfig extends Config
 	{
 		return HighlightColor.DARK_GREEN;
 	}
+
+	// ---- Teleport highlights ----
+
+	@ConfigSection(
+		name = "Teleport highlights",
+		description = "Highlight the teleport to use next, in your inventory or worn equipment",
+		position = 40
+	)
+	String teleportSection = "teleports";
+
+	@ConfigItem(
+		keyName = "highlightTeleports",
+		name = "Highlight teleports",
+		description = "After your last craft (essence and pouches empty) the bank teleport is highlighted (yellow). "
+			+ "When you are full of essence (pouches full too) the altar teleport is highlighted (cyan).",
+		section = teleportSection,
+		position = 41
+	)
+	default boolean highlightTeleports()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "bankTeleport",
+		name = "Bank teleport",
+		description = "The item you teleport to the bank with",
+		section = teleportSection,
+		position = 42
+	)
+	default TeleportItem bankTeleport()
+	{
+		return TeleportItem.NONE;
+	}
+
+	@ConfigItem(
+		keyName = "altarTeleport",
+		name = "Altar teleport",
+		description = "The item you teleport to the altar with",
+		section = teleportSection,
+		position = 43
+	)
+	default TeleportItem altarTeleport()
+	{
+		return TeleportItem.NONE;
+	}
 }

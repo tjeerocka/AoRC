@@ -650,4 +650,14 @@ public class LogicTest
 		// the others use the game's own breakpoints too
 		assertTrue(PouchTracker.fullFills(PouchTracker.Pouch.GIANT, 99) > 0);
 	}
+
+	@Test
+	public void teleportItemsMatchByName()
+	{
+		assertTrue(TeleportItem.SAILORS_AMULET.matches("Sailors' amulet"));
+		assertTrue(TeleportItem.QUEST_CAPE.matches("Quest point cape (t)"));
+		assertTrue(TeleportItem.RING_OF_DUELING.matches("Ring of dueling(8)"));
+		assertFalse(TeleportItem.QUEST_CAPE.matches("Quest point hood"));
+		assertFalse(TeleportItem.NONE.matches("Sailors' amulet"));
+	}
 }
