@@ -1735,9 +1735,11 @@ public class AorcPlugin extends Plugin
 			removeMenuEntry(e);
 			return;
 		}
-		// within 10 tiles of an altar: no "Fill" on the essence pouches, so "Empty" is the left-click
+		// within 10 tiles of an altar: no "Fill" and no "Check" on the essence pouches, so "Empty" is
+		// the left-click (the colossal pouch has Fill, Check, Empty: without Fill, Check was on top)
 		// (not at ZMI or Guardians of the Rift: there you fill your pouches next to the altar)
-		if ("fill".equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId())
+		String opt = Text.removeTags(e.getOption());
+		if (("fill".equalsIgnoreCase(opt) || "check".equalsIgnoreCase(opt)) && isPouch(e.getItemId())
 			&& nearAltar() && !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE)
 		{
 			removeMenuEntry(e);
