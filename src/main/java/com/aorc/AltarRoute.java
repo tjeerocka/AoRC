@@ -18,7 +18,8 @@ public class AltarRoute
 	final boolean fairyRing;
 	final int altar;
 	final List<int[]> steps;
-	/** Objects never highlighted on this route (the way back through a cave, from the other side). */
+	/** Objects never highlighted on this route, and without "Enter" while you carry essence
+	 * (the way back through a cave, from the other side). */
 	final java.util.Set<Integer> hidden = new java.util.HashSet<>();
 
 	AltarRoute(String name, boolean fairyRing, int altar, int[]... steps)

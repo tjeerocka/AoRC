@@ -1691,11 +1691,23 @@ public class AorcPlugin extends Plugin
 		return on;
 	}
 
-	/** Route debug: the object ID in the right-click menu ("Examine Cave (ID 43762)"). */
+	/** Route debug: the object ID in the right-click menu. Also hides the wrong-way objects' options. ("Examine Cave (ID 43762)"). */
 	@Subscribe
 	public void onMenuEntryAdded(net.runelite.api.events.MenuEntryAdded event)
 	{
 		net.runelite.api.MenuEntry e = event.getMenuEntry();
+		// on the way to the altar: no "Enter" on the objects that take you back the wrong way
+		// (step 4 from the other side); "Walk here" and "Examine" stay
+		if (config.highlightRoute() && isObjectAction(e.getType()) && route().hidden.contains(e.getIdentifier())
+			&& lastInventory != null && essenceCount(lastInventory) > 0)
+		{
+			net.runelite.api.MenuEntry[] all = client.getMenuEntries();
+			if (all.length > 0 && all[all.length - 1] == e)
+			{
+				client.setMenuEntries(java.util.Arrays.copyOf(all, all.length - 1));
+			}
+			return;
+		}
 		if (routeDebug() && e.getType() == net.runelite.api.MenuAction.EXAMINE_OBJECT)
 		{
 			e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ")");
