@@ -127,6 +127,10 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
 	private PouchTracker.Pouch emptyPouch;  // pouch you just clicked "Empty" on
 	private int emptyTick;
+	private PouchTracker.Pouch fillPouch;   // pouch you just clicked "Fill" on
+	private int fillTick;
+	// pouches whose current fill was already counted (so the empty does not count it again)
+	private final java.util.Set<PouchTracker.Pouch> fillCounted = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
 	private static final int BANK_GROUP = 12;          // bank interface
 	private static final int DEPOSIT_BOX_GROUP = 192;  // bank deposit box
 	private boolean noPouchWear;
@@ -973,7 +977,7 @@ public class AorcPlugin extends Plugin
 			dirty = true;
 			if (config.warnPouch())
 			{
-				warn("pouch", "Your pouch has decayed. Repair it with Astral Contact (Dark Mage).");
+				warn("pouch", "Your pouch has decayed (durability 0). Repair it with Astral Contact (Dark Mage).");
 			}
 		}
 		Matcher m = ESSENCE_CHECK.matcher(Text.removeTags(event.getMessage()));
@@ -1265,42 +1269,50 @@ public class AorcPlugin extends Plugin
 		pouchesCarried.clear();
 		pouchesCarried.addAll(carried);
 
-		// "Empty" clicked on a pouch, and essence came into the inventory right after: that essence
-		// was put in that pouch before. Counted when it comes out (not when filling), so it also
-		// works when you fill your pouches straight from the bank.
-		// If the click was not seen (another menu, a key bind, ...): several essence that appear at
-		// once while the bank is closed come out of a pouch too (mining gives them one by one).
-		// With one wearing pouch on you (the small pouch does not wear) it is that one.
-		PouchTracker.Pouch from = emptyPouch != null && tick - emptyTick <= 3 ? emptyPouch : null;
-		boolean guessed = false;
+		// Durability goes down when you FILL a pouch (like in the game). Seen as: "Fill" clicked and
+		// essence leaves the inventory. A fill from the bank does not change the inventory; then
+		// it is counted when you empty the pouch at the altar instead (never twice).
 		pouches.setRunecraftLevel(client.getRealSkillLevel(Skill.RUNECRAFT));
-		if (from == null && carried.size() == 1 && !bankOpen())
-		{
-			from = carried.iterator().next();
-			guessed = true;
-		}
-		if (lastInventory != null && carried.size() > 0 && pouchEssence(lastInventory) != pouchEssence(now))
-		{
-			pouchDebug("essence " + pouchEssence(lastInventory) + " -> " + pouchEssence(now)
-				+ ", bank open " + bankOpen() + ", pouch " + (from == null ? "-" : from.getName())
-				+ (emptyPouch != null ? ", Empty clicked " + (tick - emptyTick) + " ticks ago" : "")
-				+ (noPouchWear ? ", no wear (cape / redwood lantern)" : ""));
-		}
-		if (from != null && lastInventory != null)
+		if (lastInventory != null && carried.size() > 0)
 		{
 			int before = pouchEssence(lastInventory);
 			int after = pouchEssence(now);
-			// a guessed use needs at least half a pouch (a few essence can be something else)
-			int half = Math.max(2, PouchTracker.capacity(from, client.getRealSkillLevel(Skill.RUNECRAFT)) / 2);
-			if (after > before && (!guessed || after - before >= half))
+			if (before != after)
 			{
-				if (!noPouchWear)
+				pouchDebug("essence " + before + " -> " + after + ", bank open " + bankOpen()
+					+ (fillPouch != null ? ", Fill clicked " + (tick - fillTick) + " ticks ago" : "")
+					+ (emptyPouch != null ? ", Empty clicked " + (tick - emptyTick) + " ticks ago" : "")
+					+ (noPouchWear ? ", no wear (cape / redwood lantern)" : ""));
+			}
+
+			PouchTracker.Pouch filled = fillPouch != null && tick - fillTick <= 3 ? fillPouch : null;
+			if (filled != null && after < before)
+			{
+				countUse(filled, "fill");
+				fillCounted.add(filled);
+				fillPouch = null;
+				changed = true;
+			}
+
+			// Empty: essence comes into the inventory. Click not seen (another menu, a key bind):
+			// half a pouch or more appearing at once with the bank closed, one pouch on you.
+			PouchTracker.Pouch from = emptyPouch != null && tick - emptyTick <= 3 ? emptyPouch : null;
+			boolean guessed = false;
+			if (from == null && carried.size() == 1 && !bankOpen())
+			{
+				from = carried.iterator().next();
+				guessed = true;
+			}
+			int half = from == null ? 0 : Math.max(2, PouchTracker.capacity(from, client.getRealSkillLevel(Skill.RUNECRAFT)) / 2);
+			if (from != null && after > before && (!guessed || after - before >= half))
+			{
+				if (fillCounted.remove(from))
 				{
-					pouchDebug("counted 1 use: " + pouches.usesLeft(from) + " -> " + (pouches.usesLeft(from) - 1) + " uses left");
+					pouchDebug("empty: already counted at the fill");
 				}
-				if (!noPouchWear && pouches.addUse(from, after - before) && config.warnPouch())
+				else
 				{
-					warn("pouch", from.getName() + " is about to decay (" + pouches.usesLeft(from) + "/" + pouches.totalUses(from) + " uses left). Repair it with Astral Contact (Dark Mage).");
+					countUse(from, "empty (fill was not seen)");
 				}
 				emptyPouch = null;
 				changed = true;
@@ -1310,6 +1322,28 @@ public class AorcPlugin extends Plugin
 		{
 			dirty = true;
 		}
+	}
+
+	/** One use of a pouch: durability goes down by 1; warn at 3 left. */
+	private void countUse(PouchTracker.Pouch p, String how)
+	{
+		if (noPouchWear)
+		{
+			pouchDebug(how + ": not counted (Runecraft / max cape or redwood lantern)");
+			return;
+		}
+		boolean warnNow = pouches.addUse(p, 1);
+		pouchDebug(how + ": durability " + pouches.usesLeft(p) + "/" + pouches.totalUses(p));
+		if (warnNow && config.warnPouch())
+		{
+			warnPouch(p);
+		}
+	}
+
+	private void warnPouch(PouchTracker.Pouch p)
+	{
+		warn("pouch", p.getName() + " durability " + pouches.usesLeft(p) + "/" + pouches.totalUses(p)
+			+ ". Repair it with Astral Contact (Dark Mage).");
 	}
 
 	/** The bank is open (essence that appears then is withdrawn, not taken out of a pouch). */
@@ -1340,6 +1374,11 @@ public class AorcPlugin extends Plugin
 			emptyPouch = p;
 			emptyTick = tick;
 		}
+		if (p != null && event.getMenuOption() != null && event.getMenuOption().startsWith("Fill"))
+		{
+			fillPouch = p;
+			fillTick = tick;
+		}
 	}
 
 	/** The Dark Mage (or Cordelia) repaired your pouches: his dialogue says so. */
@@ -1365,12 +1404,17 @@ public class AorcPlugin extends Plugin
 	 * Test the pouch warning: the pouches you carry (or the colossal pouch) count as worn,
 	 * so you see the warning and the highlights. They go away after a repair at the Dark Mage.
 	 */
-	/** "Set uses left" in the side panel: the pouches you carry are at this many uses left now. */
+	/** "Set durability" in the side panel: the pouches you carry have this durability now. */
 	public void setPouchUsesLeft(int left)
 	{
 		for (PouchTracker.Pouch p : pouchesCarried)
 		{
 			pouches.setUsesLeft(p, left);
+			if (pouches.needsRepair(p) && config.warnPouch())
+			{
+				lastWarn.remove("pouch");
+				warnPouch(p);
+			}
 		}
 		dirty = true;
 		refreshPanel();
@@ -1395,9 +1439,11 @@ public class AorcPlugin extends Plugin
 		}
 		dirty = true;
 		String name = which.iterator().next().getName();
-		notifier.notify("AoRC: " + name + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage). (test)");
-		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-			"<col=ff3030>AoRC:</col> " + name + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage). (test)", null);
+		PouchTracker.Pouch first = which.iterator().next();
+		String msg = name + " durability " + pouches.usesLeft(first) + "/" + pouches.totalUses(first)
+			+ ". Repair it with Astral Contact (Dark Mage). (test)";
+		notifier.notify("AoRC: " + msg);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> " + msg, null);
 		refreshPanel();
 	}
 

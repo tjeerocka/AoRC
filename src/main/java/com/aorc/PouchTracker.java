@@ -4,16 +4,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Essence pouch wear, in uses (like "3/12 uses left"). The game hides how close a pouch is
- * to decaying, so we count each use (every time essence comes out of the pouch) since its
- * last repair. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
+ * Essence pouch durability (like "3/12"). The game hides how close a pouch is to decaying,
+ * so we count each fill since the last repair; durability = fills left before it decays. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
  * medium 270, large 261, giant 120, colossal 320. Uses in total = that / what the pouch holds
- * (colossal at level 75-84 holds 27: 320 / 27 = 12 uses). Warning at 3 uses left (25% left).
+ * (colossal at level 75-84 holds 27: 320 / 27 = durability 12). Warning at 3 durability left.
  * The small pouch never decays.
  */
 public class PouchTracker
 {
-	/** Warn at this many uses left (3/12 = 25% left). */
+	/** Warn at this durability left (3/12). */
 	static final int WARN_USES_LEFT = 3;
 
 	public enum Pouch
@@ -74,7 +73,7 @@ public class PouchTracker
 
 	/**
 	 * One use: this much essence came out of the pouch.
-	 * @return true when this use reached 3 uses left (time to warn, once)
+	 * @return true when this fill reached durability 3 (time to warn, once)
 	 */
 	public boolean addUse(Pouch p, int essence)
 	{
@@ -157,7 +156,7 @@ public class PouchTracker
 		}
 	}
 
-	/** For the test button: this pouch is at 3 uses left (until the next repair). */
+	/** For the test button: this pouch is at durability 3 (until the next repair). */
 	public void markNeedsRepair(Pouch p)
 	{
 		if (p != null)

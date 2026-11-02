@@ -75,7 +75,7 @@ class AorcPanel extends PluginPanel
 	private final Grid session = new Grid(sessionBody);
 	private final Bar essenceBar = new Bar();
 	private final JButton testPouch = button("Test warning");
-	private final JButton setPouch = button("Set uses left");
+	private final JButton setPouch = button("Set durability");
 	private final JPanel pouchButtons = new JPanel(new GridLayout(1, 2, 4, 0));
 	private final JPanel tripsBody = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final Grid tripsGrid = new Grid(tripsBody);
@@ -148,11 +148,11 @@ class AorcPanel extends PluginPanel
 		testPouch.setToolTipText("Show the pouch warning and highlights now. They go away after you repair your pouches.");
 		testPouch.setMargin(new Insets(1, 4, 1, 4));
 		testPouch.addActionListener(e -> run(clientThread, () -> plugin.testPouchWarning()));
-		setPouch.setToolTipText("Tell AoRC how many uses your pouch has left now (for example from another plugin)");
+		setPouch.setToolTipText("Tell AoRC the durability your pouch has now (for example from another plugin)");
 		setPouch.setMargin(new Insets(1, 4, 1, 4));
 		setPouch.addActionListener(e ->
 		{
-			String in = javax.swing.JOptionPane.showInputDialog(this, "How many uses does your pouch have left now?", "AoRC", javax.swing.JOptionPane.QUESTION_MESSAGE);
+			String in = javax.swing.JOptionPane.showInputDialog(this, "Durability of your pouch now? (for example 3, for 3/12)", "AoRC", javax.swing.JOptionPane.QUESTION_MESSAGE);
 			if (in == null)
 			{
 				return;
@@ -540,10 +540,10 @@ class AorcPanel extends PluginPanel
 		// essence pouches: part used since the last repair (orange = repair soon)
 		for (int i = 0; i < d.pouchNames.size(); i++)
 		{
-			// "9/12 uses left", orange "Repair! 3/12" at 3 uses left
+			// "9/12 durability", orange "Repair! 3/12" at 3 left
 			String uses = d.pouchUses.get(i);
 			boolean repair = uses.startsWith("0/") || uses.startsWith("1/") || uses.startsWith("2/") || uses.startsWith("3/");
-			session.cell(d.pouchNames.get(i), repair ? "Repair! " + uses : uses + " uses left",
+			session.cell(d.pouchNames.get(i), repair ? "Repair! " + uses : uses + " durability",
 				repair ? Color.ORANGE : Color.LIGHT_GRAY);
 		}
 		session.end();
