@@ -728,6 +728,15 @@ public class LogicTest
 	}
 
 	@Test
+	public void essencePouchesAreKnown()
+	{
+		assertTrue(AorcPlugin.isPouch(5509));    // small
+		assertTrue(AorcPlugin.isPouch(5514));    // giant
+		assertTrue(AorcPlugin.isPouch(26786));   // colossal, decayed
+		assertFalse(AorcPlugin.isPouch(565));    // blood rune
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

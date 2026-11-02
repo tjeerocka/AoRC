@@ -1670,6 +1670,22 @@ public class AorcPlugin extends Plugin
 		return config.routeDebug();
 	}
 
+	/** Remove the menu entry that was just added (it is the last one). */
+	private void removeMenuEntry(net.runelite.api.MenuEntry e)
+	{
+		net.runelite.api.MenuEntry[] all = client.getMenuEntries();
+		if (all.length > 0 && all[all.length - 1] == e)
+		{
+			client.setMenuEntries(java.util.Arrays.copyOf(all, all.length - 1));
+		}
+	}
+
+	/** Any essence pouch (small to colossal, also decayed ones). */
+	static boolean isPouch(int itemId)
+	{
+		return itemId == SMALL_POUCH || PouchTracker.of(itemId) != null;
+	}
+
 	/** Route debug: the object ID in the right-click menu. Also hides the wrong-way objects' options. ("Examine Cave (ID 43762)"). */
 	@Subscribe
 	public void onMenuEntryAdded(net.runelite.api.events.MenuEntryAdded event)
@@ -1680,11 +1696,16 @@ public class AorcPlugin extends Plugin
 		Integer at = route().hiddenAt.get(e.getIdentifier());
 		if (at != null && at == nextStep && isObjectAction(e.getType()))
 		{
-			net.runelite.api.MenuEntry[] all = client.getMenuEntries();
-			if (all.length > 0 && all[all.length - 1] == e)
-			{
-				client.setMenuEntries(java.util.Arrays.copyOf(all, all.length - 1));
-			}
+			removeMenuEntry(e);
+			return;
+		}
+		// at the altar: no "Fill" on the essence pouches, so "Empty" is the left-click
+		// (not at ZMI or Guardians of the Rift: there you fill your pouches next to the altar)
+		if (config.onlyEmptyAtAltar() && "fill".equalsIgnoreCase(Text.removeTags(e.getOption()))
+			&& isPouch(e.getItemId()) && craftRegion != -1 && regionId() == craftRegion
+			&& !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE)
+		{
+			removeMenuEntry(e);
 			return;
 		}
 		if (routeDebug() && e.getType() == net.runelite.api.MenuAction.EXAMINE_OBJECT)
