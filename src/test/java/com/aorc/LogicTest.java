@@ -662,14 +662,20 @@ public class LogicTest
 	}
 
 	@Test
-	public void routeStepsMatchTheExactSpot()
+	public void moryRouteStepsMatchTheExactSpot()
 	{
-		AltarRoute r = new AltarRoute();
-		r.steps.add(new int[]{12345, 3600, 3300, 0});   // cave on the way there
-		assertEquals(0, r.find(new int[]{12345, 3601, 3299, 0}));
-		// the cave with the same object ID on the other side (far away) is not a step
-		assertEquals(-1, r.find(new int[]{12345, 3640, 3300, 0}));
-		assertEquals(-1, r.find(new int[]{12345, 3600, 3300, 1}));
+		AltarRoute r = AltarRoute.of(12875);
+		assertEquals("Blood - Mory", r.name);
+		assertEquals(5, r.steps.size());
+		// step 2: cave entrance 5046 at (3467, 9820)
+		assertEquals(1, r.findSpot(3468, 9819, 0));
+		// the ruins: found by the spot, also when you click the other ruins object (43477)
+		assertEquals(4, r.findSpot(3560, 9780, 0));
+		// the cave on the other side (far away) or another floor is not a step
+		assertEquals(-1, r.findSpot(3480, 9820, 0));
+		assertEquals(-1, r.findSpot(3467, 9820, 1));
+		// an altar without a route
+		assertEquals(0, AltarRoute.of(1).steps.size());
 	}
 
 	@Test

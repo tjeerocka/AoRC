@@ -307,7 +307,7 @@ public interface AorcConfig extends Config
 	@ConfigItem(
 		keyName = "highlightRoute",
 		name = "Highlight route to the altar",
-		description = "Highlight the fairy ring, the altar entrance and the altar on your way (learned from your own clicks), "
+		description = "Highlight the fairy ring, every cave on the way and the altar (built-in routes, now: Blood - Mory), "
 			+ "and the essence to take in the bank (the essence you used last)",
 		section = teleportSection,
 		position = 44
@@ -320,7 +320,7 @@ public interface AorcConfig extends Config
 	@ConfigItem(
 		keyName = "routeDebug",
 		name = "Route debug",
-		description = "Show what the route learned: a box with every step (object ID and spot) "
+		description = "Show the route: a box with every step (object ID and spot), the object ID in the right-click menu "
 			+ "and a label above each route object (step number, passed / next)",
 		section = teleportSection,
 		position = 45

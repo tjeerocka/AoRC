@@ -25,14 +25,7 @@ public class AorcStorage
 		java.util.Map<Integer, Integer> goalRunes;
 		TripLocations.Saved tripPlaces;
 		Integer craftRegion;   // map area of your last craft (the altar)
-		// the way to each altar (by its map area), learned from your clicks; essence used last
-		java.util.Map<Integer, AltarRoute> routes;
-		// older version (one route)
-		Integer routeFairyRing;
-		java.util.List<int[]> routeSteps;
-		Integer routeAltar;
-		// 2 = route steps only learned from objects that move you (older steps had trees, furnaces)
-		Integer routeVersion;
+		// essence used in your last craft
 		Integer lastEssence;
 		// level goal bar: the goal level and the XP the bar starts from
 		Integer goalStartLevel;
