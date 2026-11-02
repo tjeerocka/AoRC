@@ -1445,9 +1445,9 @@ public class AorcPlugin extends Plugin
 					next = Teleport.BANK;
 					bankTeleportPending = true;
 				}
-				else if (bankTeleportPending && essence == 0 && !bankOpen())
+				else if (bankTeleportPending)
 				{
-					next = Teleport.BANK;   // left the altar another way (a misclicked teleport): still lit
+					next = Teleport.BANK;   // left the altar another way (a misclicked teleport): lit until you use it
 				}
 				else if (region != craftRegion && essence > 0 && pouchesFull && !altarTeleportUsed)
 				{
@@ -1500,10 +1500,6 @@ public class AorcPlugin extends Plugin
 		{
 			bankTeleportPending = false;   // the bank teleport took you away: done
 		}
-		if (lastInventory != null && (essenceCount(lastInventory) > 0 || bankOpen()))
-		{
-			bankTeleportPending = false;   // at the bank (or full again)
-		}
 		if (teleportNow == Teleport.ALTAR && teleported && byAltarItem)
 		{
 			altarTeleportUsed = true;
@@ -1515,7 +1511,7 @@ public class AorcPlugin extends Plugin
 	private int teleClickTick = -100;            // you clicked a (teleport) item
 	private boolean teleClickWasAltar;           // ...and the first of those clicks was the altar teleport
 	private boolean teleClickWasBank;            // ...or the bank teleport
-	private boolean bankTeleportPending;         // done at the altar: the bank teleport stays lit until used
+	private boolean bankTeleportPending;         // done at the altar: the bank teleport stays lit until you use it
 	private static final java.util.Set<String> NOT_TELEPORT = new java.util.HashSet<>(java.util.Arrays.asList(
 		"use", "drop", "examine", "wear", "wield", "remove", "check", "fill", "empty", "count", "cancel"));
 
