@@ -342,18 +342,6 @@ public interface AorcConfig extends Config
 		return true;
 	}
 
-	@ConfigItem(
-		keyName = "routeEdgeArrow",
-		name = "Arrow at the screen edge",
-		description = "When the next thing to click is off screen, an arrow at the edge of the screen points to it",
-		section = teleportSection,
-		position = 49
-	)
-	default boolean routeEdgeArrow()
-	{
-		return false;
-	}
-
 	// ---- Developer ----
 
 	@ConfigSection(

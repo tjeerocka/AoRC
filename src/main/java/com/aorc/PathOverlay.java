@@ -4,7 +4,6 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
 import java.util.List;
@@ -20,7 +19,7 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 
 /**
  * The way to the next step: a line on the ground from you to it (along a recorded path, so it
- * does not go through walls), and an arrow at the edge of the screen when it is off screen.
+ * does not go through walls).
  * While "Record path" is on, your recorded trail is drawn in yellow.
  */
 class PathOverlay extends Overlay
@@ -70,10 +69,6 @@ class PathOverlay extends Overlay
 			pts.add(0, new int[]{at.getX(), at.getY(), at.getPlane()});
 			drawLine(g, pts, LINE, target);
 		}
-		if (config.routeEdgeArrow())
-		{
-			drawEdgeArrow(g, at, target);
-		}
 		return null;
 	}
 
@@ -118,58 +113,5 @@ class PathOverlay extends Overlay
 	{
 		LocalPoint lp = LocalPoint.fromWorld(client, new WorldPoint(x, y, plane));
 		return lp == null ? null : Perspective.localToCanvas(client, lp, plane);
-	}
-
-	/** The target is off screen: an arrow at the edge of the game view, pointing to it. */
-	private void drawEdgeArrow(Graphics2D g, WorldPoint at, WorldPoint target)
-	{
-		int vx = client.getViewportXOffset();
-		int vy = client.getViewportYOffset();
-		int vw = client.getViewportWidth();
-		int vh = client.getViewportHeight();
-		net.runelite.api.Point t = toCanvas(target.getX(), target.getY(), target.getPlane());
-		if (t != null && t.getX() > vx && t.getX() < vx + vw && t.getY() > vy && t.getY() < vy + vh)
-		{
-			return;   // on screen: the outline shows it
-		}
-		// direction on screen: from you to a point a few tiles towards the target
-		net.runelite.api.Point a = toCanvas(at.getX(), at.getY(), at.getPlane());
-		double dx = target.getX() - at.getX();
-		double dy = target.getY() - at.getY();
-		double len = Math.hypot(dx, dy);
-		if (a == null || len < 1)
-		{
-			return;
-		}
-		int step = (int) Math.min(5, len);
-		net.runelite.api.Point b = toCanvas(at.getX() + (int) Math.round(dx / len * step),
-			at.getY() + (int) Math.round(dy / len * step), at.getPlane());
-		if (b == null)
-		{
-			return;
-		}
-		double ang = Math.atan2(b.getY() - a.getY(), b.getX() - a.getX());
-		// from the centre of the view to its edge, in that direction (with a margin)
-		double cx = vx + vw / 2.0;
-		double cy = vy + vh / 2.0;
-		double rx = vw / 2.0 - 30;
-		double ry = vh / 2.0 - 30;
-		double cos = Math.cos(ang);
-		double sin = Math.sin(ang);
-		double k = Math.min(Math.abs(cos) < 1e-6 ? Double.MAX_VALUE : rx / Math.abs(cos),
-			Math.abs(sin) < 1e-6 ? Double.MAX_VALUE : ry / Math.abs(sin));
-		double px = cx + cos * k;
-		double py = cy + sin * k;
-		Polygon arrow = new Polygon();
-		arrow.addPoint((int) (px + cos * 16), (int) (py + sin * 16));
-		arrow.addPoint((int) (px - cos * 10 - sin * 11), (int) (py - sin * 10 + cos * 11));
-		arrow.addPoint((int) (px - cos * 4), (int) (py - sin * 4));
-		arrow.addPoint((int) (px - cos * 10 + sin * 11), (int) (py - sin * 10 - cos * 11));
-		int alpha = 170 + (int) (70 * Math.abs(Math.sin(System.currentTimeMillis() / 400.0)));
-		g.setColor(new Color(0, 0, 0, 140));
-		g.setStroke(new BasicStroke(3f));
-		g.drawPolygon(arrow);
-		g.setColor(new Color(LINE.getRed(), LINE.getGreen(), LINE.getBlue(), alpha));
-		g.fillPolygon(arrow);
 	}
 }
