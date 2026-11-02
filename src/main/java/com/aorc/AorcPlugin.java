@@ -149,6 +149,8 @@ public class AorcPlugin extends Plugin
 	private int routeAltar = -1;
 	private int lastEssence = -1;           // essence item used in your last craft
 	private final Map<Integer, net.runelite.api.GameObject> routeObjects = new HashMap<>();
+	// fairy rings in the scene (matched by name: rings can have different object IDs)
+	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// altar teleport used (your location jumped): no more cyan box until you are full again
 	private boolean altarTeleportUsed;
 	private int lastX = -1;
@@ -885,6 +887,7 @@ public class AorcPlugin extends Plugin
 		if (state == GameState.LOADING)
 		{
 			routeObjects.clear();   // new map area: the objects spawn again
+			fairyRings.clear();
 		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
@@ -1506,13 +1509,35 @@ public class AorcPlugin extends Plugin
 	@Subscribe
 	public void onGameObjectSpawned(net.runelite.api.events.GameObjectSpawned event)
 	{
-		routeObjects.put(event.getGameObject().getId(), event.getGameObject());
+		net.runelite.api.GameObject o = event.getGameObject();
+		routeObjects.put(o.getId(), o);
+		if (isFairyRing(o.getId()))
+		{
+			fairyRings.add(o);
+		}
+	}
+
+	private boolean isFairyRing(int objectId)
+	{
+		net.runelite.api.ObjectComposition def = client.getObjectDefinition(objectId);
+		if (def == null)
+		{
+			return false;
+		}
+		String name = def.getName();
+		if ((name == null || "null".equals(name)) && def.getImpostorIds() != null)
+		{
+			def = def.getImpostor();
+			name = def == null ? null : def.getName();
+		}
+		return name != null && name.toLowerCase().startsWith("fairy ring");
 	}
 
 	@Subscribe
 	public void onGameObjectDespawned(net.runelite.api.events.GameObjectDespawned event)
 	{
 		routeObjects.remove(event.getGameObject().getId(), event.getGameObject());
+		fairyRings.remove(event.getGameObject());
 	}
 
 	/**
@@ -1527,8 +1552,18 @@ public class AorcPlugin extends Plugin
 			return out;
 		}
 		boolean atAltar = craftRegion != -1 && regionId() == craftRegion;
-		int[] ids = atAltar ? new int[]{routeAltar}
-			: new int[]{fairyRingUsed ? -1 : routeFairyRing, routeEntrance, routeAltar};
+		int[] ids = atAltar ? new int[]{routeAltar} : new int[]{routeEntrance, routeAltar};
+		// fairy ring on your route (any ring you see, they can have different IDs), until you used it
+		if (!atAltar && routeFairyRing > 0 && !fairyRingUsed)
+		{
+			for (net.runelite.api.GameObject o : fairyRings)
+			{
+				if (o.getPlane() == client.getPlane())
+				{
+					out.add(o);
+				}
+			}
+		}
 		for (int id : ids)
 		{
 			net.runelite.api.GameObject o = id > 0 ? routeObjects.get(id) : null;
