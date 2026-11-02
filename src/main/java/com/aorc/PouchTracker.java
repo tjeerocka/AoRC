@@ -1,39 +1,39 @@
 package com.aorc;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /**
- * Essence pouch durability (like "3/12"). The game hides how close a pouch is to decaying,
- * so we count each fill since the last repair (the click on "Fill"); durability = fills left
- * before it decays. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
- * medium 270, large 261, giant 120, colossal 320. Uses in total = that / what the pouch holds
- * (colossal at level 75-84 holds 27: 320 / 27 = durability 12). Warning at 3 durability left.
+ * Essence pouch durability, read from the game itself: the game keeps a hidden wear counter
+ * per pouch in a varp / varbit (the same numbers RuneLite's own Runecraft plugin shows on
+ * the pouch). Durability = fills left before the pouch decays, like "3/12".
+ * The breakpoints are the game's own (client scripts 3670, 3671, 3695, 4592).
  * The small pouch never decays.
  */
-public class PouchTracker
+public final class PouchTracker
 {
-	/** Warn at this durability left (3/12). */
-	static final int WARN_USES_LEFT = 3;
+	/** Warn at this durability (3/12). */
+	static final int WARN_FILLS_LEFT = 3;
 
 	public enum Pouch
 	{
-		MEDIUM("Medium pouch", 5510, 5511, 270),
-		LARGE("Large pouch", 5512, 5513, 261),
-		GIANT("Giant pouch", 5514, 5515, 120),
-		COLOSSAL("Colossal pouch", 26784, 26786, 320);
+		// wear counter: capacity from that value on (highest first); then the normal capacity
+		MEDIUM("Medium pouch", 5510, 5511, 6, new int[]{800, 0, 400, 3}),
+		LARGE("Large pouch", 5512, 5513, 9, new int[]{1000, 0, 800, 3, 600, 5, 400, 7}),
+		GIANT("Giant pouch", 5514, 5515, 12, new int[]{1200, 0, 1000, 3, 800, 5, 600, 6, 400, 7, 300, 8, 200, 9}),
+		COLOSSAL("Colossal pouch", 26784, 26786, 40,
+			new int[]{1020, 0, 1015, 5, 995, 10, 950, 15, 870, 20, 745, 25, 565, 30, 320, 35});
 
 		final String name;
 		final int itemId;
 		final int degradedId;
-		final int limit;
+		final int maxFill;
+		final int[] levels;
 
-		Pouch(String name, int itemId, int degradedId, int limit)
+		Pouch(String name, int itemId, int degradedId, int maxFill, int[] levels)
 		{
 			this.name = name;
 			this.itemId = itemId;
 			this.degradedId = degradedId;
-			this.limit = limit;
+			this.maxFill = maxFill;
+			this.levels = levels;
 		}
 
 		public String getName()
@@ -42,22 +42,11 @@ public class PouchTracker
 		}
 	}
 
-	/** Data written to disk between RuneLite sessions. */
-	public static class Saved
+	private PouchTracker()
 	{
-		Map<String, Integer> uses = new LinkedHashMap<>();       // uses since the last repair
-		Map<String, Boolean> decayed = new LinkedHashMap<>();
-		// pouches whose durability is known (since a repair); null in older saves = none known
-		java.util.Set<String> known;
 	}
 
-	private final Map<String, Integer> uses = new LinkedHashMap<>();
-	private int runecraftLevel = 99;
-	private final Map<String, Boolean> decayed = new LinkedHashMap<>();
-	// durability is only known after a repair (the game never shows it)
-	private final java.util.Set<String> known = new java.util.HashSet<>();
-
-	/** The pouch for an item ID (normal or decayed), or null. */
+	/** The pouch for an item ID (normal or decayed), or null (the small pouch never decays). */
 	public static Pouch of(int itemId)
 	{
 		for (Pouch p : Pouch.values())
@@ -76,167 +65,55 @@ public class PouchTracker
 		return p != null && p.degradedId == itemId;
 	}
 
-	/**
-	 * One use: this much essence came out of the pouch.
-	 * @return true when this fill reached durability 3 (time to warn, once)
-	 */
-	public boolean addUse(Pouch p, int essence)
+	/** Essence the pouch holds at this wear (colossal: less at lower Runecraft levels). */
+	static int capacity(Pouch p, int wear, int runecraftLevel)
 	{
-		if (p == null || essence <= 0)
+		int limit = p.maxFill;
+		for (int i = 0; i < p.levels.length; i += 2)
 		{
-			return false;
-		}
-		boolean before = needsRepair(p);
-		uses.merge(p.name(), 1, Integer::sum);
-		return !before && needsRepair(p);
-	}
-
-	/** Your Runecraft level (the colossal pouch holds more at higher levels). */
-	public void setRunecraftLevel(int level)
-	{
-		if (level > 0)
-		{
-			runecraftLevel = level;
-		}
-	}
-
-	/** Essence a pouch holds (OSRS Wiki); colossal: 8 / 16 / 27 / 40 at level 25 / 50 / 75 / 85. */
-	public static int capacity(Pouch p, int runecraftLevel)
-	{
-		switch (p)
-		{
-			case MEDIUM:
-				return 6;
-			case LARGE:
-				return 9;
-			case GIANT:
-				return 12;
-			default:
-				return runecraftLevel >= 85 ? 40 : runecraftLevel >= 75 ? 27 : runecraftLevel >= 50 ? 16 : 8;
-		}
-	}
-
-	/** A counted fill that did nothing (no essence): give the use back. */
-	public void undoUse(Pouch p)
-	{
-		if (p != null && uses.getOrDefault(p.name(), 0) > 0)
-		{
-			uses.merge(p.name(), -1, Integer::sum);
-		}
-	}
-
-	/** Uses in total between repairs (12 for a colossal pouch holding 27). */
-	public int totalUses(Pouch p)
-	{
-		return Math.max(1, (int) Math.ceil(p.limit / (double) capacity(p, runecraftLevel)));
-	}
-
-	public int usesLeft(Pouch p)
-	{
-		if (Boolean.TRUE.equals(decayed.get(p.name())))
-		{
-			return 0;
-		}
-		return Math.max(0, totalUses(p) - uses.getOrDefault(p.name(), 0));
-	}
-
-	/** Part used since the last repair, 0..1. */
-	public double used(Pouch p)
-	{
-		return p == null ? 0 : 1.0 - usesLeft(p) / (double) totalUses(p);
-	}
-
-	public boolean needsRepair(Pouch p)
-	{
-		if (p == null)
-		{
-			return false;
-		}
-		if (Boolean.TRUE.equals(decayed.get(p.name())))
-		{
-			return true;
-		}
-		return isKnown(p) && usesLeft(p) <= WARN_USES_LEFT;
-	}
-
-	/** Durability known (repaired since AoRC started counting)? Else the panel shows "?". */
-	public boolean isKnown(Pouch p)
-	{
-		return p != null && known.contains(p.name());
-	}
-
-	/** Fills counted since AoRC started counting this pouch (also while the durability is unknown). */
-	public int fills(Pouch p)
-	{
-		return p == null ? 0 : uses.getOrDefault(p.name(), 0);
-	}
-
-	/** The pouch has decayed (game message or decayed item seen). */
-	public void markDecayed(Pouch p)
-	{
-		if (p != null)
-		{
-			decayed.put(p.name(), true);
-		}
-	}
-
-	/** Any of these pouches needs a repair. */
-	public boolean anyNeedsRepair(Iterable<Pouch> pouches)
-	{
-		for (Pouch p : pouches)
-		{
-			if (needsRepair(p))
+			if (wear >= p.levels[i])
 			{
-				return true;
+				limit = p.levels[i + 1];
+				break;
 			}
 		}
-		return false;
-	}
-
-	/**
-	 * All pouches repaired (the Dark Mage repairs them all at once): full durability, known now.
-	 * @return true when something changed
-	 */
-	public boolean repaired()
-	{
-		boolean changed = !uses.isEmpty() || !decayed.isEmpty() || known.size() < Pouch.values().length;
-		uses.clear();
-		decayed.clear();
-		for (Pouch p : Pouch.values())
+		if (limit > 0 && p == Pouch.COLOSSAL)
 		{
-			known.add(p.name());
+			int scaledMax = runecraftLevel >= 85 ? 40 : runecraftLevel >= 75 ? 27 : runecraftLevel >= 50 ? 16 : 8;
+			limit = Math.max(1, limit * scaledMax / 40);
 		}
-		return changed;
+		return limit;
 	}
 
-	public Saved save()
+	/** Durability: full fills left before the pouch decays (holds less) again. */
+	public static int fillsLeft(Pouch p, int wear, int runecraftLevel)
 	{
-		Saved s = new Saved();
-		s.uses = new LinkedHashMap<>(uses);
-		s.decayed = new LinkedHashMap<>(decayed);
-		s.known = new java.util.HashSet<>(known);
-		return s;
-	}
-
-	public void load(Saved s)
-	{
-		uses.clear();
-		decayed.clear();
-		known.clear();
-		if (s != null)
+		int breakpoint = wear;
+		for (int i = p.levels.length - 2; i >= 0; i -= 2)
 		{
-			if (s.known != null)
+			if (wear < p.levels[i])
 			{
-				known.addAll(s.known);
-			}
-			if (s.uses != null)
-			{
-				uses.putAll(s.uses);
-			}
-			if (s.decayed != null)
-			{
-				decayed.putAll(s.decayed);
+				breakpoint = p.levels[i];
+				break;
 			}
 		}
+		int remaining = breakpoint - wear;
+		// colossal: 1 wear per essence; the others: 0-3 wear per essence (this fit is RuneLite's,
+		// it matches the 99th percentile, so it is on the safe side)
+		int essence = p == Pouch.COLOSSAL ? remaining : (int) Math.ceil(.4 * Math.pow(remaining, 1.07));
+		int limit = capacity(p, wear, runecraftLevel);
+		return limit <= 0 ? 0 : (essence + limit - 1) / limit;
+	}
+
+	/** Durability of a freshly repaired pouch (12 for a colossal pouch at level 75-84). */
+	public static int fullFills(Pouch p, int runecraftLevel)
+	{
+		return fillsLeft(p, 0, runecraftLevel);
+	}
+
+	/** Time to repair: 3 fills left or less, or already decayed. */
+	public static boolean needsRepair(int fillsLeft, boolean degraded)
+	{
+		return degraded || fillsLeft <= WARN_FILLS_LEFT;
 	}
 }

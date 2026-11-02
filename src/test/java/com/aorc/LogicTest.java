@@ -630,48 +630,24 @@ public class LogicTest
 	@Test
 	public void pouchWear()
 	{
-		PouchTracker t = new PouchTracker();
 		PouchTracker.Pouch c = PouchTracker.of(26784);
 		assertEquals(PouchTracker.Pouch.COLOSSAL, c);
 		assertEquals(c, PouchTracker.of(26786));
 		assertTrue(PouchTracker.isDegraded(26786));
 		assertEquals(null, PouchTracker.of(5509));   // small pouch never decays
 
-		// unknown until the first repair: counts fills, but no warning
-		t.setRunecraftLevel(82);
-		assertFalse(t.isKnown(c));
-		for (int i = 0; i < 11; i++)
-		{
-			assertFalse(t.addUse(c, 27));
-		}
-		assertEquals(11, t.fills(c));
-		assertFalse(t.needsRepair(c));
-		assertTrue(t.repaired());
-		assertTrue(t.isKnown(c));
-
-		// colossal at level 82 holds 27: 320 / 27 = 12 uses, warning at 3/12 left
-		for (int i = 0; i < 8; i++)
-		{
-			assertFalse(t.addUse(c, 27));
-		}
-		assertEquals(12, t.totalUses(c));
-		assertEquals(4, t.usesLeft(c));
-		assertFalse(t.needsRepair(c));
-		assertTrue(t.addUse(c, 22));             // a half full use counts as a use too: 3/12, warn once
-		assertEquals(3, t.usesLeft(c));
-		assertFalse(t.addUse(c, 27));            // no second warning
-		assertTrue(t.needsRepair(c));
-		t.repaired();
-		assertEquals(12, t.usesLeft(c));
-		assertFalse(t.needsRepair(c));
-
-		// a fill with no essence is given back
-		t.addUse(c, 27);
-		t.undoUse(c);
-		assertEquals(12, t.usesLeft(c));
-
-		// a decayed pouch needs a repair right away
-		t.markDecayed(PouchTracker.Pouch.GIANT);
-		assertTrue(t.needsRepair(PouchTracker.Pouch.GIANT));
+		// colossal at level 82 holds 27: just repaired = 12 (320 / 27)
+		assertEquals(12, PouchTracker.fullFills(c, 82));
+		assertEquals(12, PouchTracker.fillsLeft(c, 0, 82));
+		assertEquals(11, PouchTracker.fillsLeft(c, 27, 82));
+		// 81 wear left before 320 = 3 fills: repair warning
+		assertEquals(3, PouchTracker.fillsLeft(c, 320 - 81, 82));
+		assertTrue(PouchTracker.needsRepair(3, false));
+		assertFalse(PouchTracker.needsRepair(4, false));
+		assertTrue(PouchTracker.needsRepair(9, true));     // decayed item
+		// level 85: holds 40, 8 fills
+		assertEquals(8, PouchTracker.fullFills(c, 85));
+		// the others use the game's own breakpoints too
+		assertTrue(PouchTracker.fullFills(PouchTracker.Pouch.GIANT, 99) > 0);
 	}
 }
