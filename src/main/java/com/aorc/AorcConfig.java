@@ -351,7 +351,7 @@ public interface AorcConfig extends Config
 	)
 	default boolean routeEdgeArrow()
 	{
-		return true;
+		return false;
 	}
 
 	// ---- Developer ----
