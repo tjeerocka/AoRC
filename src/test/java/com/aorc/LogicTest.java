@@ -654,30 +654,13 @@ public class LogicTest
 		assertEquals(12, t.usesLeft(c));
 		assertFalse(t.needsRepair(c));
 
-		// test button: straight to 3 uses left
-		t.markNeedsRepair(c);
-		assertEquals(3, t.usesLeft(c));
+		// a fill with no essence is given back
+		t.addUse(c, 27);
+		t.undoUse(c);
+		assertEquals(12, t.usesLeft(c));
 
 		// a decayed pouch needs a repair right away
 		t.markDecayed(PouchTracker.Pouch.GIANT);
 		assertTrue(t.needsRepair(PouchTracker.Pouch.GIANT));
-	}
-
-	@Test
-	public void durabilityFromPouchTrackingPlugin()
-	{
-		PouchTracker.OtherPouch o = new PouchTracker.OtherPouch();
-		o.maxCapacity = 27;
-		o.remainingEssenceBeforeDecay = 320;
-		assertEquals(12, PouchTracker.durabilityOf(o, 27));
-		o.remainingEssenceBeforeDecay = 320 - 27;
-		assertEquals(11, PouchTracker.durabilityOf(o, 27));
-		o.remainingEssenceBeforeDecay = 81;
-		assertEquals(3, PouchTracker.durabilityOf(o, 27));
-		o.unknownDecay = true;
-		assertEquals(-1, PouchTracker.durabilityOf(o, 27));
-		o.unknownDecay = false;
-		o.isDegraded = true;
-		assertEquals(0, PouchTracker.durabilityOf(o, 27));
 	}
 }

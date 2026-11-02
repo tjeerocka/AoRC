@@ -5,7 +5,8 @@ import java.util.Map;
 
 /**
  * Essence pouch durability (like "3/12"). The game hides how close a pouch is to decaying,
- * so we count each fill since the last repair; durability = fills left before it decays. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
+ * so we count each fill since the last repair (the click on "Fill"); durability = fills left
+ * before it decays. A pouch lasts about this much essence (OSRS Wiki, "Essence pouch"):
  * medium 270, large 261, giant 120, colossal 320. Uses in total = that / what the pouch holds
  * (colossal at level 75-84 holds 27: 320 / 27 = durability 12). Warning at 3 durability left.
  * The small pouch never decays.
@@ -111,6 +112,15 @@ public class PouchTracker
 		}
 	}
 
+	/** A counted fill that did nothing (no essence): give the use back. */
+	public void undoUse(Pouch p)
+	{
+		if (p != null && uses.getOrDefault(p.name(), 0) > 0)
+		{
+			uses.merge(p.name(), -1, Integer::sum);
+		}
+	}
+
 	/** Uses in total between repairs (12 for a colossal pouch holding 27). */
 	public int totalUses(Pouch p)
 	{
@@ -143,25 +153,6 @@ public class PouchTracker
 		if (p != null)
 		{
 			decayed.put(p.name(), true);
-		}
-	}
-
-	/** Set how many uses are left now (to match the game / another plugin). */
-	public void setUsesLeft(Pouch p, int left)
-	{
-		if (p != null)
-		{
-			uses.put(p.name(), Math.max(0, totalUses(p) - Math.max(0, left)));
-			decayed.remove(p.name());
-		}
-	}
-
-	/** For the test button: this pouch is at durability 3 (until the next repair). */
-	public void markNeedsRepair(Pouch p)
-	{
-		if (p != null)
-		{
-			uses.put(p.name(), Math.max(uses.getOrDefault(p.name(), 0), totalUses(p) - WARN_USES_LEFT));
 		}
 	}
 
@@ -214,65 +205,5 @@ public class PouchTracker
 				decayed.putAll(s.decayed);
 			}
 		}
-	}
-
-	// ---------- reading the "Essence Pouch Tracking" plugin (if you have it) ----------
-
-	/** Config group and key where the Essence Pouch Tracking plugin saves its pouches (JSON). */
-	static final String OTHER_GROUP = "essencepouchtracking";
-	static final String OTHER_KEY = "trackingState";
-
-	/** The parts of that plugin's saved data we read. */
-	static class OtherState
-	{
-		OtherPouch mediumPouch;
-		OtherPouch largePouch;
-		OtherPouch giantPouch;
-		OtherPouch colossalPouch;
-
-		OtherPouch get(Pouch p)
-		{
-			switch (p)
-			{
-				case MEDIUM:
-					return mediumPouch;
-				case LARGE:
-					return largePouch;
-				case GIANT:
-					return giantPouch;
-				default:
-					return colossalPouch;
-			}
-		}
-	}
-
-	static class OtherPouch
-	{
-		int remainingEssenceBeforeDecay;
-		boolean isDegraded;
-		boolean unknownDecay;
-		int maxCapacity;
-	}
-
-	/**
-	 * Durability that plugin shows: essence it can still take before decaying / what it holds
-	 * (320 left, holds 27 = 12). -1 when it does not know.
-	 */
-	static int durabilityOf(OtherPouch o, int capacityFallback)
-	{
-		if (o == null || o.unknownDecay)
-		{
-			return -1;
-		}
-		if (o.isDegraded)
-		{
-			return 0;
-		}
-		int cap = o.maxCapacity > 0 ? o.maxCapacity : capacityFallback;
-		if (cap <= 0 || o.remainingEssenceBeforeDecay < 0)
-		{
-			return -1;
-		}
-		return (int) Math.ceil(o.remainingEssenceBeforeDecay / (double) cap);
 	}
 }

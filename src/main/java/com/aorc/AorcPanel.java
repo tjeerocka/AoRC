@@ -74,9 +74,6 @@ class AorcPanel extends PluginPanel
 	private final JPanel sessionBody = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final Grid session = new Grid(sessionBody);
 	private final Bar essenceBar = new Bar();
-	private final JButton testPouch = button("Test warning");
-	private final JButton setPouch = button("Set durability");
-	private final JPanel pouchButtons = new JPanel(new GridLayout(1, 2, 4, 0));
 	private final JPanel tripsBody = new JPanel(new GridLayout(0, 2, 4, 3));
 	private final Grid tripsGrid = new Grid(tripsBody);
 	// full-width line for the trip in progress (the place name needs the room)
@@ -144,36 +141,6 @@ class AorcPanel extends PluginPanel
 		sessionWrap.add(sessionBody);
 		essenceBar.setVisible(false);
 		sessionWrap.add(essenceBar);
-		// try the essence pouch warning (it goes away after a repair at the Dark Mage)
-		testPouch.setToolTipText("Show the pouch warning and highlights now. They go away after you repair your pouches.");
-		testPouch.setMargin(new Insets(1, 4, 1, 4));
-		testPouch.addActionListener(e -> run(clientThread, () -> plugin.testPouchWarning()));
-		setPouch.setToolTipText("Tell AoRC the durability your pouch has now (for example from another plugin)");
-		setPouch.setMargin(new Insets(1, 4, 1, 4));
-		setPouch.addActionListener(e ->
-		{
-			String in = javax.swing.JOptionPane.showInputDialog(this, "Durability of your pouch now? (for example 3, for 3/12)", "AoRC", javax.swing.JOptionPane.QUESTION_MESSAGE);
-			if (in == null)
-			{
-				return;
-			}
-			try
-			{
-				int left = Integer.parseInt(in.trim());
-				run(clientThread, () -> plugin.setPouchUsesLeft(left));
-			}
-			catch (NumberFormatException ignored)
-			{
-				// not a number: nothing changes
-			}
-		});
-		pouchButtons.setOpaque(false);
-		pouchButtons.setAlignmentX(LEFT_ALIGNMENT);
-		pouchButtons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
-		pouchButtons.add(setPouch);
-		pouchButtons.add(testPouch);
-		sessionWrap.add(gap(4));
-		sessionWrap.add(pouchButtons);
 		sessionSec = new Section("session", "Session", sessionWrap);
 		content.add(sessionSec);
 		content.add(gap(6));
@@ -547,7 +514,6 @@ class AorcPanel extends PluginPanel
 				repair ? Color.ORANGE : Color.LIGHT_GRAY);
 		}
 		session.end();
-		pouchButtons.setVisible(!d.pouchNames.isEmpty());
 		essenceBar.setVisible(d.essenceCharges >= 0);
 		essenceBar.set(d.essenceCharges / (double) EssenceCharges.FULL, d.essenceCharges <= 100 ? Color.ORANGE : BONUS);
 		sessionSec.setSummary(GpFormat.shortRate(d.xpPerHour) + " xp / hr");
