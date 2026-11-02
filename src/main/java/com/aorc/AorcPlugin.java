@@ -159,6 +159,7 @@ public class AorcPlugin extends Plugin
 	private int essenceDropped = -1;   // essence type that went down this tick
 	private int lastRouteClick = -1;   // last object clicked on the way to the altar
 	private boolean fairyRingUsed;     // used this trip: no more fairy ring outline until the next trip
+	private boolean fairyRingClicked;  // clicked: counts as used once you teleport
 	private boolean inventoryFull;     // no free inventory slot
 	private boolean pouchesAllFull = true;
 	private int lastTickRegion = -1;
@@ -1404,6 +1405,7 @@ public class AorcPlugin extends Plugin
 			{
 				altarTeleportUsed = false;   // used up: next time you are full, show it again
 				fairyRingUsed = false;
+				fairyRingClicked = false;
 			}
 			if (config.highlightTeleports())
 			{
@@ -1420,6 +1422,11 @@ public class AorcPlugin extends Plugin
 		}
 		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
 		boolean teleported = jumped();   // every tick, so it always compares with the last tick
+		if (teleported && fairyRingClicked)
+		{
+			fairyRingUsed = true;          // the fairy ring took you away: its outline is done
+			fairyRingClicked = false;
+		}
 		if (teleportNow == Teleport.ALTAR && teleported)
 		{
 			altarTeleportUsed = true;
@@ -1448,7 +1455,7 @@ public class AorcPlugin extends Plugin
 		else if (target.contains("fairy ring") && essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0)
 		{
 			learn(id, 0);
-			fairyRingUsed = true;
+			fairyRingClicked = true;     // used once you really teleport (see updateTeleport)
 		}
 		else if (essenceCount(lastInventory == null ? new HashMap<>() : lastInventory) > 0 && regionId() != craftRegion)
 		{
