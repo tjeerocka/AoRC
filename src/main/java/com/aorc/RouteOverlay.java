@@ -22,13 +22,11 @@ class RouteOverlay extends Overlay
 	static final Color ROUTE = new Color(0, 220, 255);   // cyan, like the altar teleport
 
 	private final AorcPlugin plugin;
-	private final AorcConfig config;
 
 	@Inject
-	RouteOverlay(AorcPlugin plugin, AorcConfig config)
+	RouteOverlay(AorcPlugin plugin)
 	{
 		this.plugin = plugin;
-		this.config = config;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
@@ -55,7 +53,7 @@ class RouteOverlay extends Overlay
 			g.setStroke(new BasicStroke(2f));
 			g.draw(hull);
 		}
-		if (config.routeDebug())
+		if (plugin.routeDebug())
 		{
 			// route debug: step number, object ID and passed / next above every route object
 			for (java.util.Map.Entry<TileObject, String> e : plugin.routeDebugLabels().entrySet())

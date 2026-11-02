@@ -17,14 +17,12 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 class RouteDebugOverlay extends OverlayPanel
 {
 	private final AorcPlugin plugin;
-	private final AorcConfig config;
 
 	@Inject
-	RouteDebugOverlay(AorcPlugin plugin, AorcConfig config)
+	RouteDebugOverlay(AorcPlugin plugin)
 	{
 		super(plugin);
 		this.plugin = plugin;
-		this.config = config;
 		setPosition(OverlayPosition.TOP_LEFT);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
@@ -32,7 +30,7 @@ class RouteDebugOverlay extends OverlayPanel
 	@Override
 	public Dimension render(Graphics2D g)
 	{
-		if (!config.routeDebug())
+		if (!plugin.routeDebug())
 		{
 			return null;
 		}
