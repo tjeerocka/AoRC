@@ -127,6 +127,8 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<PouchTracker.Pouch> pouchesCarried = java.util.EnumSet.noneOf(PouchTracker.Pouch.class);
 	private PouchTracker.Pouch emptyPouch;  // pouch you just clicked "Empty" on
 	private int emptyTick;
+	private static final int BANK_GROUP = 12;          // bank interface
+	private static final int DEPOSIT_BOX_GROUP = 192;  // bank deposit box
 	private boolean noPouchWear;
 	// talking to the Dark Mage while a pouch needs a repair: highlight what to click
 	private volatile boolean repairGuide;            // Runecraft / max cape or redwood lantern: pouches do not decay
@@ -1265,15 +1267,25 @@ public class AorcPlugin extends Plugin
 		// "Empty" clicked on a pouch, and essence came into the inventory right after: that essence
 		// was put in that pouch before. Counted when it comes out (not when filling), so it also
 		// works when you fill your pouches straight from the bank.
-		if (emptyPouch != null && lastInventory != null && tick - emptyTick <= 3)
+		// If the click was not seen (another menu, a key bind, ...): several essence that appear at
+		// once while the bank is closed come out of a pouch too (mining gives them one by one).
+		// With one wearing pouch on you (the small pouch does not wear) it is that one.
+		PouchTracker.Pouch from = emptyPouch != null && tick - emptyTick <= 3 ? emptyPouch : null;
+		boolean guessed = false;
+		if (from == null && carried.size() == 1 && !bankOpen())
+		{
+			from = carried.iterator().next();
+			guessed = true;
+		}
+		if (from != null && lastInventory != null)
 		{
 			int before = pouchEssence(lastInventory);
 			int after = pouchEssence(now);
-			if (after > before)
+			if (after > before && (!guessed || after - before >= 2))
 			{
-				if (!noPouchWear && pouches.addFilled(emptyPouch, after - before) && config.warnPouch())
+				if (!noPouchWear && pouches.addFilled(from, after - before) && config.warnPouch())
 				{
-					warn("pouch", emptyPouch.getName() + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage).");
+					warn("pouch", from.getName() + " is about to decay (25% left). Repair it with Astral Contact (Dark Mage).");
 				}
 				emptyPouch = null;
 				changed = true;
@@ -1283,6 +1295,14 @@ public class AorcPlugin extends Plugin
 		{
 			dirty = true;
 		}
+	}
+
+	/** The bank is open (essence that appears then is withdrawn, not taken out of a pouch). */
+	private boolean bankOpen()
+	{
+		net.runelite.api.widgets.Widget bank = client.getWidget(BANK_GROUP, 0);
+		net.runelite.api.widgets.Widget box = client.getWidget(DEPOSIT_BOX_GROUP, 0);
+		return (bank != null && !bank.isHidden()) || (box != null && !box.isHidden());
 	}
 
 	/** Essence that fits in pouches. */
