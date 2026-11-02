@@ -22,6 +22,34 @@ public enum TeleportItem
 
 	private final String label;
 	private final String[] names;
+	/** Where this teleport lands {x, y, plane}; empty = not known (any teleport counts). */
+	private int[][] landings = new int[0][];
+
+	/** Within this many tiles of a landing spot counts as landed there. */
+	static final int LANDING_RANGE = 5;
+
+	static
+	{
+		SAILORS_AMULET.landings = new int[][]{{1942, 2757, 0}};   // the bank
+		QUEST_CAPE.landings = new int[][]{{2729, 3348, 0}};       // Legends' Guild
+	}
+
+	/** You landed where this teleport takes you (or its landing is not known: any teleport counts). */
+	public boolean landedAt(int x, int y, int plane)
+	{
+		if (landings.length == 0)
+		{
+			return true;
+		}
+		for (int[] l : landings)
+		{
+			if (l[2] == plane && Math.abs(l[0] - x) <= LANDING_RANGE && Math.abs(l[1] - y) <= LANDING_RANGE)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	TeleportItem(String label, String... names)
 	{

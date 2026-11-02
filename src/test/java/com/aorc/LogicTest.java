@@ -915,6 +915,19 @@ public class LogicTest
 	}
 
 	@Test
+	public void teleportLandingSpots()
+	{
+		// the cape lands at the Legends' Guild, the amulet at the bank (5 tiles either way)
+		assertTrue(TeleportItem.QUEST_CAPE.landedAt(2730, 3349, 0));
+		assertTrue(TeleportItem.QUEST_CAPE.landedAt(2724, 3343, 0));
+		assertFalse(TeleportItem.QUEST_CAPE.landedAt(1942, 2757, 0));    // the amulet's spot: a misclick
+		assertTrue(TeleportItem.SAILORS_AMULET.landedAt(1942, 2757, 0));
+		assertFalse(TeleportItem.SAILORS_AMULET.landedAt(2729, 3348, 0));
+		// a teleport without a known landing spot: any teleport counts
+		assertTrue(TeleportItem.AMULET_OF_GLORY.landedAt(1, 1, 0));
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

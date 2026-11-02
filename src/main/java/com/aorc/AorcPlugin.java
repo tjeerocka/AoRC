@@ -1440,8 +1440,9 @@ public class AorcPlugin extends Plugin
 			if (config.highlightTeleports() && !zeahActive())
 			{
 				// bank: only where you crafted last (known after one craft, also saved for restarts)
-				if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty)
+				if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty && nearAltar(8))
 				{
+					// done at the altar (within 8 tiles of it): the bank teleport
 					next = Teleport.BANK;
 					bankTeleportPending = true;
 				}
@@ -1492,10 +1493,10 @@ public class AorcPlugin extends Plugin
 			}
 			fairyRingClicked = false;
 		}
-		// the altar teleport is done only if the item you clicked first was the altar teleport item
-		// (a misclick on another teleport, then the right one during the animation: keep it lit)
-		boolean byAltarItem = teleClickWasAltar || client.getTickCount() - teleClickTick > 10;
-		boolean byBankItem = teleClickWasBank || client.getTickCount() - teleClickTick > 10;
+		// a teleport is done only when you land where that item takes you (a misclicked other
+		// teleport lands somewhere else: its highlight stays)
+		boolean byAltarItem = landedAt(config.altarTeleport());
+		boolean byBankItem = landedAt(config.bankTeleport());
 		if (teleported && byBankItem && teleportNow == Teleport.BANK)
 		{
 			bankTeleportPending = false;   // the bank teleport took you away: done
@@ -1508,22 +1509,14 @@ public class AorcPlugin extends Plugin
 		teleportNow = next;
 	}
 
-	private int teleClickTick = -100;            // you clicked a (teleport) item
-	private boolean teleClickWasAltar;           // ...and the first of those clicks was the altar teleport
-	private boolean teleClickWasBank;            // ...or the bank teleport
 	private boolean bankTeleportPending;         // done at the altar: the bank teleport stays lit until you use it
-	private static final java.util.Set<String> NOT_TELEPORT = new java.util.HashSet<>(java.util.Arrays.asList(
-		"use", "drop", "examine", "wear", "wield", "remove", "check", "fill", "empty", "count", "cancel"));
 
-	/** This item is the teleport item set in the settings (bank or altar teleport). */
-	private boolean isTeleportItem(int itemId, TeleportItem wanted)
+	/** You stand where this teleport item lands (TeleportItem landing spots). */
+	private boolean landedAt(TeleportItem item)
 	{
-		if (wanted == null || wanted == TeleportItem.NONE)
-		{
-			return false;
-		}
-		String name = itemNames.computeIfAbsent(itemId, i -> itemManager.getItemComposition(i).getName());
-		return wanted.matches(name);
+		net.runelite.api.Player p = client.getLocalPlayer();
+		WorldPoint w = p == null ? null : p.getWorldLocation();
+		return item != null && item != TeleportItem.NONE && w != null && item.landedAt(w.getX(), w.getY(), w.getPlane());
 	}
 
 	// ---------- route to the altar (set by hand in AltarRoute) ----------
@@ -1535,17 +1528,6 @@ public class AorcPlugin extends Plugin
 		String option = event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()).toLowerCase();
 		String target = event.getMenuTarget() == null ? "" : Text.removeTags(event.getMenuTarget()).toLowerCase();
 		int id = event.getId();
-		// teleport items: remember the first item clicked (a second click during the animation does nothing)
-		int item = event.getItemId();
-		if (item > 0 && !isObjectAction(event.getMenuAction()) && !NOT_TELEPORT.contains(option))
-		{
-			if (client.getTickCount() - teleClickTick > 5)
-			{
-				teleClickWasAltar = isTeleportItem(item, config.altarTeleport());
-				teleClickWasBank = isTeleportItem(item, config.bankTeleport());
-			}
-			teleClickTick = client.getTickCount();
-		}
 		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
 		{
 			clickedObject = null;   // walked somewhere else: show the way again
@@ -2069,6 +2051,12 @@ public class AorcPlugin extends Plugin
 	/** You stand within 10 tiles of an altar (any object with "Craft-rune"). */
 	private boolean nearAltar()
 	{
+		return nearAltar(ALTAR_RANGE);
+	}
+
+	/** You stand within 'range' tiles of an altar (any object with "Craft-rune"). */
+	private boolean nearAltar(int range)
+	{
 		net.runelite.api.Player p = client.getLocalPlayer();
 		if (p == null || p.getWorldLocation() == null)
 		{
@@ -2079,7 +2067,7 @@ public class AorcPlugin extends Plugin
 		{
 			net.runelite.api.coords.WorldPoint w = a.getWorldLocation();
 			if (w != null && w.getPlane() == me.getPlane()
-				&& Math.abs(w.getX() - me.getX()) <= ALTAR_RANGE && Math.abs(w.getY() - me.getY()) <= ALTAR_RANGE)
+				&& Math.abs(w.getX() - me.getX()) <= range && Math.abs(w.getY() - me.getY()) <= range)
 			{
 				return true;
 			}
