@@ -686,13 +686,11 @@ public class LogicTest
 	{
 		AltarRoute r = AltarRoute.of(12875);
 		java.util.Set<Integer> passed = new java.util.HashSet<>();
-		java.util.Map<Integer, int[]> approach = new java.util.HashMap<>();
-		// step 2 (3467, 9820): walk up from the west, crawl through slowly, come out east
-		assertEquals(-1, r.passedNow(passed, approach, 3462, 9820, 0, 3464, 9820, 0, 2));
-		assertEquals(-1, r.passedNow(passed, approach, 3464, 9820, 0, 3465, 9820, 0, 1));
-		assertEquals(-1, r.passedNow(passed, approach, 3465, 9820, 0, 3467, 9820, 0, 2));
-		assertEquals(-1, r.passedNow(passed, approach, 3467, 9820, 0, 3469, 9820, 0, 2));
-		assertEquals(1, r.passedNow(passed, approach, 3469, 9820, 0, 3471, 9820, 0, 2));
+		passed.add(0);
+		// step 2 (3467, 9820), step 3 (3500, 9803): in front of step 2, then through it, out east
+		assertEquals(-1, r.passedNow(passed, 3462, 9820, 0, 3464, 9820, 0, 2));
+		assertEquals(-1, r.passedNow(passed, 3467, 9820, 0, 3469, 9820, 0, 2));
+		assertEquals(1, r.passedNow(passed, 3469, 9820, 0, 3473, 9819, 0, 2));
 	}
 
 	@Test
@@ -700,20 +698,33 @@ public class LogicTest
 	{
 		AltarRoute r = AltarRoute.of(12875);
 		java.util.Set<Integer> passed = new java.util.HashSet<>();
-		java.util.Map<Integer, int[]> approach = new java.util.HashMap<>();
-		assertEquals(-1, r.passedNow(passed, approach, 3462, 9820, 0, 3464, 9820, 0, 2));
-		assertEquals(-1, r.passedNow(passed, approach, 3464, 9820, 0, 3460, 9821, 0, 2));
-		assertEquals(-1, r.passedNow(passed, approach, 3460, 9821, 0, 3455, 9821, 0, 2));
+		passed.add(0);
+		assertEquals(-1, r.passedNow(passed, 3462, 9820, 0, 3464, 9820, 0, 2));
+		assertEquals(-1, r.passedNow(passed, 3464, 9820, 0, 3455, 9821, 0, 2));
 	}
 
 	@Test
 	public void stepPassedWhenItTeleportsYou()
 	{
 		AltarRoute r = AltarRoute.of(12875);
-		java.util.Set<Integer> passed = new java.util.HashSet<>();
-		java.util.Map<Integer, int[]> approach = new java.util.HashMap<>();
+		java.util.Set<Integer> passed = new java.util.HashSet<>(java.util.Arrays.asList(0, 1, 2, 3));
 		// next to the ruins (3560, 9780), then far away inside the altar
-		assertEquals(4, r.passedNow(passed, approach, 3561, 9781, 0, 2460, 4890, 0, 99));
+		assertEquals(4, r.passedNow(passed, 3561, 9781, 0, 2460, 4890, 0, 99));
+	}
+
+	@Test
+	public void afterLoginBetweenStepsTheEarlierOnesAreDone()
+	{
+		AltarRoute r = AltarRoute.of(12875);
+		java.util.Set<Integer> passed = new java.util.HashSet<>();
+		// logged in next to step 2 (nothing remembered): step 1 is done
+		assertEquals(0, r.passedNow(passed, 3466, 9821, 0, 3466, 9821, 0, 0));
+		// logged in between step 3 and step 4: steps 1-3 are done
+		passed.clear();
+		assertEquals(2, r.passedNow(passed, 3525, 9785, 0, 3525, 9785, 0, 0));
+		// nothing new to report the next tick
+		passed.addAll(java.util.Arrays.asList(0, 1, 2));
+		assertEquals(-1, r.passedNow(passed, 3525, 9785, 0, 3525, 9785, 0, 0));
 	}
 
 	@Test

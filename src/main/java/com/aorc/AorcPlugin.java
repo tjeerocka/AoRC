@@ -149,8 +149,6 @@ public class AorcPlugin extends Plugin
 	private int lastEssence = -1;           // essence item used in your last craft
 	private final Map<Integer, java.util.List<net.runelite.api.TileObject>> routeObjects = new HashMap<>();
 	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
-	// per route step: where you stood when you were next to it (to see you went through it)
-	private final Map<Integer, int[]> stepApproach = new HashMap<>();
 	// route debug: what happened to your last click, and how far you moved last tick
 	private String debugLastClick = "-";
 	private int debugMoved;
@@ -1412,7 +1410,6 @@ public class AorcPlugin extends Plugin
 				fairyRingUsed = false;
 				fairyRingClicked = false;
 				stepsPassed.clear();
-				stepApproach.clear();
 			}
 			if (config.highlightTeleports())
 			{
@@ -1434,17 +1431,16 @@ public class AorcPlugin extends Plugin
 		int moved = moved();             // every tick, so it always compares with the last tick
 		debugMoved = moved;
 		boolean teleported = moved > 10;
-		// went through a step of the route (no clicks needed): it and every step before it are done
+		// past a step of the route (by where you stand; no clicks needed): it and every step before it are done
 		if (lastInventory != null && essenceCount(lastInventory) > 0)
 		{
 			AltarRoute r = route();
-			int i = r.passedNow(stepsPassed, stepApproach, fromX, fromY, fromPlane, lastX, lastY, lastPlane, moved);
+			int i = r.passedNow(stepsPassed, fromX, fromY, fromPlane, lastX, lastY, lastPlane, moved);
 			if (i >= 0)
 			{
 				for (int k = 0; k <= i; k++)
 				{
 					stepsPassed.add(k);
-					stepApproach.remove(k);
 				}
 				int[] st = r.steps.get(i);
 				debugLastClick = "step " + (i + 1) + " PASSED (" + objectName(st[0]) + " " + st[0] + ", moved " + moved + ")";

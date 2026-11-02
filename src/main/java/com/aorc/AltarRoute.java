@@ -82,52 +82,56 @@ public class AltarRoute
 	}
 
 	/** Next to a step: this close (tiles) counts as standing at it. */
-	static final int NEAR = 3;
+	static final int NEAR = 4;
 
 	/**
-	 * Which step you just went through this tick, or -1 (no clicks needed):
-	 * - you jumped (more than 2 tiles in one tick) from right next to it (ruins, ladders), or
-	 * - you were right next to it and now stand on its other side (caves you crawl through).
+	 * The last step you are past right now, or -1. It only looks at where you stand, so it
+	 * also works right after a login or a restart (nothing to remember):
+	 * - you jumped (more than 2 tiles in one tick) from right next to a step (ruins, ladders);
+	 * - you stand next to a later step: every step before it is done;
+	 * - you are between step i and step i+1, clearly closer to step i+1 than step i is
+	 *   (you went through step i; caves you crawl through).
 	 * Walking up to a cave and back the way you came does not count.
-	 * 'approach' remembers per step where you stood when you were next to it.
 	 */
-	int passedNow(java.util.Set<Integer> passed, Map<Integer, int[]> approach,
-		int fromX, int fromY, int fromPlane, int x, int y, int plane, int moved)
+	int passedNow(java.util.Set<Integer> passed, int fromX, int fromY, int fromPlane, int x, int y, int plane, int moved)
 	{
+		int best = -1;
 		for (int i = 0; i < steps.size(); i++)
 		{
-			if (passed.contains(i))
-			{
-				continue;
-			}
 			int[] st = steps.get(i);
-			boolean wasNear = fromPlane == st[3] && Math.abs(fromX - st[1]) <= NEAR && Math.abs(fromY - st[2]) <= NEAR;
-			if (moved > 2 && wasNear)
+			if (!passed.contains(i) && moved > 2 && fromPlane == st[3]
+				&& Math.abs(fromX - st[1]) <= NEAR && Math.abs(fromY - st[2]) <= NEAR)
 			{
-				return i;
+				best = Math.max(best, i);
 			}
 			if (plane != st[3])
 			{
 				continue;
 			}
-			int dx = x - st[1];
-			int dy = y - st[2];
-			int d = Math.max(Math.abs(dx), Math.abs(dy));
-			if (d <= NEAR)
+			// next to a later step: everything before it is done
+			if (i > 0 && Math.abs(x - st[1]) <= NEAR && Math.abs(y - st[2]) <= NEAR)
 			{
-				if (dx != 0 || dy != 0)
+				best = Math.max(best, i - 1);
+			}
+			// between this step and the next one, past this one
+			if (i + 1 < steps.size() && steps.get(i + 1)[3] == plane)
+			{
+				int[] nx = steps.get(i + 1);
+				double gap = Math.hypot(nx[1] - st[1], nx[2] - st[2]);
+				double toNext = Math.hypot(nx[1] - x, nx[2] - y);
+				double toThis = Math.hypot(st[1] - x, st[2] - y);
+				// (not while you still stand next to this step: the fairy ring puts you right next to cave 1)
+				if (toNext < gap - 2 && toThis <= gap && toThis > NEAR)
 				{
-					approach.putIfAbsent(i, new int[]{dx, dy});
+					best = Math.max(best, i);
 				}
 			}
-			else if (d <= 20 && approach.containsKey(i))
+		}
+		for (int k = 0; k <= best; k++)
+		{
+			if (!passed.contains(k))
 			{
-				int[] a = approach.get(i);
-				double cos = (a[0] * dx + a[1] * dy) / (Math.hypot(a[0], a[1]) * Math.hypot(dx, dy));
-				if (cos < -0.3)
-				{
-					return i;   // came from one side, now on the other side
-				}
+				return best;   // something new is done
 			}
 		}
 		return -1;
