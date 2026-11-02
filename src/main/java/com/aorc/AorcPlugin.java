@@ -1664,27 +1664,10 @@ public class AorcPlugin extends Plugin
 		return o.getClickbox();
 	}
 
-	/**
-	 * Developer only: route debug works only in a client started from IntelliJ (not by the
-	 * Jagex / RuneLite launcher, so never for Plugin Hub users). The button for it is in the
-	 * side panel, and only there in such a client.
-	 */
+	/** Route debug (setting in the Developer section). */
 	boolean routeDebug()
 	{
-		return devClient() && config.routeDebug();
-	}
-
-	static boolean devClient()
-	{
-		return net.runelite.client.RuneLiteProperties.getLauncherVersion() == null;
-	}
-
-	/** Developer only: the "Route debug" button in the side panel turns it on and off. */
-	boolean toggleRouteDebug()
-	{
-		boolean on = devClient() && !config.routeDebug();
-		configManager.setConfiguration(AorcConfig.GROUP, "routeDebug", on);
-		return on;
+		return config.routeDebug();
 	}
 
 	/** Route debug: the object ID in the right-click menu. Also hides the wrong-way objects' options. ("Examine Cave (ID 43762)"). */

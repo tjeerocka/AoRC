@@ -257,21 +257,6 @@ class AorcPanel extends PluginPanel
 		content.add(buttons);
 		content.add(gap(8));
 
-		// developer only (client started from IntelliJ, never for Plugin Hub users)
-		if (AorcPlugin.devClient())
-		{
-			JButton debug = button(plugin != null && plugin.routeDebug() ? "Route debug (dev): on" : "Route debug (dev): off");
-			debug.setAlignmentX(LEFT_ALIGNMENT);
-			debug.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
-			debug.setToolTipText("Developer only: route steps, object IDs and spots in the game");
-			debug.addActionListener(e -> run(clientThread, () ->
-			{
-				boolean on = plugin.toggleRouteDebug();
-				SwingUtilities.invokeLater(() -> debug.setText(on ? "Route debug (dev): on" : "Route debug (dev): off"));
-			}));
-			content.add(debug);
-			content.add(gap(8));
-		}
 
 		buddy.setAlignmentX(LEFT_ALIGNMENT);
 		content.add(buddy);
