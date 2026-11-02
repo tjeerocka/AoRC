@@ -2336,7 +2336,7 @@ public class AorcPlugin extends Plugin
 	// at the runestones: this close (the dark altar side of the 69 climb is only ~14 tiles away)
 	static final int ZEAH_AT_RUNESTONE = 8;
 	private boolean zeahFromBlood;                // on the way back from the blood altar
-	private final java.util.Set<Integer> zeahTouched = new java.util.HashSet<>();   // stood next to it
+	private final Map<Integer, int[]> zeahApproach = new HashMap<>();             // side you came from
 	private final java.util.Set<Integer> zeahUsed = new java.util.HashSet<>();      // went over it
 	static final int CHISEL = 1755;
 	private boolean zeahGo;                      // these dark blocks go to the blood altar (not chiselled first)
@@ -2407,7 +2407,7 @@ public class AorcPlugin extends Plugin
 		{
 			// all chiselled / bound: the shortcuts you use from now on are on the way back
 			zeahUsed.clear();
-			zeahTouched.clear();
+			zeahApproach.clear();
 		}
 		if (dark == 0)
 		{
@@ -2425,18 +2425,38 @@ public class AorcPlugin extends Plugin
 			if (!inventoryFull)
 			{
 				zeahUsed.clear();
-				zeahTouched.clear();
+				zeahApproach.clear();
 			}
 		}
+		net.runelite.api.Player me = client.getLocalPlayer();
+		WorldPoint at = me == null ? null : me.getWorldLocation();
 		for (int id : new int[]{ZEAH_SHORTCUT, ZEAH_LOW_TO_ALTAR, ZEAH_CLIMB_ROCKS, ZEAH_LOW_TO_STONE})
 		{
-			if (near(id, 4))
+			net.runelite.api.TileObject o = closest(objectsInView(id));
+			WorldPoint w = o == null ? null : o.getWorldLocation();
+			if (at == null || w == null)
 			{
-				zeahTouched.add(id);
+				continue;
 			}
-			else if (zeahTouched.contains(id) && !near(id, 7))
+			int dx = at.getX() - w.getX();
+			int dy = at.getY() - w.getY();
+			int d = Math.max(Math.abs(dx), Math.abs(dy));
+			int[] side = zeahApproach.get(id);
+			if (side == null)
 			{
-				zeahUsed.add(id);
+				if (d <= 4 && d > 0)
+				{
+					zeahApproach.put(id, new int[]{dx, dy});   // the side you came from
+				}
+			}
+			else if (d >= 2)
+			{
+				// on the other side now (a short climb), or far away from it: used
+				double cos = (side[0] * dx + side[1] * dy) / (Math.hypot(side[0], side[1]) * Math.hypot(dx, dy));
+				if (cos < -0.3 || d > 7)
+				{
+					zeahUsed.add(id);
+				}
 			}
 		}
 	}
