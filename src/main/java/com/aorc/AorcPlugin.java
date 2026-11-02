@@ -2582,7 +2582,7 @@ public class AorcPlugin extends Plugin
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0),
 			lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0),
 			inventoryFull, zeahGo || zeahCapped, zeahCapped, zeahBound, near(ZEAH_DARK_ALTAR, 15), near(ZEAH_BLOOD_ALTAR, 12), atRunestones(),
-			zeahFromBlood, zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
+			zeahFromBlood || bloodSide(), zeahUsed.contains(ZEAH_SHORTCUT) || zeahUsed.contains(ZEAH_LOW_TO_ALTAR),
 			zeahUsed.contains(ZEAH_CLIMB_ROCKS) || zeahUsed.contains(ZEAH_LOW_TO_STONE) || zeahUsed.contains(ZEAH_SHORTCUT),
 			client.getBoostedSkillLevel(Skill.AGILITY));
 		// a shortcut you cannot see yet: show where you are going instead
@@ -2804,6 +2804,26 @@ public class AorcPlugin extends Plugin
 		int dx = me.getX() < minX ? minX - me.getX() : me.getX() > maxX ? me.getX() - maxX : 0;
 		int dy = me.getY() < minY ? minY - me.getY() : me.getY() > maxY ? me.getY() - maxY : 0;
 		return Math.max(dx, dy);
+	}
+
+	/**
+	 * Nothing in your inventory and closer to the blood altar than to the dark altar: you are on
+	 * the way back from the blood altar (also right after a restart, when we did not see you there).
+	 */
+	private boolean bloodSide()
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null || lastInventory == null
+			|| lastInventory.getOrDefault(RuneIds.DENSE_ESSENCE_BLOCK, 0) > 0
+			|| lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_BLOCK, 0) > 0
+			|| lastInventory.getOrDefault(RuneIds.DARK_ESSENCE_FRAGMENTS, 0) > 0)
+		{
+			return false;
+		}
+		WorldPoint me = p.getWorldLocation();
+		int[] blood = ZEAH_SPOTS.get(ZEAH_BLOOD_ALTAR);
+		int[] dark = ZEAH_SPOTS.get(ZEAH_DARK_ALTAR);
+		return Math.hypot(me.getX() - blood[0], me.getY() - blood[1]) < Math.hypot(me.getX() - dark[0], me.getY() - dark[1]);
 	}
 
 	/** You are at the runestones: next to any of them (also a depleted one), by its nearest edge. */
