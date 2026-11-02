@@ -157,6 +157,8 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
 	private final java.util.Set<net.runelite.api.GameObject> bankObjects = new java.util.HashSet<>();
+	// altars in the scene: objects with a "Craft-rune" option
+	private final java.util.Set<net.runelite.api.GameObject> altars = new java.util.HashSet<>();
 	private final java.util.Set<net.runelite.api.NPC> bankNpcs = new java.util.HashSet<>();
 	// altar teleport used (your location jumped): no more cyan box until you are full again
 	private boolean altarTeleportUsed;
@@ -892,6 +894,7 @@ public class AorcPlugin extends Plugin
 			routeObjects.clear();   // new map area: the objects spawn again
 			fairyRings.clear();
 			bankObjects.clear();
+			altars.clear();
 			bankNpcs.clear();
 		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
@@ -1585,6 +1588,15 @@ public class AorcPlugin extends Plugin
 		{
 			bankObjects.add(o);
 		}
+		net.runelite.api.ObjectComposition def = client.getObjectDefinition(o.getId());
+		if (def != null && def.getImpostorIds() != null && def.getImpostor() != null)
+		{
+			def = def.getImpostor();
+		}
+		if (def != null && hasOption(def.getActions(), "craft-rune"))
+		{
+			altars.add(o);
+		}
 	}
 
 	// caves, doors and openings in walls are wall / decoration objects, not game objects
@@ -1680,6 +1692,30 @@ public class AorcPlugin extends Plugin
 		}
 	}
 
+	/** Within this many tiles of an altar, the pouches have no Fill option. */
+	private static final int ALTAR_RANGE = 10;
+
+	/** You stand within 10 tiles of an altar (any object with "Craft-rune"). */
+	private boolean nearAltar()
+	{
+		net.runelite.api.Player p = client.getLocalPlayer();
+		if (p == null || p.getWorldLocation() == null)
+		{
+			return false;
+		}
+		net.runelite.api.coords.WorldPoint me = p.getWorldLocation();
+		for (net.runelite.api.GameObject a : altars)
+		{
+			net.runelite.api.coords.WorldPoint w = a.getWorldLocation();
+			if (w != null && w.getPlane() == me.getPlane()
+				&& Math.abs(w.getX() - me.getX()) <= ALTAR_RANGE && Math.abs(w.getY() - me.getY()) <= ALTAR_RANGE)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Any essence pouch (small to colossal, also decayed ones). */
 	static boolean isPouch(int itemId)
 	{
@@ -1699,11 +1735,10 @@ public class AorcPlugin extends Plugin
 			removeMenuEntry(e);
 			return;
 		}
-		// at the altar: no "Fill" on the essence pouches, so "Empty" is the left-click
+		// within 10 tiles of an altar: no "Fill" on the essence pouches, so "Empty" is the left-click
 		// (not at ZMI or Guardians of the Rift: there you fill your pouches next to the altar)
-		if (config.onlyEmptyAtAltar() && "fill".equalsIgnoreCase(Text.removeTags(e.getOption()))
-			&& isPouch(e.getItemId()) && craftRegion != -1 && regionId() == craftRegion
-			&& !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE)
+		if ("fill".equalsIgnoreCase(Text.removeTags(e.getOption())) && isPouch(e.getItemId())
+			&& nearAltar() && !zmiMode && lastEssence != RuneIds.GUARDIAN_ESSENCE)
 		{
 			removeMenuEntry(e);
 			return;
@@ -1818,6 +1853,7 @@ public class AorcPlugin extends Plugin
 		removeRouteObject(event.getGameObject());
 		fairyRings.remove(event.getGameObject());
 		bankObjects.remove(event.getGameObject());
+		altars.remove(event.getGameObject());
 	}
 
 	/**

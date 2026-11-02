@@ -318,19 +318,6 @@ public interface AorcConfig extends Config
 		return true;
 	}
 
-	@ConfigItem(
-		keyName = "onlyEmptyAtAltar",
-		name = "Only Empty at the altar",
-		description = "At the altar the essence pouches have no Fill option, so Empty is the left-click "
-			+ "and a misclick never fills a pouch again (not at ZMI and Guardians of the Rift, where you fill there)",
-		section = teleportSection,
-		position = 46
-	)
-	default boolean onlyEmptyAtAltar()
-	{
-		return true;
-	}
-
 	// ---- Developer ----
 
 	@ConfigSection(
