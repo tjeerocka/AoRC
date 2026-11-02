@@ -22,11 +22,13 @@ class RouteOverlay extends Overlay
 	static final Color ROUTE = new Color(0, 220, 255);   // cyan, like the altar teleport
 
 	private final AorcPlugin plugin;
+	private final AorcConfig config;
 
 	@Inject
-	RouteOverlay(AorcPlugin plugin)
+	RouteOverlay(AorcPlugin plugin, AorcConfig config)
 	{
 		this.plugin = plugin;
+		this.config = config;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
@@ -52,6 +54,18 @@ class RouteOverlay extends Overlay
 			g.setColor(new Color(ROUTE.getRed(), ROUTE.getGreen(), ROUTE.getBlue(), a));
 			g.setStroke(new BasicStroke(2f));
 			g.draw(hull);
+		}
+		if (config.routeDebug())
+		{
+			// route debug: step number, object ID and passed / next above every route object
+			for (java.util.Map.Entry<GameObject, String> e : plugin.routeDebugLabels().entrySet())
+			{
+				net.runelite.api.Point p = e.getKey().getCanvasTextLocation(g, e.getValue(), 150);
+				if (p != null)
+				{
+					net.runelite.client.ui.overlay.OverlayUtil.renderTextLocation(g, p, e.getValue(), Color.YELLOW);
+				}
+			}
 		}
 		return null;
 	}

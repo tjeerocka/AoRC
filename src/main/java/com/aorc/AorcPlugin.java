@@ -75,6 +75,9 @@ public class AorcPlugin extends Plugin
 	private RouteOverlay routeOverlay;
 
 	@Inject
+	private RouteDebugOverlay routeDebugOverlay;
+
+	@Inject
 	private BankEssenceOverlay bankEssenceOverlay;
 
 
@@ -155,6 +158,10 @@ public class AorcPlugin extends Plugin
 	private final java.util.Set<Integer> stepsPassed = new java.util.HashSet<>();   // this trip
 	private int[] pendingStep;         // object you just clicked: a step once it moves you
 	private int pendingStepTick;
+	// route debug: what happened to your last click, and how far you moved last tick
+	private String debugLastClick = "-";
+	private int debugMoved;
+	private int debugNextStep = -1;
 	// fairy rings in the scene (matched by name: rings can have different object IDs)
 	private final java.util.Set<net.runelite.api.GameObject> fairyRings = new java.util.HashSet<>();
 	// banks in the scene: objects and NPCs with a "Bank" option (chests, booths, bankers)
@@ -255,6 +262,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.add(repairSpellOverlay);
 		overlayManager.add(teleportOverlay);
 		overlayManager.add(routeOverlay);
+		overlayManager.add(routeDebugOverlay);
 		overlayManager.add(bankEssenceOverlay);
 
 		panel = injector.getInstance(AorcPanel.class);
@@ -283,6 +291,7 @@ public class AorcPlugin extends Plugin
 		overlayManager.remove(repairSpellOverlay);
 		overlayManager.remove(teleportOverlay);
 		overlayManager.remove(routeOverlay);
+		overlayManager.remove(routeDebugOverlay);
 		overlayManager.remove(bankEssenceOverlay);
 		if (panel != null)
 		{
@@ -1452,6 +1461,7 @@ public class AorcPlugin extends Plugin
 		}
 		// you teleported (moved more than 10 tiles in one tick): the altar teleport is done
 		int moved = moved();             // every tick, so it always compares with the last tick
+		debugMoved = moved;
 		boolean teleported = moved > 10;
 		if (pendingStep != null && moved > 2)
 		{
@@ -1462,6 +1472,7 @@ public class AorcPlugin extends Plugin
 				rec.add(pendingStep);
 			}
 			int i = route().find(pendingStep);
+			debugLastClick = objectName(pendingStep[0]) + " " + pendingStep[0] + " -> LEARNED (moved " + moved + " tiles)";
 			for (int k = 0; k <= i; k++)
 			{
 				stepsPassed.add(k);          // this step and every step before it: done for this trip
@@ -1470,6 +1481,7 @@ public class AorcPlugin extends Plugin
 		}
 		else if (pendingStep != null && client.getTickCount() - pendingStepTick > 50)
 		{
+			debugLastClick = objectName(pendingStep[0]) + " " + pendingStep[0] + " -> dropped (did not move you)";
 			pendingStep = null;              // clicked but never went through it
 		}
 		if (teleported && fairyRingClicked)
@@ -1496,6 +1508,10 @@ public class AorcPlugin extends Plugin
 		int id = event.getId();
 		// any other click (walk, teleport item, fairy ring, another object) replaces the object
 		// you clicked before: only the last object you clicked can become a step
+		if (pendingStep != null)
+		{
+			debugLastClick = objectName(pendingStep[0]) + " " + pendingStep[0] + " -> dropped (you clicked something else)";
+		}
 		pendingStep = null;
 		if (id <= 0 || !isObjectAction(event.getMenuAction()))
 		{
@@ -1529,7 +1545,68 @@ public class AorcPlugin extends Plugin
 				client, event.getParam0(), event.getParam1(), client.getPlane());
 			pendingStep = new int[]{id, w.getX(), w.getY(), w.getPlane()};
 			pendingStepTick = client.getTickCount();
+			debugLastClick = objectName(id) + " " + id + " (" + w.getX() + ", " + w.getY() + ", " + w.getPlane() + ") -> waiting for a move";
 		}
+	}
+
+	private String objectName(int id)
+	{
+		net.runelite.api.ObjectComposition def = client.getObjectDefinition(id);
+		if (def != null && def.getImpostorIds() != null && def.getImpostor() != null)
+		{
+			def = def.getImpostor();
+		}
+		return def == null || def.getName() == null ? "?" : def.getName();
+	}
+
+	/** Route debug: the text lines of the debug box. */
+	java.util.List<String> routeDebugLines()
+	{
+		java.util.List<String> out = new java.util.ArrayList<>();
+		AltarRoute r = route();
+		out.add("Region now: " + regionId() + "   altar region: " + craftRegion);
+		out.add("Essence: " + (lastInventory == null ? 0 : essenceCount(lastInventory)) + "   moved: " + debugMoved + " tiles");
+		out.add("Altar: " + (r.altar < 0 ? "not learned" : objectName(r.altar) + " " + r.altar));
+		out.add("Fairy ring: " + (r.fairyRing ? (fairyRingUsed ? "yes (used)" : "yes") : "no"));
+		out.add("Steps (" + r.steps.size() + "):");
+		for (int i = 0; i < r.steps.size(); i++)
+		{
+			int[] st = r.steps.get(i);
+			out.add("  " + (i + 1) + ". " + objectName(st[0]) + " " + st[0] + " (" + st[1] + ", " + st[2] + ", " + st[3] + ") "
+				+ (stepsPassed.contains(i) ? "passed" : i == debugNextStep ? "NEXT" : ""));
+		}
+		out.add("This trip learned: " + recordingSteps.size() + (recordingFairyRing ? " + fairy ring" : ""));
+		out.add("Last click: " + debugLastClick);
+		return out;
+	}
+
+	/** Route debug: the label above every object of the route that is in view. */
+	java.util.Map<net.runelite.api.GameObject, String> routeDebugLabels()
+	{
+		java.util.Map<net.runelite.api.GameObject, String> out = new java.util.LinkedHashMap<>();
+		AltarRoute r = route();
+		for (int i = 0; i < r.steps.size(); i++)
+		{
+			int[] st = r.steps.get(i);
+			for (net.runelite.api.GameObject o : routeObjects.getOrDefault(st[0], java.util.Collections.emptyList()))
+			{
+				net.runelite.api.coords.WorldPoint w = o.getWorldLocation();
+				if (w != null && AltarRoute.same(st, new int[]{st[0], w.getX(), w.getY(), w.getPlane()}))
+				{
+					out.put(o, "Step " + (i + 1) + "/" + r.steps.size() + " - " + st[0]
+						+ (stepsPassed.contains(i) ? " - passed" : i == debugNextStep ? " - NEXT" : " - waiting"));
+				}
+			}
+		}
+		for (net.runelite.api.GameObject o : routeObjects.getOrDefault(r.altar, java.util.Collections.emptyList()))
+		{
+			out.put(o, "Altar - " + r.altar);
+		}
+		for (net.runelite.api.GameObject o : fairyRings)
+		{
+			out.putIfAbsent(o, "Fairy ring - " + o.getId());
+		}
+		return out;
 	}
 
 	/** The route to the altar you are heading to (the one you crafted at last). */
@@ -1686,6 +1763,7 @@ public class AorcPlugin extends Plugin
 		java.util.List<net.runelite.api.GameObject> out = new java.util.ArrayList<>();
 		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) == 0)
 		{
+			debugNextStep = -1;
 			return out;
 		}
 		boolean atAltar = craftRegion != -1 && regionId() == craftRegion;
@@ -1712,6 +1790,7 @@ public class AorcPlugin extends Plugin
 				}
 			}
 		}
+		int next = -1;
 		// only the NEXT step you have not passed yet this trip (the first one you can see), and
 		// only that exact object: the cave on the other side, with the same name, is not your way
 		for (int i = 0; i < route.steps.size(); i++)
@@ -1737,9 +1816,11 @@ public class AorcPlugin extends Plugin
 			}
 			if (found)
 			{
+				next = i;
 				break;
 			}
 		}
+		debugNextStep = next;
 		// one outline per spot (two outlines on top of each other look twice as strong)
 		java.util.Map<String, net.runelite.api.GameObject> one = new java.util.LinkedHashMap<>();
 		for (net.runelite.api.GameObject o : out)

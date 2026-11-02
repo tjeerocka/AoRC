@@ -316,4 +316,17 @@ public interface AorcConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "routeDebug",
+		name = "Route debug",
+		description = "Show what the route learned: a box with every step (object ID and spot) "
+			+ "and a label above each route object (step number, passed / next)",
+		section = teleportSection,
+		position = 45
+	)
+	default boolean routeDebug()
+	{
+		return false;
+	}
 }
