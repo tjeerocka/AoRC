@@ -660,4 +660,15 @@ public class LogicTest
 		assertFalse(TeleportItem.QUEST_CAPE.matches("Quest point hood"));
 		assertFalse(TeleportItem.NONE.matches("Sailors' amulet"));
 	}
+
+	@Test
+	public void routeStepsMatchTheExactSpot()
+	{
+		AltarRoute r = new AltarRoute();
+		r.steps.add(new int[]{12345, 3600, 3300, 0});   // cave on the way there
+		assertEquals(0, r.find(new int[]{12345, 3601, 3299, 0}));
+		// the cave with the same object ID on the other side (far away) is not a step
+		assertEquals(-1, r.find(new int[]{12345, 3640, 3300, 0}));
+		assertEquals(-1, r.find(new int[]{12345, 3600, 3300, 1}));
+	}
 }
