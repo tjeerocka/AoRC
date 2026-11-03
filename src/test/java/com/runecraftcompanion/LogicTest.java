@@ -2,6 +2,7 @@ package com.runecraftcompanion;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import java.util.List;
 import org.junit.Test;
@@ -954,6 +955,16 @@ public class LogicTest
 		CompanionStorage st = new CompanionStorage(base);
 		assertEquals("{}", st.read(42));                 // the saved data is still there
 		assertFalse(old.exists());                        // and the old folder is gone
+	}
+
+	@Test
+	public void picturesAreNextToTheCode()
+	{
+		// the icon and Runey's sprites must sit in the same package folder as the code,
+		// or the plugin cannot start (icon) and Runey is missing
+		assertNotNull(RunecraftCompanionPlugin.class.getResource("icon.png"));
+		assertNotNull(RuneyFrames.class.getResource("runey_sheet.png"));
+		assertNotNull(RuneyFrames.class.getResource("runey_mask.png"));
 	}
 
 	@Test

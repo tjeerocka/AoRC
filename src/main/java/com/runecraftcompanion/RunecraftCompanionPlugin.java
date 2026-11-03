@@ -321,16 +321,24 @@ public class RunecraftCompanionPlugin extends Plugin
 	/** The plugin was renamed: move the settings of its first name to the new group, once. */
 	private void moveOldSettings()
 	{
-		String prefix = RunecraftCompanionConfig.OLD_GROUP + ".";
-		for (String full : configManager.getConfigurationKeys(prefix))
+		try
 		{
-			String key = full.substring(prefix.length());
-			String value = configManager.getConfiguration(RunecraftCompanionConfig.OLD_GROUP, key);
-			if (value != null && configManager.getConfiguration(RunecraftCompanionConfig.GROUP, key) == null)
+			String prefix = RunecraftCompanionConfig.OLD_GROUP + ".";
+			// a copy of the list: the old keys are removed while we go through them
+			for (String full : new java.util.ArrayList<>(configManager.getConfigurationKeys(prefix)))
 			{
-				configManager.setConfiguration(RunecraftCompanionConfig.GROUP, key, value);
+				String key = full.substring(prefix.length());
+				String value = configManager.getConfiguration(RunecraftCompanionConfig.OLD_GROUP, key);
+				if (value != null && configManager.getConfiguration(RunecraftCompanionConfig.GROUP, key) == null)
+				{
+					configManager.setConfiguration(RunecraftCompanionConfig.GROUP, key, value);
+				}
+				configManager.unsetConfiguration(RunecraftCompanionConfig.OLD_GROUP, key);
 			}
-			configManager.unsetConfiguration(RunecraftCompanionConfig.OLD_GROUP, key);
+		}
+		catch (RuntimeException e)
+		{
+			// never stop the plugin from starting: at worst the old settings are not moved
 		}
 	}
 
