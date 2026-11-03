@@ -50,7 +50,7 @@ without Runecraft XP). The overlay box only shows after Runecraft XP; counting a
   - **Blood - Zeah**: runestone, the 69 / 52 shortcut, dark altar, chisel + dark block, blood altar
     (bind, chisel all, bind again), the 73 climb back. Boosted Agility counts for the shortcuts.
 - **Bank**: the bank chests / bankers and the essence you used last, until inventory and pouches are full.
-  A full pouch has no Empty / Deposit in the bank; Fill is the left-click.
+  In the bank the pouches have no Empty (a full one no Deposit either); Fill is the left-click.
 - **Altar**: the pouch to empty next; near an altar the pouches have no Fill / Check and Empty is the
   left-click (not at ZMI / Guardians of the Rift).
 
