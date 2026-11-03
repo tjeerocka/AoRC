@@ -1,6 +1,6 @@
 # Runecraft Companion
 
-A RuneLite plugin for runecrafting (formerly "AoRC – Amount of Runes Crafted"). It counts every rune
+A RuneLite plugin for runecrafting. It counts every rune
 you craft and shows it per hour (all runes, combination runes, ZMI, Guardians of the Rift, sunfire and
 aether runes), and guides your runs: the next object to click, teleports, pouches and pouch repair.
 
@@ -62,7 +62,7 @@ without Runecraft XP). The overlay box only shows after Runecraft XP; counting a
 - **Route debug**: a box with your position, the route or Zeah state and what happened last, labels above
   the route objects and the object ID + spot in the right-click menu.
 - **Record path**: record a walk (pick what you record in "Recording"); the file goes to
-  `.runelite/aorc/paths`, its corners can be built in so the line follows the real way.
+  `.runelite/runecraft-companion/paths`, its corners can be built in so the line follows the real way.
 
 ## How counting works
 
@@ -78,9 +78,9 @@ The elite Kourend diary bonus only counts at the Arceuus blood altar (dark essen
 | Blood essence (active) | +50% | blood |
 | Elite Kourend & Kebos diary | +10% | blood (Arceuus) |
 
-Data is saved per account in `.runelite/aorc/<account>.json`.
+Data is saved per account in `.runelite/runecraft-companion/<account>.json`.
 
 ## Build and run
 
-Needs Java 11 or newer. Open the folder in IntelliJ IDEA and run the **AoRC** run configuration
-(or `src/test/java/com/aorc/AorcPluginTest.java`). RuneLite starts with the plugin loaded.
+Needs Java 11 or newer. Open the folder in IntelliJ IDEA and run the **Runecraft Companion** run configuration
+(or `src/test/java/com/runecraftcompanion/RunecraftCompanionPluginTest.java`). RuneLite starts with the plugin loaded.

@@ -26,7 +26,7 @@ dependencies {
     testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
 }
 
-group = 'com.aorc'
+group = 'com.runecraftcompanion'
 version = '1.0-SNAPSHOT'
 
 // RuneLite needs -ea (assertions) when testing plugins.
@@ -40,7 +40,7 @@ tasks.register('run', JavaExec) {
     group = 'application'
     description = 'Start RuneLite with the Runecraft Companion plugin'
     classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'com.aorc.AorcPluginTest'
+    mainClass = 'com.runecraftcompanion.RunecraftCompanionPluginTest'
     args '--developer-mode'   // shows RuneLite's Developer Tools plugin (object IDs)
 }
 

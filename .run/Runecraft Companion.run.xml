@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Runecraft Companion" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.runecraftcompanion.RunecraftCompanionPluginTest" />
+    <module name="runecraft-companion.test" />
+    <option name="PROGRAM_PARAMETERS" value="--developer-mode" />
+    <option name="VM_PARAMETERS" value="-ea" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
