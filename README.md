@@ -1,7 +1,8 @@
-# AoRC – Amount of Runes Crafted
+# Runecraft Companion
 
-A RuneLite plugin that counts every rune you craft and shows it per hour:
-all runes, combination runes, ZMI, Guardians of the Rift, sunfire and aether runes.
+A RuneLite plugin for runecrafting (formerly "AoRC – Amount of Runes Crafted"). It counts every rune
+you craft and shows it per hour (all runes, combination runes, ZMI, Guardians of the Rift, sunfire and
+aether runes), and guides your runs: the next object to click, teleports, pouches and pouch repair.
 
 ## Overlay
 

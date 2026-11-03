@@ -33,10 +33,10 @@ class AorcOverlay extends OverlayPanel
 		this.plugin = plugin;
 		this.config = config;
 		setPosition(OverlayPosition.TOP_LEFT);
-		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset per hour", "AoRC", e -> plugin.resetRates());
-		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset rune count", "AoRC", e -> plugin.resetRuneCount());
-		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset bonus runes", "AoRC", e -> plugin.resetBonusRunes());
-		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset all", "AoRC", e -> plugin.resetAll());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset per hour", "RC Companion", e -> plugin.resetRates());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset rune count", "RC Companion", e -> plugin.resetRuneCount());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset bonus runes", "RC Companion", e -> plugin.resetBonusRunes());
+		addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Reset all", "RC Companion", e -> plugin.resetAll());
 	}
 
 	@Override
@@ -69,7 +69,7 @@ class AorcOverlay extends OverlayPanel
 		}
 
 		panelComponent.getChildren().add(TitleComponent.builder()
-			.text(paused ? "AoRC (paused)" : "AoRC")
+			.text(paused ? "RC Companion (paused)" : "RC Companion")
 			.color(BLOOD)
 			.build());
 		for (Line l : lines)

@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Saves AoRC data in its own file per account: .runelite/aorc/&lt;account&gt;.json
+ * Saves Runecraft Companion data in its own file per account: .runelite/aorc/&lt;account&gt;.json
  * Written straight to disk (no RuneLite config sync), so nothing gets lost or overwritten.
  */
 public class AorcStorage

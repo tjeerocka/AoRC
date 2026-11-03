@@ -35,7 +35,7 @@ class RouteDebugOverlay extends OverlayPanel
 			return null;
 		}
 		// the box
-		panelComponent.getChildren().add(TitleComponent.builder().text("AoRC route debug").color(Color.YELLOW).build());
+		panelComponent.getChildren().add(TitleComponent.builder().text("Route debug").color(Color.YELLOW).build());
 		panelComponent.setPreferredSize(new Dimension(330, 0));
 		for (String line : plugin.routeDebugLines())
 		{

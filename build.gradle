@@ -38,7 +38,7 @@ tasks.withType(JavaExec).configureEach {
 // "gradlew run" starts RuneLite with the plugin
 tasks.register('run', JavaExec) {
     group = 'application'
-    description = 'Start RuneLite with the AoRC plugin'
+    description = 'Start RuneLite with the Runecraft Companion plugin'
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.aorc.AorcPluginTest'
     args '--developer-mode'   // shows RuneLite's Developer Tools plugin (object IDs)

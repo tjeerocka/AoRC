@@ -42,9 +42,9 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
-	name = "AoRC",
-	description = "Amount of Runes Crafted - counts runes crafted per hour (blood runes first), RC xp/hr and active rune bonuses",
-	tags = {"aorc", "runecraft", "runecrafting", "blood", "runes", "rc", "arceuus"}
+	name = "Runecraft Companion",
+	description = "Counts every rune you craft per hour, guides your runs (Mory and Zeah bloods, teleports, pouches) and warns about pouch repair",
+	tags = {"aorc", "runecraft", "runecrafting", "blood", "runes", "rc", "arceuus", "companion", "pouch"}
 )
 public class AorcPlugin extends Plugin
 {
@@ -573,7 +573,7 @@ public class AorcPlugin extends Plugin
 	private NavigationButton buildNav(java.awt.image.BufferedImage icon)
 	{
 		return NavigationButton.builder()
-			.tooltip("AoRC - Amount of Runes Crafted")
+			.tooltip("Runecraft Companion")
 			.icon(icon)
 			.priority(7)
 			.panel(panel)
@@ -1360,8 +1360,8 @@ public class AorcPlugin extends Plugin
 			return;
 		}
 		lastWarn.put(key, now);
-		notifier.notify("AoRC: " + message);
-		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> " + message, null);
+		notifier.notify("Runecraft Companion: " + message);
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>RC Companion:</col> " + message, null);
 	}
 
 	// ---------- essence pouches ----------
@@ -2040,7 +2040,7 @@ public class AorcPlugin extends Plugin
 		java.io.File dir = new java.io.File(new java.io.File(RuneLite.RUNELITE_DIR, "aorc"), "paths");
 		String name = config.recordPiece().file + "-"
 			+ new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date()) + ".txt";
-		StringBuilder sb = new StringBuilder("# AoRC recorded path: " + config.recordPiece() + "\n# x, y, plane\n"
+		StringBuilder sb = new StringBuilder("# Runecraft Companion recorded path: " + config.recordPiece() + "\n# x, y, plane\n"
 			+ "# corners per piece (a cave / climb starts a new piece)\n");
 		for (java.util.List<int[]> piece : AorcPaths.pieces(recording))
 		{
@@ -2064,12 +2064,12 @@ public class AorcPlugin extends Plugin
 			if (client.getGameState() == GameState.LOGGED_IN)
 			{
 				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-					"<col=00dcff>AoRC:</col> path saved: .runelite/aorc/paths/" + name, null);
+					"<col=00dcff>RC Companion:</col> path saved: .runelite/aorc/paths/" + name, null);
 			}
 		}
 		catch (java.io.IOException e)
 		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>AoRC:</col> could not save the path", null);
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>RC Companion:</col> could not save the path", null);
 		}
 	}
 

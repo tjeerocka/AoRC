@@ -293,7 +293,7 @@ class AorcPanel extends PluginPanel
 		hero.setLayout(new BoxLayout(hero, BoxLayout.Y_AXIS));
 		hero.setBorder(BorderFactory.createEmptyBorder(8, 11, 8, 8));
 
-		JLabel title = new JLabel("Amount of Runes Crafted");
+		JLabel title = new JLabel("Runecraft Companion");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(TITLE_RED);
 		title.setAlignmentX(LEFT_ALIGNMENT);
