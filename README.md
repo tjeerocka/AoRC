@@ -13,7 +13,7 @@ all runes, combination runes, ZMI, Guardians of the Rift, sunfire and aether run
 
 ## Side panel
 
-- **Top card**: status (crafting / idle / paused), runes per hour of the rune you craft now, XP / GP / bonus
+- **Top card**: status (runecrafting / idle / paused), runes per hour of the rune you craft now, XP / GP / bonus
 - **Pause / Resume** (resumes by itself when you gain Runecraft XP)
 - **Session**: profit, all runes per hour, crafts, bonus runes, blood essence, essence pouch wear
 - **Trips** per place (Blood - Zeah, Blood - Mory, Lava - Fire altar, ...): current trip, trips, average, fastest, last.

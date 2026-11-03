@@ -463,7 +463,7 @@ class AorcPanel extends PluginPanel
 		{
 			statusDot.setColor(d.crafting ? new Color(86, 196, 86) : MUTED);
 			statusLabel.setForeground(d.crafting ? new Color(127, 209, 127) : MUTED);
-			statusLabel.setText((d.crafting ? "Crafting" : "Idle") + " - " + PanelData.formatTime(d.activeMillis));
+			statusLabel.setText((d.crafting ? "Runecrafting" : "Idle") + " - " + PanelData.formatTime(d.activeMillis));
 			pauseButton.setText("Pause");
 		}
 
