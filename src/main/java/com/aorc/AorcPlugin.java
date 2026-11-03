@@ -224,7 +224,12 @@ public class AorcPlugin extends Plugin
 	private final Map<Integer, Integer> pendingGains = new HashMap<>();
 
 	private int lastRcXp = -1;
-	private long lastRcXpMillis = -1;   // last Runecraft XP gain (the helpers only run after one)
+	private long lastRcXpMillis = -1;   // last Runecraft XP gain this login (the helpers only run after one)
+	private long gearStartMillis = -1;  // logged in dressed to runecraft: helpers on for 5 minutes
+	private int gearCheckTicks;
+	private boolean loggedOut = true;
+	/** Logged in dressed to runecraft but no Runecraft XP: the helpers stop after this. */
+	static final long GEAR_START_MILLIS = 5 * 60_000L;
 	/** The helpers (highlights, line, arrow, menu changes) stay on this long after Runecraft XP. */
 	static final long HELPERS_MILLIS = 10 * 60_000L;
 	private int tick;
@@ -901,6 +906,11 @@ public class AorcPlugin extends Plugin
 		{
 			// Logged in: load this account's numbers (only the first time)
 			loadForAccount();
+			if (loggedOut)
+			{
+				loggedOut = false;
+				gearCheckTicks = 10;   // look at your gear for the first ticks (it arrives after login)
+			}
 		}
 		if (state == GameState.LOADING)
 		{
@@ -910,6 +920,14 @@ public class AorcPlugin extends Plugin
 			altars.clear();
 			runestones.clear();
 			bankNpcs.clear();
+		}
+		if (state == GameState.LOGIN_SCREEN)
+		{
+			// logged out: the helpers and the overlay wait for the next login / Runecraft XP
+			lastRcXpMillis = -1;
+			gearStartMillis = -1;
+			gearCheckTicks = 0;
+			loggedOut = true;
 		}
 		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
 		{
@@ -1092,6 +1110,17 @@ public class AorcPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
 		tick++;
+		if (gearCheckTicks > 0)
+		{
+			gearCheckTicks--;
+			// dressed to runecraft (full Raiments, a lantern and an essence pouch): helpers on at login
+			if (raimentsPieces >= 4 && lantern != BonusCalculator.Lantern.NONE
+				&& (!pouchesCarried.isEmpty() || smallPouchCarried))
+			{
+				gearStartMillis = System.currentTimeMillis();
+				gearCheckTicks = 0;
+			}
+		}
 		session.setIdleTimeoutMillis(idleTimeoutMillis());
 		eliteDiaryDone = client.getVarbitValue(RuneIds.VARBIT_DIARY_KOUREND_ELITE) == 1;
 		maybeSpitOnPlayer();
@@ -2055,11 +2084,20 @@ public class AorcPlugin extends Plugin
 
 	/**
 	 * The helpers (highlights, line, arrow, menu changes) only run while you runecraft: after
-	 * Runecraft XP this login, until 10 minutes without any. Counting and the panel always run.
+	 * Runecraft XP this login, until 10 minutes without any; or at login when you wear full Raiments
+	 * and a lantern with an essence pouch, for 5 minutes. Counting and the panel always run.
 	 */
 	boolean helpersOn()
 	{
-		return lastRcXpMillis >= 0 && System.currentTimeMillis() - lastRcXpMillis <= HELPERS_MILLIS;
+		long now = System.currentTimeMillis();
+		return (lastRcXpMillis >= 0 && now - lastRcXpMillis <= HELPERS_MILLIS)
+			|| (gearStartMillis >= 0 && now - gearStartMillis <= GEAR_START_MILLIS);
+	}
+
+	/** You gained Runecraft XP this login (the overlay only shows after that). */
+	boolean runecraftedThisLogin()
+	{
+		return lastRcXpMillis >= 0;
 	}
 
 	/** Remove the menu entry that was just added (it is the last one). */

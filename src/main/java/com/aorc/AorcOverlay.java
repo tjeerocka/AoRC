@@ -42,6 +42,10 @@ class AorcOverlay extends OverlayPanel
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
+		if (!plugin.runecraftedThisLogin())
+		{
+			return null;   // nothing to show until you gain Runecraft XP this login
+		}
 		RuneSession s = plugin.getSession();
 		RuneTotals t = plugin.getTotals();
 		long now = System.currentTimeMillis();
