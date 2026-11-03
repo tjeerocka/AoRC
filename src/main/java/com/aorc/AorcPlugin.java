@@ -1868,7 +1868,7 @@ public class AorcPlugin extends Plugin
 			{
 				continue;
 			}
-			String wanted = altar ? "empty" : pouchFull(e.getItemId()) ? "examine" : "fill";
+			String wanted = altar ? "empty" : bankPouchLocked(e.getItemId()) ? "examine" : "fill";
 			if (wanted.equalsIgnoreCase(Text.removeTags(e.getOption())))
 			{
 				// it can be a low-priority option (listed under "Use"); as the left-click the game
@@ -2177,10 +2177,10 @@ public class AorcPlugin extends Plugin
 			removeMenuEntry(e);
 			return;
 		}
-		// in the bank: never "Empty" (you only fill there), and a full pouch has no "Deposit" either,
-		// so a misclick never empties or banks it (the left-click of a full pouch is "Examine")
-		if (isPouch(e.getItemId()) && bankOpen()
-			&& ("empty".equalsIgnoreCase(opt) || (opt.toLowerCase().startsWith("deposit") && pouchFull(e.getItemId()))))
+		// in the bank: never "Empty" (you only fill there); a full pouch, or any pouch while you have
+		// no essence in your inventory, has no "Fill" / "Deposit" either: its left-click is "Examine"
+		if (isPouch(e.getItemId()) && bankOpen() && ("empty".equalsIgnoreCase(opt)
+			|| ((opt.toLowerCase().startsWith("deposit") || "fill".equalsIgnoreCase(opt)) && bankPouchLocked(e.getItemId()))))
 		{
 			removeMenuEntry(e);
 			return;
@@ -2493,6 +2493,12 @@ public class AorcPlugin extends Plugin
 	}
 
 	/** Essence in a pouch now (the game keeps it in a varbit). */
+	/** In the bank: this pouch is full, or you have no essence to fill it with (only Examine then). */
+	private boolean bankPouchLocked(int itemId)
+	{
+		return pouchFull(itemId) || lastInventory == null || essenceCount(lastInventory) == 0;
+	}
+
 	/** This pouch is full of essence. */
 	private boolean pouchFull(int itemId)
 	{
