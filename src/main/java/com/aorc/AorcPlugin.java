@@ -224,6 +224,9 @@ public class AorcPlugin extends Plugin
 	private final Map<Integer, Integer> pendingGains = new HashMap<>();
 
 	private int lastRcXp = -1;
+	private long lastRcXpMillis = -1;   // last Runecraft XP gain (the helpers only run after one)
+	/** The helpers (highlights, line, arrow, menu changes) stay on this long after Runecraft XP. */
+	static final long HELPERS_MILLIS = 10 * 60_000L;
 	private int tick;
 	// runes crafted towards the rune goal, per type; only "Clear goal progress" resets it
 	private final Map<Integer, Integer> goalRunes = new java.util.LinkedHashMap<>();
@@ -932,6 +935,10 @@ public class AorcPlugin extends Plugin
 		}
 
 		int xp = event.getXp();
+		if (lastRcXp >= 0 && xp > lastRcXp)
+		{
+			lastRcXpMillis = System.currentTimeMillis();   // you runecraft: the helpers start
+		}
 		if (paused && lastRcXp >= 0 && xp > lastRcXp)
 		{
 			// Runecraft xp while paused: resume by itself, and count this xp
@@ -1437,7 +1444,7 @@ public class AorcPlugin extends Plugin
 				stepsPassed.clear();
 			}
 			// Blood - Zeah: no bank and no altar teleport, you walk the whole cycle
-			if (config.highlightTeleports() && !zeahActive())
+			if (config.highlightTeleports() && !zeahActive() && helpersOn())
 			{
 				// bank: only where you crafted last (known after one craft, also saved for restarts)
 				if (craftRegion != -1 && region == craftRegion && essence == 0 && pouchesEmpty && nearAltar(8))
@@ -1611,6 +1618,7 @@ public class AorcPlugin extends Plugin
 		WorldPoint at = me == null ? null : me.getWorldLocation();
 		out.add("You: " + (at == null ? "?" : at.getX() + ", " + at.getY() + ", " + at.getPlane())
 			+ "   region " + regionId());
+		out.add("Helpers: " + (helpersOn() ? "on" : "off (waiting for Runecraft XP)"));
 		if (zeahActive() && lastInventory != null)
 		{
 			int step = zeahObject();
@@ -1812,6 +1820,10 @@ public class AorcPlugin extends Plugin
 	@Subscribe
 	public void onPostMenuSort(net.runelite.api.events.PostMenuSort event)
 	{
+		if (!helpersOn())
+		{
+			return;
+		}
 		// near an altar: "Empty" is the left-click; in the bank: "Fill", or "Examine" when it is full
 		boolean altar = pouchOnlyEmpty();
 		boolean bank = !altar && bankOpen();
@@ -1869,6 +1881,12 @@ public class AorcPlugin extends Plugin
 	/** Each tick: the next target (the closest highlighted route object) and the hint arrow on it. */
 	private void updateNextTarget()
 	{
+		if (!helpersOn())
+		{
+			nextTarget = null;
+			clearOurHintArrow();
+			return;
+		}
 		net.runelite.api.TileObject o = closest(routeTargets());
 		WorldPoint t = o == null ? null : o.getWorldLocation();
 		if (config.highlightRoute() && zeahObject() == 0 && lastInventory != null && !zeahGo
@@ -2035,6 +2053,15 @@ public class AorcPlugin extends Plugin
 		}
 	}
 
+	/**
+	 * The helpers (highlights, line, arrow, menu changes) only run while you runecraft: after
+	 * Runecraft XP this login, until 10 minutes without any. Counting and the panel always run.
+	 */
+	boolean helpersOn()
+	{
+		return lastRcXpMillis >= 0 && System.currentTimeMillis() - lastRcXpMillis <= HELPERS_MILLIS;
+	}
+
 	/** Remove the menu entry that was just added (it is the last one). */
 	private void removeMenuEntry(net.runelite.api.MenuEntry e)
 	{
@@ -2086,6 +2113,14 @@ public class AorcPlugin extends Plugin
 	public void onMenuEntryAdded(net.runelite.api.events.MenuEntryAdded event)
 	{
 		net.runelite.api.MenuEntry e = event.getMenuEntry();
+		if (!helpersOn())
+		{
+			if (routeDebug() && e.getType() == net.runelite.api.MenuAction.EXAMINE_OBJECT)
+			{
+				debugExamine(e);
+			}
+			return;
+		}
 		// while a step is the highlighted one: no "Enter" on the object next to it that takes you
 		// back the wrong way (step 4 from the other side); "Walk here" and "Examine" stay
 		java.util.Set<Integer> at = route().hiddenAt.get(e.getIdentifier());
@@ -2114,11 +2149,16 @@ public class AorcPlugin extends Plugin
 		}
 		if (routeDebug() && e.getType() == net.runelite.api.MenuAction.EXAMINE_OBJECT)
 		{
-			net.runelite.api.coords.WorldPoint w = net.runelite.api.coords.WorldPoint.fromScene(
-				client, e.getParam0(), e.getParam1(), client.getPlane());
-			e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ", "
-				+ w.getX() + ", " + w.getY() + ", " + w.getPlane() + ")");
+			debugExamine(e);
 		}
+	}
+
+	/** Route debug: "Examine Cave (ID 43762, x, y, plane)". */
+	private void debugExamine(net.runelite.api.MenuEntry e)
+	{
+		WorldPoint w = WorldPoint.fromScene(client, e.getParam0(), e.getParam1(), client.getPlane());
+		e.setTarget(e.getTarget() + " <col=ffff00>(ID " + e.getIdentifier() + ", "
+			+ w.getX() + ", " + w.getY() + ", " + w.getPlane() + ")");
 	}
 
 	/** The Zeah dense runestones: their IDs, or any form they can switch to named "Dense runestone". */
@@ -2202,6 +2242,10 @@ public class AorcPlugin extends Plugin
 	java.util.List<java.awt.Shape> bankTargets()
 	{
 		java.util.List<java.awt.Shape> out = new java.util.ArrayList<>();
+		if (!helpersOn())
+		{
+			return out;
+		}
 		// until your inventory and your pouches are both full of essence
 		if (!config.highlightRoute() || lastInventory == null || craftRegion == -1 || regionId() == craftRegion
 			|| (inventoryFull && pouchesAllFull && essenceCount(lastInventory) > 0) || bankOpen())
@@ -2266,6 +2310,11 @@ public class AorcPlugin extends Plugin
 	java.util.List<net.runelite.api.TileObject> routeTargets()
 	{
 		java.util.List<net.runelite.api.TileObject> out = new java.util.ArrayList<>();
+		if (!helpersOn())
+		{
+			nextStep = -1;
+			return out;
+		}
 		// Blood - Zeah: its own cycle instead of a route
 		int zeah = config.highlightRoute() ? zeahObject() : -2;
 		if (zeah != -2)
@@ -2367,7 +2416,7 @@ public class AorcPlugin extends Plugin
 	 */
 	boolean pouchToEmpty(int itemId)
 	{
-		if (!config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) > 0
+		if (!helpersOn() || !config.highlightRoute() || lastInventory == null || essenceCount(lastInventory) > 0
 			|| craftRegion == -1 || regionId() != craftRegion)
 		{
 			return false;
@@ -2384,7 +2433,7 @@ public class AorcPlugin extends Plugin
 	boolean isBankEssence(int itemId)
 	{
 		// until your inventory and your pouches are both full
-		return config.highlightRoute() && itemId == lastEssence && !(inventoryFull && pouchesAllFull);
+		return helpersOn() && config.highlightRoute() && itemId == lastEssence && !(inventoryFull && pouchesAllFull);
 	}
 
 	/** Your location jumped since the last tick (a teleport). */
@@ -2895,6 +2944,10 @@ public class AorcPlugin extends Plugin
 
 	Color teleportHighlight(int itemId, int slot)
 	{
+		if (!helpersOn())
+		{
+			return null;
+		}
 		if (zeahItem(itemId, slot))
 		{
 			return RouteOverlay.ROUTE;
