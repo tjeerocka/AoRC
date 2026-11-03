@@ -13,6 +13,9 @@ import java.util.Map;
  */
 public class TripLocations
 {
+	/** A trip shorter than this is not a real trip time (a pouch craft seen as its own trip). */
+	static final long MIN_TRIP_MILLIS = 20_000L;
+
 	public static class Stats
 	{
 		int trips;
@@ -84,7 +87,7 @@ public class TripLocations
 		s.runes += Math.max(0, runes);
 		s.lastRunes = runes;
 		s.lastMillis = millis;
-		if (millis > 0)
+		if (millis >= MIN_TRIP_MILLIS)
 		{
 			s.timedTrips++;
 			s.millis += millis;
@@ -113,6 +116,27 @@ public class TripLocations
 	{
 		Stats s = place == null ? null : places.get(place);
 		return s == null ? new Stats() : s;
+	}
+
+	/** All places together: trips and runes added up, the fastest of all, the last trip done. */
+	public Stats total()
+	{
+		Stats t = new Stats();
+		for (Stats s : places.values())
+		{
+			t.trips += s.trips;
+			t.runes += s.runes;
+			t.timedTrips += s.timedTrips;
+			t.millis += s.millis;
+			if (s.fastestMillis > 0 && (t.fastestMillis < 0 || s.fastestMillis < t.fastestMillis))
+			{
+				t.fastestMillis = s.fastestMillis;
+			}
+		}
+		Stats lastPlace = last == null ? null : places.get(last);
+		t.lastMillis = lastPlace == null ? -1 : lastPlace.lastMillis;
+		t.lastRunes = lastPlace == null ? 0 : lastPlace.lastRunes;
+		return t;
 	}
 
 	/** Places with at least one finished trip, in name order. */
@@ -147,6 +171,13 @@ public class TripLocations
 			if (s.places != null)
 			{
 				places.putAll(s.places);
+				for (Stats st : places.values())
+				{
+					if (st.fastestMillis >= 0 && st.fastestMillis < MIN_TRIP_MILLIS)
+					{
+						st.fastestMillis = -1;   // an impossible record (like 4 seconds): found again on the next trip
+					}
+				}
 			}
 			current = s.current;
 			last = s.last;

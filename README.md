@@ -18,6 +18,7 @@ all runes, combination runes, ZMI, Guardians of the Rift, sunfire and aether run
 - **Session**: profit, all runes per hour, crafts, bonus runes, blood essence, essence pouch wear
 - **Trips** per place (Blood - Zeah, Blood - Mory, Lava - Fire altar, ...): current trip, trips, average, fastest, last.
   A trip ends when you leave the altar (or 60 s after your last craft), so pouch crafts belong to the same trip.
+  "All trips" adds up every place. A trip under 20 s is counted but not timed.
 - **Goals** with progress bars: Runecraft level and a rune goal (any rune type)
 - **History**: today, best day, all time, per rune type (dropdown and table)
 - **Runes crafted**: every rune type with count and per hour

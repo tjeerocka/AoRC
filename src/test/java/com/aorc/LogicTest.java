@@ -927,6 +927,24 @@ public class LogicTest
 	}
 
 	@Test
+	public void allTripsAddUpEveryPlace()
+	{
+		TripLocations t = new TripLocations();
+		t.onCraft("Blood - Mory");
+		t.onTripDone(90, 75_000);
+		t.onCraft("Blood - Mory");
+		t.onTripDone(90, 4_000);          // a pouch craft seen as a trip: counted, but not timed
+		t.onCraft("Blood - Zeah");
+		t.onTripDone(360, 600_000);
+		TripLocations.Stats all = t.total();
+		assertEquals(3, all.getTrips());
+		assertEquals(180, all.getAvgRunes());
+		assertEquals(75_000, all.getFastestMillis());
+		assertEquals((75_000 + 600_000) / 2, all.getAvgMillis());
+		assertEquals(600_000, all.getLastMillis());
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

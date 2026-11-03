@@ -701,19 +701,10 @@ public class AorcPlugin extends Plugin
 		{
 			place = places.getLast();
 		}
-		if (place == null || "*".equals(place))
 		{
-			d.tripPlace = null;
-			d.trips = trips.getTrips();
-			d.avgTripRunes = trips.getAvgRunes();
-			d.avgTripMillis = trips.getAvgTripMillis();
-			d.fastestTripMillis = trips.getFastestMillis();
-			d.lastTripMillis = trips.getLastTripMillis();
-		}
-		else
-		{
-			TripLocations.Stats p = places.get(place);
-			d.tripPlace = place;
+			// "All trips": every place added up (the same long-term records as each place)
+			TripLocations.Stats p = place == null || "*".equals(place) ? places.total() : places.get(place);
+			d.tripPlace = place == null || "*".equals(place) ? null : place;
 			d.trips = p.getTrips();
 			d.avgTripRunes = p.getAvgRunes();
 			d.avgTripMillis = p.getAvgMillis();
