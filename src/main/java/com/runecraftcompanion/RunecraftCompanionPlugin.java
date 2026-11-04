@@ -1860,7 +1860,7 @@ public class RunecraftCompanionPlugin extends Plugin
 		return config.routeDebug();
 	}
 
-	/** Pouch left-click: "Empty" near an altar, "Fill" in the bank (moved to the top, like Menu Entry Swapper). */
+	/** Pouch left-click near an altar: "Empty" (moved to the top, like Menu Entry Swapper). */
 	@Subscribe
 	public void onPostMenuSort(net.runelite.api.events.PostMenuSort event)
 	{
@@ -1868,10 +1868,8 @@ public class RunecraftCompanionPlugin extends Plugin
 		{
 			return;
 		}
-		// near an altar: "Empty" is the left-click; in the bank: "Fill", or "Examine" when it is full
-		boolean altar = pouchOnlyEmpty();
-		boolean bank = !altar && bankOpen();
-		if (client.isMenuOpen() || (!altar && !bank))
+		// near an altar: "Empty" is the left-click (in the bank the pouches work as normal)
+		if (client.isMenuOpen() || !pouchOnlyEmpty())
 		{
 			return;
 		}
@@ -1883,8 +1881,7 @@ public class RunecraftCompanionPlugin extends Plugin
 			{
 				continue;
 			}
-			String wanted = altar ? "empty" : "fill";
-			if (wanted.equalsIgnoreCase(Text.removeTags(e.getOption())))
+			if ("empty".equalsIgnoreCase(Text.removeTags(e.getOption())))
 			{
 				// it can be a low-priority option (listed under "Use"); as the left-click the game
 				// would open the menu instead, so make it a normal option (like Menu Entry Swapper)
@@ -2188,14 +2185,6 @@ public class RunecraftCompanionPlugin extends Plugin
 		String opt = Text.removeTags(e.getOption());
 		if (("fill".equalsIgnoreCase(opt) || "check".equalsIgnoreCase(opt)) && isPouch(e.getItemId())
 			&& pouchOnlyEmpty())
-		{
-			removeMenuEntry(e);
-			return;
-		}
-		// in the bank: never "Empty" (you only fill there; "Fill" is always the left-click); a full
-		// pouch, or any pouch while you have no essence in your inventory, has no "Deposit" either
-		if (isPouch(e.getItemId()) && bankOpen() && ("empty".equalsIgnoreCase(opt)
-			|| (opt.toLowerCase().startsWith("deposit") && bankPouchLocked(e.getItemId()))))
 		{
 			removeMenuEntry(e);
 			return;
@@ -2505,28 +2494,6 @@ public class RunecraftCompanionPlugin extends Plugin
 		lastY = w.getY();
 		lastPlane = w.getPlane();
 		return d;
-	}
-
-	/** In the bank: this pouch is full, or you have no essence to fill it with (no Deposit then). */
-	private boolean bankPouchLocked(int itemId)
-	{
-		return pouchFull(itemId) || lastInventory == null || essenceCount(lastInventory) == 0;
-	}
-
-	/** This pouch is full of essence. */
-	private boolean pouchFull(int itemId)
-	{
-		if (itemId == SMALL_POUCH)
-		{
-			return client.getVarbitValue(VarbitID.SMALL_ESSENCE_POUCH) >= 3;
-		}
-		PouchTracker.Pouch p = PouchTracker.of(itemId);
-		if (p == null)
-		{
-			return false;
-		}
-		int cap = PouchTracker.capacity(p, pouchWear(p), client.getRealSkillLevel(Skill.RUNECRAFT));
-		return cap > 0 && pouchAmount(p) >= cap;
 	}
 
 	private int pouchAmount(PouchTracker.Pouch p)
