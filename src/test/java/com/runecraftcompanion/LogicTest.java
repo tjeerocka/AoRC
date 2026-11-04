@@ -968,6 +968,17 @@ public class LogicTest
 	}
 
 	@Test
+	public void runecraftingGearIsLocked()
+	{
+		assertTrue(RunecraftCompanionPlugin.isLockedGearName("Hat of the eye (red)"));
+		assertTrue(RunecraftCompanionPlugin.isLockedGearName("Robe top of the Eye"));
+		assertTrue(RunecraftCompanionPlugin.isLockedGearName("Abyssal lantern (blisterwood logs)"));
+		assertTrue(RunecraftCompanionPlugin.isLockedGearName("Rada's blessing 4"));
+		assertFalse(RunecraftCompanionPlugin.isLockedGearName("Amulet of the eye"));
+		assertFalse(RunecraftCompanionPlugin.isLockedGearName("Quest point cape"));
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

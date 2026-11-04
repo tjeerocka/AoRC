@@ -2112,6 +2112,52 @@ public class RunecraftCompanionPlugin extends Plugin
 		return lastRcXpMillis >= 0;
 	}
 
+	/** Gear locked away from a bank: the Raiments of the Eye, the abyssal lantern, Rada's blessing. */
+	static boolean isLockedGearName(String name)
+	{
+		if (name == null)
+		{
+			return false;
+		}
+		String n = name.toLowerCase();
+		return (n.contains("of the eye") && !n.startsWith("amulet")) || n.startsWith("abyssal lantern")
+			|| n.startsWith("rada's blessing");
+	}
+
+	private boolean isLockedGear(int itemId)
+	{
+		String name = itemNames.computeIfAbsent(itemId, i -> itemManager.getItemComposition(i).getName());
+		return isLockedGearName(name);
+	}
+
+	/** The bank is open, or a bank chest / booth / banker is within 15 tiles. */
+	private boolean nearBank()
+	{
+		if (bankOpen())
+		{
+			return true;
+		}
+		for (net.runelite.api.GameObject o : bankObjects)
+		{
+			if (o.getPlane() == client.getPlane() && distanceTo(o) <= 15)
+			{
+				return true;
+			}
+		}
+		net.runelite.api.Player p = client.getLocalPlayer();
+		WorldPoint me = p == null ? null : p.getWorldLocation();
+		for (net.runelite.api.NPC n : bankNpcs)
+		{
+			WorldPoint w = n.getWorldLocation();
+			if (me != null && w != null && w.getPlane() == me.getPlane()
+				&& Math.abs(w.getX() - me.getX()) <= 15 && Math.abs(w.getY() - me.getY()) <= 15)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Remove the menu entry that was just added (it is the last one). */
 	private void removeMenuEntry(net.runelite.api.MenuEntry e)
 	{
@@ -2183,6 +2229,13 @@ public class RunecraftCompanionPlugin extends Plugin
 		// the left-click (the colossal pouch has Fill, Check, Empty: without Fill, Check was on top)
 		// (not at ZMI or Guardians of the Rift: there you fill your pouches next to the altar)
 		String opt = Text.removeTags(e.getOption());
+		// runecrafting gear: only "Examine" away from a bank, so a misclick never takes it off
+		// or teleports you away (Rada's blessing)
+		if (e.getItemId() > 0 && !"examine".equalsIgnoreCase(opt) && isLockedGear(e.getItemId()) && !nearBank())
+		{
+			removeMenuEntry(e);
+			return;
+		}
 		if (("fill".equalsIgnoreCase(opt) || "check".equalsIgnoreCase(opt)) && isPouch(e.getItemId())
 			&& pouchOnlyEmpty())
 		{
