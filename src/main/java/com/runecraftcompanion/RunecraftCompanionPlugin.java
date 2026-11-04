@@ -70,6 +70,9 @@ public class RunecraftCompanionPlugin extends Plugin
 	private RepairSpellOverlay repairSpellOverlay;
 
 	@Inject
+	private EnergyOverlay energyOverlay;
+
+	@Inject
 	private TeleportOverlay teleportOverlay;
 
 	@Inject
@@ -269,6 +272,7 @@ public class RunecraftCompanionPlugin extends Plugin
 		overlayManager.add(spitOverlay);
 		overlayManager.add(pouchOverlay);
 		overlayManager.add(repairSpellOverlay);
+		overlayManager.add(energyOverlay);
 		overlayManager.add(teleportOverlay);
 		overlayManager.add(routeOverlay);
 		overlayManager.add(routeDebugOverlay);
@@ -299,6 +303,7 @@ public class RunecraftCompanionPlugin extends Plugin
 		overlayManager.remove(spitOverlay);
 		overlayManager.remove(pouchOverlay);
 		overlayManager.remove(repairSpellOverlay);
+		overlayManager.remove(energyOverlay);
 		overlayManager.remove(teleportOverlay);
 		overlayManager.remove(routeOverlay);
 		overlayManager.remove(routeDebugOverlay);

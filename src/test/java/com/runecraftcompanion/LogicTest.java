@@ -979,6 +979,18 @@ public class LogicTest
 	}
 
 	@Test
+	public void runEnergyWarningLevels()
+	{
+		assertEquals(EnergyWarning.NONE, EnergyWarning.level(31));
+		assertEquals(EnergyWarning.LOW, EnergyWarning.level(30));
+		assertEquals(EnergyWarning.LOW, EnergyWarning.level(21));
+		assertEquals(EnergyWarning.VERY_LOW, EnergyWarning.level(20));
+		assertEquals(EnergyWarning.VERY_LOW, EnergyWarning.level(11));
+		assertEquals(EnergyWarning.CRITICAL, EnergyWarning.level(10));
+		assertEquals(EnergyWarning.CRITICAL, EnergyWarning.level(0));
+	}
+
+	@Test
 	public void sameStepIsOneSpot()
 	{
 		assertTrue(AltarRoute.same(new int[]{7, 100, 100, 0}, new int[]{7, 102, 98, 0}));

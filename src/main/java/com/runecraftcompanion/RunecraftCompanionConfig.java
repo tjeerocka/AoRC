@@ -235,6 +235,19 @@ public interface RunecraftCompanionConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "warnEnergy",
+		name = "Low run energy",
+		description = "Run orb outlined at 30% run energy, red with a message at 20%, "
+			+ "and RESTORE STAMINA ASAP! above you at 10% (while you runecraft)",
+		section = warnSection,
+		position = 36
+	)
+	default boolean warnEnergy()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "warnPouch",
 		name = "Essence pouch needs repair",
 		description = "Warn when an essence pouch has 3 durability left (3/12: fills before it decays, read from the game). The pouch is highlighted in your inventory "

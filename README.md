@@ -32,6 +32,8 @@ Sections can be folded; the plugin remembers which.
 
 - Blisterwood lantern not lit, blood essence not active, Raiments piece missing (checked at the Dark Altar)
 - Blood essence almost empty
+- Low run energy (while you runecraft): the run orb is outlined at 30%, red with "Restore run energy
+  before you go on" at 20%, and "RESTORE STAMINA ASAP!" above you at 10%
 - Essence pouch at durability 3 (read from the game): the pouch and NPC Contact are highlighted,
   and while you talk to the Dark Mage the text to click is coloured (colour in the settings)
 
