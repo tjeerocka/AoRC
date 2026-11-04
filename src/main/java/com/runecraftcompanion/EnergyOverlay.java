@@ -1,9 +1,7 @@
 package com.runecraftcompanion;
 
-import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -72,17 +70,16 @@ class EnergyOverlay extends Overlay
 		Color c = urgent ? VERY_LOW : LOW;
 		int pulse = urgent ? 120 + (int) (135 * Math.abs(Math.sin(System.currentTimeMillis() / 250.0))) : 220;
 
-		// the boot icon itself flashes in the warning colour, the whole orb gets an outline
-		float flash = (float) Math.abs(Math.sin(System.currentTimeMillis() / (urgent ? 200.0 : 400.0)));
+		// the boot icon itself takes the warning colour (fully over the original) and flashes
+		// between a bright and a dark shade of it; the whole orb gets an outline
+		boolean bright = (System.currentTimeMillis() / (urgent ? 300 : 600)) % 2 == 0;
 		Widget icon = client.getWidget(InterfaceID.Orbs.RUNENERGY_ICON);
-		BufferedImage boot = icon == null || icon.isHidden() ? null : tintedBoot(icon.getSpriteId(), c);
+		BufferedImage boot = icon == null || icon.isHidden() ? null
+			: tintedBoot(icon.getSpriteId(), bright ? c : c.darker().darker());
 		if (boot != null)
 		{
 			Rectangle r = icon.getBounds();
-			Composite before = g.getComposite();
-			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.25f + 0.75f * flash));
 			g.drawImage(boot, r.x + (r.width - boot.getWidth()) / 2, r.y + (r.height - boot.getHeight()) / 2, null);
-			g.setComposite(before);
 		}
 		Widget orb = client.getWidget(InterfaceID.Orbs.ORB_RUNENERGY);
 		Rectangle b = orb == null || orb.isHidden() ? null : orb.getBounds();
