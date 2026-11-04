@@ -237,7 +237,7 @@ public interface RunecraftCompanionConfig extends Config
 	@ConfigItem(
 		keyName = "warnEnergy",
 		name = "Low run energy",
-		description = "Run orb flashes yellow at 30% run energy, red with a message next to it at 20%, "
+		description = "The boot on the run orb flashes yellow at 30% run energy, red with a message next to it at 20%, "
 			+ "and RESTORE STAMINA ASAP! above you at 10% (while you runecraft)",
 		section = warnSection,
 		position = 36

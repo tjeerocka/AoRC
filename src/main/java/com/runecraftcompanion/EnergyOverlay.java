@@ -1,27 +1,34 @@
 package com.runecraftcompanion;
 
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
+import net.runelite.client.util.ImageUtil;
 
 /**
- * Run energy warning (while you runecraft): at 30% the run orb flashes yellow, at 20% red with
+ * Run energy warning (while you runecraft): at 30% the boot on the run orb flashes yellow, at 20% red with
  * "Restore run energy before you go on" next to it, at 10% also a big red "RESTORE STAMINA ASAP!"
  * above your character.
  */
@@ -33,13 +40,17 @@ class EnergyOverlay extends Overlay
 	private final Client client;
 	private final RunecraftCompanionPlugin plugin;
 	private final RunecraftCompanionConfig config;
+	private final SpriteManager spriteManager;
+	private final Map<String, BufferedImage> tinted = new HashMap<>();
 
 	@Inject
-	EnergyOverlay(Client client, RunecraftCompanionPlugin plugin, RunecraftCompanionConfig config)
+	EnergyOverlay(Client client, RunecraftCompanionPlugin plugin, RunecraftCompanionConfig config,
+		SpriteManager spriteManager)
 	{
 		this.client = client;
 		this.plugin = plugin;
 		this.config = config;
+		this.spriteManager = spriteManager;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_WIDGETS);
 	}
@@ -61,14 +72,17 @@ class EnergyOverlay extends Overlay
 		Color c = urgent ? VERY_LOW : LOW;
 		int pulse = urgent ? 120 + (int) (135 * Math.abs(Math.sin(System.currentTimeMillis() / 250.0))) : 220;
 
-		// the round run button flashes in the warning colour, the whole orb gets an outline
-		int flash = (int) (150 * Math.abs(Math.sin(System.currentTimeMillis() / (urgent ? 200.0 : 400.0))));
-		Widget button = client.getWidget(InterfaceID.Orbs.RUNBUTTON);
-		Rectangle r = button == null || button.isHidden() ? null : button.getBounds();
-		if (r != null)
+		// the boot icon itself flashes in the warning colour, the whole orb gets an outline
+		float flash = (float) Math.abs(Math.sin(System.currentTimeMillis() / (urgent ? 200.0 : 400.0)));
+		Widget icon = client.getWidget(InterfaceID.Orbs.RUNENERGY_ICON);
+		BufferedImage boot = icon == null || icon.isHidden() ? null : tintedBoot(icon.getSpriteId(), c);
+		if (boot != null)
 		{
-			g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), flash));
-			g.fillOval(r.x, r.y, r.width, r.height);
+			Rectangle r = icon.getBounds();
+			Composite before = g.getComposite();
+			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.25f + 0.75f * flash));
+			g.drawImage(boot, r.x + (r.width - boot.getWidth()) / 2, r.y + (r.height - boot.getHeight()) / 2, null);
+			g.setComposite(before);
 		}
 		Widget orb = client.getWidget(InterfaceID.Orbs.ORB_RUNENERGY);
 		Rectangle b = orb == null || orb.isHidden() ? null : orb.getBounds();
@@ -94,6 +108,28 @@ class EnergyOverlay extends Overlay
 			}
 		}
 		return null;
+	}
+
+	/** The boot sprite with all its pixels in this colour (kept: made once per sprite and colour). */
+	private BufferedImage tintedBoot(int spriteId, Color c)
+	{
+		if (spriteId < 0)
+		{
+			return null;
+		}
+		String key = spriteId + ":" + c.getRGB();
+		BufferedImage done = tinted.get(key);
+		if (done == null)
+		{
+			BufferedImage sprite = spriteManager.getSprite(spriteId, 0);
+			if (sprite == null)
+			{
+				return null;   // not loaded yet: try again next frame
+			}
+			done = ImageUtil.fillImage(sprite, c);
+			tinted.put(key, done);
+		}
+		return done;
 	}
 
 	/** A text box ending at x (its right side), centred on y: next to the run orb. */
