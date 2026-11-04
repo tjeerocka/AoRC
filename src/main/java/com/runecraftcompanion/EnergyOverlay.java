@@ -21,9 +21,9 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
 /**
- * Run energy warning (while you runecraft): at 30% the run orb gets a yellow outline, at 20%
- * a red pulsing one with "Restore run energy before you go on", at 10% also a big red
- * "RESTORE STAMINA ASAP!" above your character.
+ * Run energy warning (while you runecraft): at 30% the run orb flashes yellow, at 20% red with
+ * "Restore run energy before you go on" next to it, at 10% also a big red "RESTORE STAMINA ASAP!"
+ * above your character.
  */
 class EnergyOverlay extends Overlay
 {
@@ -61,6 +61,15 @@ class EnergyOverlay extends Overlay
 		Color c = urgent ? VERY_LOW : LOW;
 		int pulse = urgent ? 120 + (int) (135 * Math.abs(Math.sin(System.currentTimeMillis() / 250.0))) : 220;
 
+		// the round run button flashes in the warning colour, the whole orb gets an outline
+		int flash = (int) (150 * Math.abs(Math.sin(System.currentTimeMillis() / (urgent ? 200.0 : 400.0))));
+		Widget button = client.getWidget(InterfaceID.Orbs.RUNBUTTON);
+		Rectangle r = button == null || button.isHidden() ? null : button.getBounds();
+		if (r != null)
+		{
+			g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), flash));
+			g.fillOval(r.x, r.y, r.width, r.height);
+		}
 		Widget orb = client.getWidget(InterfaceID.Orbs.ORB_RUNENERGY);
 		Rectangle b = orb == null || orb.isHidden() ? null : orb.getBounds();
 		if (b != null)
@@ -70,7 +79,7 @@ class EnergyOverlay extends Overlay
 			g.drawRoundRect(b.x - 2, b.y - 2, b.width + 4, b.height + 4, 12, 12);
 			if (urgent)
 			{
-				drawBox(g, "Restore run energy before you go on", b.x + b.width / 2, b.y + b.height + 6, c);
+				drawBoxLeftOf(g, "Restore run energy before you go on", b.x - 8, b.y + b.height / 2, c);
 			}
 		}
 		if (level >= EnergyWarning.CRITICAL)
@@ -87,20 +96,19 @@ class EnergyOverlay extends Overlay
 		return null;
 	}
 
-	/** A text box centred under (x, y). */
-	private static void drawBox(Graphics2D g, String text, int x, int y, Color c)
+	/** A text box ending at x (its right side), centred on y: next to the run orb. */
+	private static void drawBoxLeftOf(Graphics2D g, String text, int x, int y, Color c)
 	{
 		g.setFont(FontManager.getRunescapeSmallFont());
 		FontMetrics fm = g.getFontMetrics();
 		int w = fm.stringWidth(text) + 10;
 		int h = fm.getHeight() + 4;
-		// the run orb is near the right edge: keep the box on screen
-		int right = g.getClipBounds() == null ? Integer.MAX_VALUE : g.getClipBounds().x + g.getClipBounds().width - 2;
-		int left = Math.max(2, Math.min(x - w / 2, right - w));
+		int left = Math.max(2, x - w);
+		int top = y - h / 2;
 		g.setColor(new Color(0, 0, 0, 170));
-		g.fillRoundRect(left, y, w, h, 6, 6);
+		g.fillRoundRect(left, top, w, h, 6, 6);
 		g.setColor(c);
-		g.drawRoundRect(left, y, w, h, 6, 6);
-		g.drawString(text, left + 5, y + fm.getAscent() + 2);
+		g.drawRoundRect(left, top, w, h, 6, 6);
+		g.drawString(text, left + 5, top + fm.getAscent() + 2);
 	}
 }
