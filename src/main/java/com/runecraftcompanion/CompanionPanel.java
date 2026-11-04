@@ -236,7 +236,7 @@ class CompanionPanel extends PluginPanel
 		buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
 		JButton reset = button("Reset \u25BE");
 		JPopupMenu menu = new JPopupMenu();
-		menu.add(menuItem("Reset per hour", "Per-hour numbers, active time and trips",
+		menu.add(menuItem("Reset per hour", "Per-hour numbers and active time (trips stay)",
 			() -> run(clientThread, () -> plugin.resetRates())));
 		menu.add(menuItem("Reset rune count", "The rune counts (Runes crafted)",
 			() -> run(clientThread, () -> plugin.resetRuneCount())));

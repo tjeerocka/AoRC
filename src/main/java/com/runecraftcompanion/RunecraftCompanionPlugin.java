@@ -116,7 +116,7 @@ public class RunecraftCompanionPlugin extends Plugin
 	/** "Your blood essence has 940 charges remaining." */
 	private static final Pattern ESSENCE_CHECK = Pattern.compile("Your blood essence has ([\\d,]+) charges? remaining");
 
-	/** Trip stats (reset with "Reset per hour"). */
+	/** Trip stats (reset with "Reset trips" / "Reset all", never with "Reset per hour"). */
 	private final TripTracker trips = new TripTracker();
 
 	/** Charges left on the active blood essence. */
@@ -345,8 +345,7 @@ public class RunecraftCompanionPlugin extends Plugin
 	/** Reset Blood/hr, RC xp/hr and GP/hr (the timer starts again). */
 	public void resetRates()
 	{
-		session.reset();
-		trips.reset();
+		session.reset();   // the trip in progress and the trip records are not touched
 		save();
 	}
 
@@ -1884,7 +1883,7 @@ public class RunecraftCompanionPlugin extends Plugin
 			{
 				continue;
 			}
-			String wanted = altar ? "empty" : bankPouchLocked(e.getItemId()) ? "examine" : "fill";
+			String wanted = altar ? "empty" : "fill";
 			if (wanted.equalsIgnoreCase(Text.removeTags(e.getOption())))
 			{
 				// it can be a low-priority option (listed under "Use"); as the left-click the game
@@ -2193,10 +2192,10 @@ public class RunecraftCompanionPlugin extends Plugin
 			removeMenuEntry(e);
 			return;
 		}
-		// in the bank: never "Empty" (you only fill there); a full pouch, or any pouch while you have
-		// no essence in your inventory, has no "Fill" / "Deposit" either: its left-click is "Examine"
+		// in the bank: never "Empty" (you only fill there; "Fill" is always the left-click); a full
+		// pouch, or any pouch while you have no essence in your inventory, has no "Deposit" either
 		if (isPouch(e.getItemId()) && bankOpen() && ("empty".equalsIgnoreCase(opt)
-			|| ((opt.toLowerCase().startsWith("deposit") || "fill".equalsIgnoreCase(opt)) && bankPouchLocked(e.getItemId()))))
+			|| (opt.toLowerCase().startsWith("deposit") && bankPouchLocked(e.getItemId()))))
 		{
 			removeMenuEntry(e);
 			return;
@@ -2508,8 +2507,7 @@ public class RunecraftCompanionPlugin extends Plugin
 		return d;
 	}
 
-	/** Essence in a pouch now (the game keeps it in a varbit). */
-	/** In the bank: this pouch is full, or you have no essence to fill it with (only Examine then). */
+	/** In the bank: this pouch is full, or you have no essence to fill it with (no Deposit then). */
 	private boolean bankPouchLocked(int itemId)
 	{
 		return pouchFull(itemId) || lastInventory == null || essenceCount(lastInventory) == 0;
