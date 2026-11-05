@@ -1375,7 +1375,7 @@ public class RunecraftCompanionPlugin extends Plugin
 		int left = essence.remaining();
 		if (config.warnLowCharges() && bloodEssenceActive && left >= 0 && left <= 100)
 		{
-			warn("charges", "Blood essence almost empty (about " + left + " charges left).");
+			warn("charges", "Blood essence almost empty.");
 		}
 	}
 
