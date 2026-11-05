@@ -1615,15 +1615,12 @@ public class RunecraftCompanionPlugin extends Plugin
 		int id = event.getId();
 		if (event.getMenuAction() == net.runelite.api.MenuAction.WALK)
 		{
-			clickedObject = null;   // walked somewhere else: show the way again
-			usingTarget = false;
+			lastClickedObject = null;   // walked somewhere else: show the way again
+			usingAt = null;
 		}
 		else if (isObjectAction(event.getMenuAction()))
 		{
-			usingTarget = false;
-			clickedObject = net.runelite.api.coords.WorldPoint.fromScene(
-				client, event.getParam0(), event.getParam1(), client.getPlane());
-			lastClickedObject = clickedObject;
+			lastClickedObject = WorldPoint.fromScene(client, event.getParam0(), event.getParam1(), client.getPlane());
 		}
 		if (option.equals("use") && target.contains("chisel") && target.contains("dark essence block") && lastInventory != null)
 		{
@@ -1941,9 +1938,8 @@ public class RunecraftCompanionPlugin extends Plugin
 	// ---------- the way to the next step: hint arrow, line; path recorder ----------
 
 	private volatile WorldPoint nextTarget;     // the next thing to click (null = nothing, or you use it now)
-	private WorldPoint clickedObject;            // the object you clicked last (its tile), for the line
-	private boolean usingTarget;                 // you reached the object you clicked (line and arrow off)
-	private WorldPoint lastClickedObject;        // same, kept when the next step changes (the rock you chip)
+	private WorldPoint usingAt;                  // the object you use now (line and arrow off)
+	private WorldPoint lastClickedObject;        // the object you clicked last (its tile), kept when the next step changes
 	private WorldPoint ourHintArrow;             // the hint arrow we set (we only clear our own)
 	private final java.util.List<int[]> recording = new java.util.ArrayList<>();
 
@@ -1996,7 +1992,7 @@ public class RunecraftCompanionPlugin extends Plugin
 			if (spot != null)
 			{
 				nextTarget = new WorldPoint(spot[0], spot[1], spot[2]);
-				clickedObject = null;
+				usingAt = null;
 				if (config.routeHintArrow())
 				{
 					setOurHintArrow(nextTarget);
@@ -2008,21 +2004,15 @@ public class RunecraftCompanionPlugin extends Plugin
 				return;
 			}
 		}
-		// you clicked it and you stand next to it (you use it now): no line and no arrows, only
-		// its outline; while you still walk there, the line stays
-		if (t != null && clickedObject != null && t.getPlane() == clickedObject.getPlane()
-			&& Math.abs(t.getX() - clickedObject.getX()) <= 3 && Math.abs(t.getY() - clickedObject.getY()) <= 3)
+		// you use it now: no line and no arrows, only its outline (while you walk there they stay)
+		if (t != null && !t.equals(usingAt))
 		{
-			if (usingTarget || distanceTo(o) <= 2)
-			{
-				usingTarget = true;   // reached it: stays hidden (no flicker while you mine)
-				t = null;
-			}
+			usingAt = null;   // a new next step: show the way again
 		}
-		else if (t != null)
+		if (t != null && (t.equals(usingAt) || usingNow(o, t)))
 		{
-			clickedObject = null;   // a new next step: show the way again
-			usingTarget = false;
+			usingAt = t;   // stays hidden while you use it (no flicker while you mine)
+			t = null;
 		}
 		nextTarget = t;
 		if (config.routeHintArrow() && nextTarget != null)
@@ -2033,6 +2023,23 @@ public class RunecraftCompanionPlugin extends Plugin
 		{
 			clearOurHintArrow();
 		}
+	}
+
+	/**
+	 * You use this object now: you stand next to it and either clicked it last (also a fast click
+	 * made before it was the next step) or your character is busy (chipping, climbing, crafting).
+	 */
+	private boolean usingNow(net.runelite.api.TileObject o, WorldPoint t)
+	{
+		if (distanceTo(o) > 2)
+		{
+			return false;
+		}
+		boolean clicked = lastClickedObject != null && t.getPlane() == lastClickedObject.getPlane()
+			&& Math.abs(t.getX() - lastClickedObject.getX()) <= 3 && Math.abs(t.getY() - lastClickedObject.getY()) <= 3;
+		net.runelite.api.Player me = client.getLocalPlayer();
+		boolean busy = me != null && me.getAnimation() != -1;
+		return clicked || busy;
 	}
 
 	/** Our hint arrow on this spot (never over a quest's arrow). */
