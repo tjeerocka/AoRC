@@ -227,6 +227,8 @@ public class RunecraftCompanionPlugin extends Plugin
 	private final Map<Integer, Integer> pendingGains = new HashMap<>();
 
 	private int lastRcXp = -1;
+	private int lastWarnedCharges = -1;   // "almost empty" was shown at this many charges
+	private boolean essenceUsedUp;        // the blood essence ran out: the next one is highlighted
 	private long lastRcXpMillis = -1;   // last Runecraft XP gain this login (the helpers only run after one)
 	private long gearStartMillis = -1;  // logged in dressed to runecraft: helpers on for 5 minutes
 	private int gearCheckTicks;
@@ -1019,11 +1021,22 @@ public class RunecraftCompanionPlugin extends Plugin
 					essence.activated();
 					dirty = true;
 				}
-				else if (activeNow < activeBefore && essence.remaining() >= 0 && essence.remaining() <= 150)
+				else if (activeNow < activeBefore && !bankOpen())
 				{
-					// Gone while almost empty: used up
+					// The active essence is gone, not into the bank: its charges ran out
 					essence.empty();
 					dirty = true;
+					essenceUsedUp = inactiveEssence > 0;   // a new one to activate: highlight it
+					if (config.warnLowCharges())
+					{
+						warn("charges-out", inactiveEssence > 0
+							? "Your blood essence is used up. Activate a new one (highlighted)."
+							: "Your blood essence is used up.", 0L);
+					}
+				}
+				if (activeNow > 0 || inactiveEssence == 0)
+				{
+					essenceUsedUp = false;   // activated (or none left to activate): highlight off
 				}
 
 				if (essenceCount(lastInventory) > 0 && essenceCount(now) == 0)
@@ -1247,6 +1260,7 @@ public class RunecraftCompanionPlugin extends Plugin
 							double ess = EssenceCharges.expectedEssenceRunes(amount, pct);
 							essence.use(ess);
 							session.addEssenceRunes(ess);
+							checkCharges();
 						}
 					}
 					history.addRunes(today(), id, amount);
@@ -1372,25 +1386,40 @@ public class RunecraftCompanionPlugin extends Plugin
 		{
 			warn("raiments", "Raiments of the Eye: only " + raimentsPieces + "/" + maxRaimentsSeen + " pieces worn.");
 		}
+	}
+
+	/** After a blood craft: "almost empty" each time the charges went down (100 or less), at most once a minute. */
+	private void checkCharges()
+	{
 		int left = essence.remaining();
-		if (config.warnLowCharges() && bloodEssenceActive && left >= 0 && left <= 100)
+		if (config.warnLowCharges() && bloodEssenceActive && left >= 0 && left <= 100 && left != lastWarnedCharges)
 		{
-			warn("charges", "Blood essence almost empty.");
+			if (warn("charges", "Blood essence almost empty.", 60_000L))
+			{
+				lastWarnedCharges = left;
+			}
 		}
 	}
 
 	/** Notification + chat message, at most once every 3 minutes per warning. */
 	private void warn(String key, String message)
 	{
+		warn(key, message, 180_000L);
+	}
+
+	/** Notification + chat message, at most once per 'cooldown' per warning; true when shown. */
+	private boolean warn(String key, String message, long cooldown)
+	{
 		long now = System.currentTimeMillis();
 		Long last = lastWarn.get(key);
-		if (last != null && now - last < 180_000L)
+		if (last != null && now - last < cooldown)
 		{
-			return;
+			return false;
 		}
 		lastWarn.put(key, now);
 		notifier.notify("Runecraft Companion: " + message);
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff3030>RC Companion:</col> " + message, null);
+		return true;
 	}
 
 	// ---------- essence pouches ----------
@@ -3027,6 +3056,10 @@ public class RunecraftCompanionPlugin extends Plugin
 
 	Color teleportHighlight(int itemId, int slot)
 	{
+		if (essenceUsedUp && itemId == RuneIds.BLOOD_ESSENCE)
+		{
+			return PouchOverlay.REPAIR;   // the new blood essence to activate (orange, like a warning)
+		}
 		if (!helpersOn())
 		{
 			return null;

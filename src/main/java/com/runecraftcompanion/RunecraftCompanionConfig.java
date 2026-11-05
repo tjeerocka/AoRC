@@ -225,7 +225,8 @@ public interface RunecraftCompanionConfig extends Config
 	@ConfigItem(
 		keyName = "warnLowCharges",
 		name = "Blood essence almost empty",
-		description = "Warn when your blood essence has about 100 charges or less left",
+		description = "Warn when your blood essence has about 100 charges or less left (each time it goes down, at most once a minute), "
+			+ "and when it is used up: a new blood essence in your inventory is highlighted until you activate it",
 		section = warnSection,
 		position = 34
 	)
